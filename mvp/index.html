@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Continuum</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=27" />
+  </head>
+  <body>
+    <nav class="nav">
+      <span class="brand"><i></i>CONTINUUM</span>
+      <div class="links">
+        <a href="#how">How it works</a>
+        <a href="#concurrency">Concurrency</a>
+        <a href="#reliability">Reliability</a>
+      </div>
+      <span class="tag">Qualcomm capstone</span>
+    </nav>
+
+    <header class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Arduino Uno Q cluster</span>
+        <h1>Run one AI agent across a cluster of small boards.</h1>
+        <p class="lede">A conductor board breaks each goal into steps and hands them to worker boards. Adding a board adds capacity, and losing a board loses no work.</p>
+        <dl class="stats">
+          <div><dt>6</dt><dd>boards</dd></div>
+          <div><dt>40</dt><dd>tasks at once</dd></div>
+          <div><dt>+10</dt><dd>slots per added board</dd></div>
+          <div><dt>0</dt><dd>tasks lost on failure</dd></div>
+        </dl>
+      </div>
+
+      <figure class="card live">
+        <h2>A worker fails, the rest absorb its tasks <em id="clock">t+00.0s</em></h2>
+        <svg id="failover" viewBox="0 4 640 440"></svg>
+        <div class="counters">
+          <span>running <b id="cRun">40/40</b></span>
+          <span>queued <b id="cQueue">0</b></span>
+          <span>lost <b>0</b></span>
+          <span>duplicated <b>0</b></span>
+        </div>
+        <ul id="log"></ul>
+        <figcaption>Each worker has 10 slots and normally fills 8. Workers send the conductor a heartbeat every second (green dots). When one goes quiet for 2 seconds, its lease expires, its 8 tasks return to the queue from their last checkpoint, and the spare slots on the other four boards take 2 each (amber).</figcaption>
+      </figure>
+    </header>
+
+    <footer class="foot">
+      <span class="brand"><i></i>CONTINUUM</span>
+      <span>Qualcomm capstone prototype · simulated cluster data</span>
+    </footer>
+    <script src="app.js?v=27"></script>
+  </body>
+</html>
