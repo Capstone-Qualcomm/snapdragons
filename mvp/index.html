@@ -46,6 +46,27 @@
       </figure>
     </header>
 
+    <section class="how" id="how">
+      <h3>How it works</h3>
+      <ol>
+        <li><b>01</b><strong>A goal comes in</strong>For example, "get the Qualcomm demo ready by Thursday."</li>
+        <li><b>02</b><strong>The conductor splits it</strong>Fetch Slack, read Notion, run tests, draft the update.</li>
+        <li><b>03</b><strong>Free boards pick up steps</strong>Each step goes to whichever board has an open slot, so many tasks run at once.</li>
+        <li><b>04</b><strong>Failures are absorbed</strong>Boards send heartbeats and checkpoints. If one goes quiet, its steps resume on another board.</li>
+      </ol>
+    </section>
+
+    <section class="band" id="concurrency">
+      <div class="band-copy">
+        <span class="eyebrow">Concurrency</span>
+        <h3>Steps from different tasks share the same boards.</h3>
+        <p>Q-02 is busy with Slack for task T01, so when T03 also needs Slack, the conductor sends that fetch to Q-04. Q-03 needs Q-02's Slack result before it can summarize T01, so it waits. Every other board keeps working.</p>
+      </div>
+      <div class="card">
+        <svg id="delegation" viewBox="0 4 640 440"></svg>
+      </div>
+    </section>
+
     <footer class="foot">
       <span class="brand"><i></i>CONTINUUM</span>
       <span>Qualcomm capstone prototype · simulated cluster data</span>
