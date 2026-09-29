@@ -75,3 +75,71 @@ function box(g, p, size, cls = "box") {
   });
 }
 
+/* ---------- failover (animated) ---------- */
+const svg = document.getElementById("failover");
+arrowDefs(svg, "a2", "arrow-dim");
+const spokes = POS.map((p) => spoke(svg, p, "spoke", "a2"));
+const packets = el("g", {}, svg);
+
+function metrics(g, x, y, w) {
+  const out = {};
+  ["cpu", "mem"].forEach((k, j) => {
+    const yy = y + j * 22;
+    txt(g, x, yy + 9, k.toUpperCase(), "muted", "start");
+    el("rect", { x: x + 40, y: yy, width: w - 96, height: 9, rx: 2, class: "bar-bg" }, g);
+    out[k] = el("rect", { x: x + 40, y: yy, width: 0, height: 9, rx: 2, class: `bar-fg ${k}` }, g);
+    out[k + "T"] = txt(g, x + w, yy + 9, "0%", "", "end");
+    out[k + "W"] = w - 96;
+  });
+  return out;
+}
+
+const coreG = el("g", { class: "node" }, svg);
+box(coreG, C, CORE, "box core");
+txt(coreG, C.x - CORE.w / 2 + 14, C.y - 24, "Q-01 CONDUCTOR", "big", "start");
+const queueT = txt(svg, C.x, C.y + CORE.h / 2 + 22, "queue 0", "muted");
+const coreM = metrics(coreG, C.x - CORE.w / 2 + 14, C.y - 2, CORE.w - 28);
+
+const nodes = WORKERS.map((id, i) => {
+  const p = POS[i], g = el("g", { class: "node" }, svg);
+  box(g, p, BOX);
+  txt(g, p.x - BOX.w / 2 + 14, p.y - 34, id, "big", "start");
+  const countT = txt(g, p.x + BOX.w / 2 - 14, p.y - 34, "8 tasks", "muted", "end");
+  const m = metrics(g, p.x - BOX.w / 2 + 14, p.y - 16, BOX.w - 28);
+  const pips = Array.from({ length: SLOTS }, (_, k) => el("rect", { x: p.x - BOX.w / 2 + 14 + k * 16.6, y: p.y + 30, width: 12, height: 12, rx: 2, class: "pip" }, g));
+  return { id, p, g, countT, m, pips, tasks: 8, state: "ok", cpu: 0, mem: 0 };
+});
+const core = { m: coreM, cpu: 0, mem: 0, queue: 0 };
+
+function drawMetrics(n, cpuT, memT) {
+  n.cpu += (cpuT - n.cpu) * 0.06;
+  n.mem += (memT - n.mem) * 0.04;
+  n.m.cpu.setAttribute("width", (n.m.cpuW * n.cpu) / 100);
+  n.m.mem.setAttribute("width", (n.m.memW * n.mem) / 100);
+  n.m.cpuT.textContent = cpuT === 0 && n.cpu < 1 ? "—" : Math.round(n.cpu) + "%";
+  n.m.memT.textContent = memT === 0 && n.mem < 1 ? "—" : Math.round(n.mem) + "%";
+}
+
+// Moving dots. Each tween interpolates a straight line; done() fires on arrival.
+const tweens = [];
+function send(from, to, dur, cls, done, delay = 0) {
+  const c = el("circle", { r: cls === "beat" ? 2.5 : 5, class: cls, cx: from.x, cy: from.y, opacity: 0 }, packets);
+  tweens.push({ c, from, to, dur, t0: performance.now() + delay, done });
+}
+
+const logEl = document.getElementById("log");
+function log(msg, bad) {
+  const li = document.createElement("li");
+  if (bad) li.className = "bad";
+  li.innerHTML = `<span>${clock.textContent.slice(2)}</span>${msg}`;
+  logEl.prepend(li);
+  while (logEl.children.length > 3) logEl.lastChild.remove();
+}
+
+const clock = document.getElementById("clock");
+const cRun = document.getElementById("cRun");
+const cQueue = document.getElementById("cQueue");
+let t0 = performance.now(), victim, fired;
+
+const range = (i) => `T${String(i * 8 + 1).padStart(2, "0")}–T${String(i * 8 + 8).padStart(2, "0")}`;
+
