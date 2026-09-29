@@ -40,3 +40,38 @@ function box(g, p, size, cls = "box") {
   return el("rect", { x: p.x - size.w / 2, y: p.y - size.h / 2, width: size.w, height: size.h, rx: 6, class: cls }, g);
 }
 
+/* ---------- delegation (static) ---------- */
+{
+  const svg = document.getElementById("delegation");
+  arrowDefs(svg, "a1", "arrow");
+  const jobs = {
+    "Q-02": [["SLACK", "T01"], ["NOTION", "T04"]],
+    "Q-03": [["SUMMARIZE", "T01"], ["waiting on Q-02", ""]],
+    "Q-04": [["SLACK", "T03"], ["GITHUB", "T02 ✓"]],
+    "Q-05": [["TESTS", "T02"], ["JIRA", "T03"]],
+    "Q-06": [["NOTION", "T01"], ["MODEL", "T05"]],
+  };
+  POS.forEach((p) => spoke(svg, p, "spoke hot", "a1"));
+  // Q-02 → Q-03 data dependency, drawn edge to edge
+  const a = POS[0], b = POS[1];
+  const s = { x: a.x + BOX.w / 2, y: a.y }, e = { x: b.x, y: b.y - BOX.h / 2 };
+  el("path", { d: `M${s.x} ${s.y} Q${e.x} ${s.y} ${e.x} ${e.y}`, class: "dep", "marker-end": "url(#a1)" }, svg);
+  txt(svg, s.x + 14, s.y - 10, "Slack result → T01", "muted", "start");
+
+  const core = el("g", {}, svg);
+  box(core, C, CORE, "box core");
+  txt(core, C.x, C.y - 16, "Q-01", "muted");
+  txt(core, C.x, C.y + 4, "CONDUCTOR", "big");
+  txt(core, C.x, C.y + 26, "splits goals", "muted");
+
+  WORKERS.forEach((id, i) => {
+    const p = POS[i], g = el("g", {}, svg);
+    box(g, p, BOX, id === "Q-03" ? "box wait" : "box");
+    txt(g, p.x - BOX.w / 2 + 14, p.y - 26, id, "big", "start");
+    jobs[id].forEach(([k, t], j) => {
+      txt(g, p.x - BOX.w / 2 + 14, p.y + 6 + j * 24, k, j === 1 && id === "Q-03" ? "muted" : "", "start");
+      txt(g, p.x + BOX.w / 2 - 14, p.y + 6 + j * 24, t, "muted", "end");
+    });
+  });
+}
+
