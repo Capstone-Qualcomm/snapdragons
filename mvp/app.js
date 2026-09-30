@@ -143,3 +143,74 @@ let t0 = performance.now(), victim, fired;
 
 const range = (i) => `T${String(i * 8 + 1).padStart(2, "0")}–T${String(i * 8 + 8).padStart(2, "0")}`;
 
+function reset() {
+  t0 = performance.now();
+  fired = new Set();
+  victim = Math.floor(Math.random() * WORKERS.length);
+  nodes.forEach((n) => { n.tasks = 8; n.state = "ok"; });
+  core.queue = 0;
+  logEl.innerHTML = "";
+}
+
+// Script of the loop: [ms, action]
+const SCRIPT = [
+  [200, () => log("40 tasks on 50 slots, 8 of 10 used per worker")],
+  [4500, () => { const v = nodes[victim]; v.state = "suspect"; log(`${v.id} missed heartbeat`, true); }],
+  [6500, () => {
+    const v = nodes[victim];
+    v.state = "down"; core.queue = v.tasks; v.tasks = 0;
+    log(`${v.id} lease expired, ${range(victim)} requeued from checkpoint`, true);
+  }],
+  [8000, () => {
+    const alive = nodes.filter((n) => n.state === "ok");
+    alive.forEach((n, k) => [0, 1].forEach((j) => send(C, n.p, 1100, "packet", () => { n.tasks++; core.queue--; }, (k * 2 + j) * 160)));
+    log(`queue drained to ${alive.map((n) => n.id).join(", ")}`);
+  }],
+  [10600, () => log("40/40 running on 4 boards · 0 lost · 0 duplicated")],
+  [15500, () => { const v = nodes[victim]; v.state = "ok"; log(`${v.id} rejoined as worker, takes new tasks only`); }],
+];
+const LOOP = 20000;
+
+let lastBeat = 0;
+function frame(now) {
+  const t = now - t0;
+  if (t > LOOP) reset();
+  clock.textContent = `t+${(t / 1000).toFixed(1).padStart(4, "0")}s`;
+  SCRIPT.forEach(([at, fn], i) => { if (t >= at && !fired.has(i)) { fired.add(i); fn(); } });
+
+  // heartbeats from every live worker, once a second
+  if (now - lastBeat > 1000) {
+    lastBeat = now;
+    nodes.forEach((n) => n.state !== "down" && send(edge(n.p, BOX.w, BOX.h, C.x, C.y), edge(C, CORE.w, CORE.h, n.p.x, n.p.y), 700, "beat"));
+  }
+
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const w = tweens[i], k = (now - w.t0) / w.dur;
+    if (k < 0) continue;
+    const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+    w.c.setAttribute("cx", w.from.x + (w.to.x - w.from.x) * Math.min(e, 1));
+    w.c.setAttribute("cy", w.from.y + (w.to.y - w.from.y) * Math.min(e, 1));
+    w.c.setAttribute("opacity", k > 0.9 ? (1 - k) * 10 : 1);
+    if (k >= 1) { w.c.remove(); tweens.splice(i, 1); w.done && w.done(); }
+  }
+
+  const running = nodes.reduce((s, n) => s + n.tasks, 0);
+  nodes.forEach((n, i) => {
+    n.g.setAttribute("class", `node ${n.state}`);
+    spokes[i].setAttribute("class", `spoke ${n.state === "down" ? "down" : ""}`);
+    n.countT.textContent = n.state === "down" ? "offline" : `${n.tasks}/${SLOTS} slots`;
+    n.pips.forEach((r, k) => r.setAttribute("class", n.state === "down" ? "pip off" : k < Math.min(n.tasks, 8) ? "pip on" : k < n.tasks ? "pip new" : "pip"));
+    const live = n.state !== "down";
+    const wobble = Math.sin(now / 700 + i * 1.7) * 4 + Math.sin(now / 310 + i) * 2;
+    drawMetrics(n, live ? 22 + n.tasks * 6.2 + wobble : 0, live ? 26 + n.tasks * 4.1 + wobble / 3 : 0);
+  });
+  drawMetrics(core, 18 + core.queue * 5 + Math.sin(now / 500) * 3, 38 + core.queue * 2);
+  queueT.textContent = `queue ${core.queue}`;
+  queueT.setAttribute("class", core.queue ? "amber" : "muted");
+  cRun.textContent = `${running}/40`;
+  cQueue.textContent = core.queue;
+  requestAnimationFrame(frame);
+}
+reset();
+requestAnimationFrame(frame);
+
