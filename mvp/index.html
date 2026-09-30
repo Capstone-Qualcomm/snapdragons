@@ -67,6 +67,38 @@
       </div>
     </section>
 
+    <section class="features" id="reliability">
+      <div class="features-head">
+        <span class="eyebrow">Scaling and reliability</span>
+        <h3>More boards, more capacity. Fewer boards, same result.</h3>
+      </div>
+      <div class="feature-grid">
+        <article class="card">
+          <h2>Resume from checkpoint</h2>
+          <p>Q-04 saves progress after every step. It dies during test 2, so Q-06 starts at test 2 instead of redoing the diff, lint and test 1.</p>
+          <svg id="checkpoint" viewBox="0 0 370 190"></svg>
+        </article>
+        <article class="card">
+          <h2>Conductor fails, majority elects</h2>
+          <p>Conductor is a role, not a fixed board. When Q-01 goes quiet the rest vote, and taking over needs 4 of 6 votes, so two conductors never run at once.</p>
+          <svg id="election" viewBox="0 0 420 190"></svg>
+        </article>
+        <article class="card">
+          <h2>External actions run once</h2>
+          <p>Before a Slack post or PR comment runs, its key is written to the shared log. A retry after failover finds the key and skips.</p>
+          <table class="ledger">
+            <thead><tr><th>key</th><th>action</th><th>node</th><th>result</th></tr></thead>
+            <tbody>
+              <tr><td>a184</td><td>post Slack update</td><td>Q-04</td><td class="ok">committed</td></tr>
+              <tr class="bad"><td>—</td><td>Q-04 fails</td><td></td><td></td></tr>
+              <tr><td>a184</td><td>retry after failover</td><td>Q-02</td><td class="skip">skipped</td></tr>
+              <tr><td>a185</td><td>comment on PR</td><td>Q-02</td><td class="ok">committed</td></tr>
+            </tbody>
+          </table>
+        </article>
+      </div>
+    </section>
+
     <footer class="foot">
       <span class="brand"><i></i>CONTINUUM</span>
       <span>Qualcomm capstone prototype · simulated cluster data</span>

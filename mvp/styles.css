@@ -61,3 +61,30 @@ h1 { margin: 0; font-size: clamp(36px, 3.8vw, 56px); font-weight: 600; letter-sp
 
 .band { display: grid; grid-template-columns: 1fr minmax(0, 620px); gap: clamp(32px, 4vw, 64px); align-items: center; padding: 40px var(--gutter); }
 .band-copy p { margin: 20px 0 0; max-width: 500px; font-size: 16px; line-height: 1.6; color: var(--muted); }
+
+.features { padding: 40px var(--gutter) 48px; background: var(--bg-2); border-top: 1px solid var(--line); }
+.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
+.feature-grid .card { display: flex; flex-direction: column; }
+.feature-grid svg, .feature-grid .ledger { margin-top: auto; }
+
+svg { width: 100%; height: auto; display: block; font-family: var(--mono); }
+svg text { fill: var(--text); font-size: 14px; }
+svg .muted { fill: var(--muted); }
+svg .dim { fill: var(--dim); }
+svg .big { font-size: 16px; font-weight: 700; }
+svg .red { fill: var(--red); }
+svg .amber { fill: var(--amber); }
+svg .x { font-size: 20px; }
+.feature-grid svg text { font-size: 12px; }
+.feature-grid svg .big { font-size: 13px; }
+.box { fill: var(--panel); stroke: var(--line-2); stroke-width: 1; }
+.box.core { stroke: var(--blue); stroke-width: 1.5; }
+.box.wait { stroke: var(--amber); stroke-dasharray: 4 3; }
+.spoke { stroke: var(--line-2); stroke-width: 1.2; fill: none; }
+.spoke.hot { stroke: var(--blue); }
+.dep { stroke: var(--amber); stroke-width: 1.2; stroke-dasharray: 5 4; fill: none; }
+.arrow { fill: var(--blue); }
+.arrow-dim { fill: var(--line-2); }
+.bar-bg { fill: #25262c; }
+.bar-fg { fill: var(--blue); }
+.bar-fg.mem { fill: #a193ff; }
