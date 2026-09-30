@@ -214,3 +214,51 @@ function frame(now) {
 reset();
 requestAnimationFrame(frame);
 
+/* ---------- checkpoint (static) ---------- */
+{
+  const s = document.getElementById("checkpoint");
+  arrowDefs(s, "a3", "arrow");
+  const steps = ["diff", "lint", "test 1", "test 2", "comment"];
+  const X = (i) => 80 + i * 64, Y = [72, 142];
+  txt(s, 10, 22, "T02 PR review", "muted", "start");
+  steps.forEach((st, i) => txt(s, X(i), 46, st, "muted"));
+  txt(s, 10, Y[0] + 4, "Q-04", "", "start");
+  txt(s, 10, Y[1] + 4, "Q-06", "", "start");
+  Y.forEach((y) => el("line", { x1: X(0), y1: y, x2: X(4), y2: y, class: "spoke" }, s));
+  steps.forEach((_, i) => {
+    if (i < 3) el("circle", { cx: X(i), cy: Y[0], r: 6, class: "bar-fg" }, s);
+    if (i >= 3) el("circle", { cx: X(i), cy: Y[1], r: 6, class: "bar-fg" }, s);
+    if (i < 3) el("circle", { cx: X(i), cy: Y[1], r: 5, class: "box" }, s);
+  });
+  txt(s, X(3), Y[0] + 7, "✕", "red x");
+  const cx = (X(2) + X(3)) / 2;
+  el("line", { x1: cx, y1: 56, x2: cx, y2: 170, class: "dep" }, s);
+  txt(s, cx, 184, "checkpoint", "muted");
+  el("path", { d: `M${X(2) + 8} ${Y[0] + 6} Q${cx} ${Y[0] + 50} ${X(3) - 9} ${Y[1] - 4}`, class: "dep", "marker-end": "url(#a3)" }, s);
+}
+
+/* ---------- election (static) ---------- */
+{
+  const s = document.getElementById("election");
+  arrowDefs(s, "a4", "arrow");
+  const c = { x: 110, y: 98 }, r = 70;
+  const ids = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
+  const pts = ids.map((_, i) => {
+    const a = ((-90 + i * 60) * Math.PI) / 180;
+    return { x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) };
+  });
+  const lead = pts[1];
+  pts.slice(2).forEach((p) => {
+    const d = Math.hypot(lead.x - p.x, lead.y - p.y), u = { x: (lead.x - p.x) / d, y: (lead.y - p.y) / d };
+    el("line", { x1: p.x + u.x * 17, y1: p.y + u.y * 17, x2: lead.x - u.x * 19, y2: lead.y - u.y * 19, class: "spoke hot", "marker-end": "url(#a4)" }, s);
+  });
+  pts.forEach((p, i) => {
+    el("circle", { cx: p.x, cy: p.y, r: 16, class: i === 1 ? "box core" : "box", style: i === 0 ? "stroke: var(--red)" : "" }, s);
+    txt(s, p.x, p.y + 4, ids[i].slice(2), i === 0 ? "red" : i === 1 ? "big" : "");
+  });
+  txt(s, pts[0].x + 22, pts[0].y - 8, "no heartbeat", "red", "start");
+  [["term", "7 → 8"], ["elected", "Q-02"], ["votes", "5 of 6, 4 needed"], ["Q-01", "rejoins as worker"]].forEach(([k, v], i) => {
+    txt(s, 214, 58 + i * 30, k, "muted", "start");
+    txt(s, 214 + 64, 58 + i * 30, v, "", "start");
+  });
+}
