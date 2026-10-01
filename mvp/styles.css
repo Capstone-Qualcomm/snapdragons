@@ -88,3 +88,44 @@ svg .x { font-size: 20px; }
 .bar-bg { fill: #25262c; }
 .bar-fg { fill: var(--blue); }
 .bar-fg.mem { fill: #a193ff; }
+.packet { fill: var(--amber); }
+.beat { fill: var(--green); }
+.pip { fill: none; stroke: var(--line-2); }
+.pip.on { fill: var(--blue); stroke: var(--blue); fill-opacity: 0.7; }
+.pip.new { fill: var(--amber); stroke: var(--amber); }
+.pip.off { stroke: var(--dim); stroke-dasharray: 2 2; }
+
+.node .box { transition: stroke 0.4s; }
+.node.suspect .box { stroke: var(--red); stroke-dasharray: 4 3; }
+.node.down .box { stroke: var(--red); }
+.node.down { opacity: 0.55; }
+.node.down text:not(.red) { fill: var(--dim); }
+.node.down .bar-fg { fill: var(--dim); }
+.spoke.down { stroke: var(--red); stroke-dasharray: 3 5; }
+
+.counters { display: flex; flex-wrap: wrap; gap: 22px; font-family: var(--mono); font-size: 13px; color: var(--muted); padding: 12px 0; border-top: 1px solid var(--line); }
+.counters b { color: var(--text); margin-left: 6px; }
+.counters span:nth-child(3) b, .counters span:nth-child(4) b { color: var(--green); }
+#log { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 13px; height: 60px; overflow: hidden; }
+#log li { padding: 3px 0; color: var(--dim); display: flex; gap: 14px; }
+#log li:first-child { color: var(--text); }
+#log li.bad:first-child { color: var(--red); }
+#log li span { width: 58px; flex: none; }
+
+.ledger { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+.ledger th { text-align: left; font-weight: 400; color: var(--dim); padding: 0 8px 8px 0; border-bottom: 1px solid var(--line-2); }
+.ledger td { padding: 9px 8px 9px 0; border-bottom: 1px solid var(--line); }
+.ledger .ok { color: var(--green); }
+.ledger .skip { color: var(--amber); }
+.ledger tr.bad td { color: var(--red); }
+
+.foot { display: flex; justify-content: space-between; align-items: center; padding: 20px var(--gutter); border-top: 1px solid var(--line); font-size: 13px; color: var(--dim); }
+
+@media (max-width: 1100px) {
+  .hero, .band { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .how ol { grid-template-columns: 1fr 1fr; }
+  .feature-grid { grid-template-columns: 1fr; }
+  .links { display: none; }
+}
+@media (max-width: 600px) { .how ol { grid-template-columns: 1fr; } }
