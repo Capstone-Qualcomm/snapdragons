@@ -19,3 +19,9 @@ CS 620 capstone, Qualcomm Team 1. Persistent agent runtime that scales out acros
 5. Clone: `gh repo clone Sanyam-G/snapdragons`
 
 ## Workflow
+
+1. Pull before starting: `git checkout main && git pull`
+2. Branch off `main` for each task: `git checkout -b yourname/short-description`
+3. Commit small, push, open a pull request into `main`
+4. One teammate reviews before merging
+5. Don't commit secrets. Put keys in `.env` (already gitignored)
