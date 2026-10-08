@@ -1,0 +1,136 @@
+.topbar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  height: 60px;
+  align-items: center;
+  gap: 40px;
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: rgb(12 13 15 / 92%);
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 30px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow:
+    14px 0 0 var(--green),
+    28px 0 0 var(--amber);
+}
+
+.nav-links {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  gap: 28px;
+}
+
+.nav-link {
+  position: relative;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--text);
+}
+
+.nav-link.active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--blue);
+  content: "";
+}
+
+.about-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  margin-left: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.about-button:hover {
+  border-color: var(--blue);
+  color: var(--text);
+}
+
+.view-content {
+  min-height: calc(100vh - 60px);
+  padding: 24px var(--gutter) 32px;
+}
+
+@media (max-width: 850px) {
+  .topbar {
+    gap: 24px;
+  }
+
+  .nav-links {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    height: 58px;
+    gap: 16px;
+    padding-inline: 16px;
+  }
+
+  .brand {
+    gap: 7px;
+    font-size: 11px;
+  }
+
+  .brand-mark {
+    margin-right: 19px;
+    transform: scale(0.8);
+  }
+
+  .nav-links {
+    gap: 13px;
+  }
+
+  .nav-link {
+    font-size: 12px;
+  }
+
+  .view-content {
+    padding: 18px 16px 24px;
+  }
+}
