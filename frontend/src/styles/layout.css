@@ -90,6 +90,21 @@
   color: var(--text);
 }
 
+.settings-nav-button {
+  margin-left: auto;
+  border: 0;
+  border-radius: 6px;
+  font-size: 17px;
+}
+
+.settings-nav-button + .about-button {
+  margin-left: 0;
+}
+
+.settings-nav-button.active {
+  color: var(--blue);
+}
+
 .view-content {
   min-height: calc(100vh - 60px);
   padding: 24px var(--gutter) 32px;

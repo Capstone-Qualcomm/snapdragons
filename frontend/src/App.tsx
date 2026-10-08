@@ -3,14 +3,15 @@ import { ConsolePage } from "./pages/Console/Console";
 import { LogsPage } from "./pages/Logs/Logs";
 import { ReportPage } from "./pages/Report/Report";
 import { About } from "./components/About/About";
+import { SettingsPage } from "./pages/Settings/Settings";
 
-type View = "Console" | "Report" | "Logs";
+type View = "Console" | "Report" | "Logs" | "Settings";
 
-const views: View[] = ["Console", "Report", "Logs"];
+const navViews: View[] = ["Console", "Report", "Logs"];
 
 function viewFromPath(path: string): View {
   const pathView = path.split("/").filter(Boolean).at(-1)?.toLowerCase();
-  return views.find((view) => view.toLowerCase() === pathView) ?? "Console";
+  return [...navViews, "Settings"].find((view) => view.toLowerCase() === pathView) ?? "Console";
 }
 
 function App() {
@@ -62,7 +63,7 @@ function App() {
           <span>CONTINUUM</span>
         </a>
         <nav className="nav-links" aria-label="Main navigation">
-          {views.map((item) => (
+          {navViews.map((item) => (
             <button
               className={view === item ? "nav-link active" : "nav-link"}
               key={item}
@@ -73,13 +74,10 @@ function App() {
             </button>
           ))}
         </nav>
-        <button
-          className="about-button"
-          type="button"
-          aria-label="About"
-          title="About"
-          onClick={() => setAboutOpen(true)}
-        >
+        <button className={`about-button settings-nav-button ${view === "Settings" ? "active" : ""}`} type="button" aria-label="Settings" title="Settings" onClick={() => navigateTo("Settings")}>
+          ⚙
+        </button>
+        <button className="about-button" type="button" aria-label="About" title="About" onClick={() => setAboutOpen(true)}>
           ?
         </button>
       </header>
@@ -90,6 +88,7 @@ function App() {
         {view === "Console" && <ConsolePage />}
         {view === "Report" && <ReportPage />}
         {view === "Logs" && <LogsPage />}
+        {view === "Settings" && <SettingsPage />}
       </section>
     </main>
   );
