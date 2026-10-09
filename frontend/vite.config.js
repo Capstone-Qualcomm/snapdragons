@@ -5,6 +5,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Slack only redirects to HTTPS, so local Slack testing goes through a Cloudflare tunnel.
+    allowedHosts: [".trycloudflare.com"],
     proxy: {
       "/api": "http://127.0.0.1:3001",
       "/auth": "http://127.0.0.1:3001",

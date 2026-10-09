@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import "./Report.css";
+import { SlackMessages } from "./SlackMessages";
 
 type JiraIssue = {
   key: string;
@@ -130,6 +131,7 @@ export function ReportPage() {
           </div>
         )}
       </div>
+      <SlackMessages />
     </section>
   );
 }

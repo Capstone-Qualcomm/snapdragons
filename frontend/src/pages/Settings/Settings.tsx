@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import "./Settings.css";
+import { SlackCard } from "./SlackCard";
 
 type JiraConnection = {
   configured: boolean;
@@ -180,6 +181,8 @@ export function SettingsPage() {
           </button>
         </div>
       </section>
+
+      <SlackCard />
     </section>
   );
 }
