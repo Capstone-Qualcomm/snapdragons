@@ -2,8 +2,8 @@
 
 The backend keeps its entry point at the root, shared runtime code in `core/`, and groups provider-specific code by responsibility:
 
-- `core/` contains shared HTTP helpers and browser session handling.
-- `integrations/<provider>/` contains app authorization, API access, and provider connection state. Jira is in `integrations/jira/`.
+- `core/` contains shared HTTP helpers, browser session handling, and the encrypted connection store each provider uses.
+- `integrations/<provider>/` contains app authorization, API access, and provider connection state. Jira is in `integrations/jira/`, Slack in `integrations/slack/`.
 - `mcp/<provider>/` contains the MCP adapter for a provider. Jira's stdio MCP server is in `mcp/jira/`.
 - `server.mjs` is the HTTP entry point and delegates provider routes to the integration router.
 
