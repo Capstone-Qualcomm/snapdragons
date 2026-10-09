@@ -7,7 +7,7 @@
   align-items: center;
   gap: 40px;
   padding: 0 var(--gutter);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
   background: var(--topbar);
 }
 
@@ -17,9 +17,9 @@
   gap: 10px;
   color: var(--text);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.05em;
   text-decoration: none;
 }
 
@@ -28,11 +28,25 @@
   width: 10px;
   height: 10px;
   margin-right: 30px;
-  border-radius: 50%;
+  border-radius: 3px;
   background: var(--blue);
   box-shadow:
     14px 0 0 var(--green),
     28px 0 0 var(--amber);
+}
+
+.brand:hover .brand-mark {
+  animation: hop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes hop {
+  40% { transform: translateY(-4px) rotate(-6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand:hover .brand-mark {
+    animation: none;
+  }
 }
 
 .nav-links {
@@ -50,7 +64,10 @@
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .nav-link:hover,
@@ -58,15 +75,11 @@
   color: var(--text);
 }
 
-.nav-link.active::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
-  background: var(--blue);
-  content: "";
+.nav-link.active {
+  text-decoration: underline wavy var(--blue) 1.5px;
+  text-underline-offset: 7px;
 }
+
 
 .about-button {
   display: grid;
@@ -76,7 +89,7 @@
   place-items: center;
   margin-left: auto;
   border: 1px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -92,7 +105,7 @@
 .settings-nav-button {
   margin-left: auto;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 17px;
 }
 
@@ -114,7 +127,21 @@
     gap: 24px;
   }
 
-  .nav-links {
+  .brand:hover .brand-mark {
+  animation: hop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes hop {
+  40% { transform: translateY(-4px) rotate(-6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand:hover .brand-mark {
+    animation: none;
+  }
+}
+
+.nav-links {
     gap: 18px;
   }
 }
@@ -136,12 +163,31 @@
     transform: scale(0.8);
   }
 
-  .nav-links {
+  .brand:hover .brand-mark {
+  animation: hop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes hop {
+  40% { transform: translateY(-4px) rotate(-6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand:hover .brand-mark {
+    animation: none;
+  }
+}
+
+.nav-links {
     gap: 13px;
   }
 
   .nav-link {
-    font-size: 12px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .brand span:last-child {
+    display: none;
   }
 
   .view-content {

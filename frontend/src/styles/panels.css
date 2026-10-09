@@ -1,7 +1,7 @@
 .node-card,
 .report-panel,
 .log-card {
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
   background: var(--panel);
 }
@@ -10,7 +10,7 @@
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--dim);
 }
 
@@ -22,4 +22,9 @@
   gap: 11px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
+}
+
+/* No board yet, so the slot is only sketched. */
+.node-card {
+  border-style: dashed;
 }

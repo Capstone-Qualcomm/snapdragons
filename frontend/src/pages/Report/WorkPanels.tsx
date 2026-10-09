@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import type { JiraIssue, SlackMessage, Source } from "./useSource";
 import { ago } from "./useSource";
 
@@ -14,6 +15,16 @@ function SourceState({ source, empty }: { source: Source<unknown>; empty: string
   return null;
 }
 
+const stickers = ["#f2c7a8", "#cfdcae", "#f3dc9b", "#e3c3d6", "#bfdcd6"];
+
+// Same person, same sticker color and tilt every time.
+function sticker(name: string) {
+  let hash = 2166136261;
+  for (const char of name) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  hash >>>= 0;
+  return { "--sticker": stickers[(hash >>> 8) % stickers.length], "--tilt": `${((hash % 7) - 3) * 1.2}deg` } as CSSProperties;
+}
+
 function initials(name: string) {
   const parts = name.replace(/[^\p{L}\s]/gu, " ").trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
@@ -21,8 +32,8 @@ function initials(name: string) {
 
 function SlackRow({ message, now }: { message: SlackMessage; now: number }) {
   return (
-    <li className="work-row">
-      <span className="avatar" aria-hidden="true">{initials(message.from)}</span>
+    <li className={`work-row is-${message.kind}`}>
+      <span className="avatar" aria-hidden="true" style={sticker(message.from)}>{initials(message.from)}</span>
       <div className="work-main">
         <div className="work-meta">
           <span className="work-title">{message.from}</span>
@@ -33,7 +44,7 @@ function SlackRow({ message, now }: { message: SlackMessage; now: number }) {
           {message.text.split(/(@you\b)/).map((part, index) => (part === "@you" ? <mark key={index}>@you</mark> : part))}
         </p>
       </div>
-      <a className="row-action" href={message.url} target="_blank" rel="noreferrer">Reply in Slack</a>
+      <a className="row-action" href={message.url} target="_blank" rel="noreferrer">Reply ↗</a>
     </li>
   );
 }
@@ -42,8 +53,8 @@ export function SlackPanel({ source, now }: { source: Source<SlackMessage>; now:
   const dms = source.items.filter((message) => message.kind === "dm");
   const mentions = source.items.filter((message) => message.kind === "mention");
   const groups = [
-    { title: "Needs a reply", hint: "DMs where they spoke last", items: dms },
-    { title: "Mentions", hint: "last 24 hours", items: mentions },
+    { title: "Needs a reply", hint: "they spoke last", items: dms, stamp: true },
+    { title: "Mentions", hint: "last 24 hours", items: mentions, stamp: false },
   ];
 
   return (
@@ -53,10 +64,10 @@ export function SlackPanel({ source, now }: { source: Source<SlackMessage>; now:
         <span className="work-count">{source.status === "ready" ? source.items.length : "–"}</span>
         <span className="work-source">Slack</span>
       </header>
-      <SourceState source={source} empty="Nothing in Slack is waiting on you." />
+      <SourceState source={source} empty="Nobody is waiting on you in Slack. Enjoy it." />
       {source.status === "ready" && groups.map((group) => group.items.length > 0 && (
         <div key={group.title}>
-          <h3 className="work-group">{group.title} <span>{group.items.length}</span> <small>{group.hint}</small></h3>
+          <h3 className="work-group">{group.stamp ? <span className="stamp">{group.title} · {group.items.length}</span> : <>{group.title} <span>{group.items.length}</span></>} <small>{group.hint}</small></h3>
           <ul className="work-list">
             {group.items.map((message) => <SlackRow key={message.id} message={message} now={now} />)}
           </ul>
@@ -87,7 +98,7 @@ export function JiraPanel({ source, now }: { source: Source<JiraIssue>; now: num
           ))}
         </div>
       )}
-      <SourceState source={source} empty="No Jira issues are assigned to you." />
+      <SourceState source={source} empty="Nothing assigned in Jira. Suspiciously quiet." />
       {source.status === "ready" && (
         <ul className="work-list">
           {shown.map((issue) => (
@@ -103,7 +114,7 @@ export function JiraPanel({ source, now }: { source: Source<JiraIssue>; now: num
                   {issue.updated && <time dateTime={issue.updated}>updated {ago(issue.updated, now)}</time>}
                 </div>
               </div>
-              <a className="row-action" href={issue.url} target="_blank" rel="noreferrer">Open in Jira</a>
+              <a className="row-action" href={issue.url} target="_blank" rel="noreferrer">Open ↗</a>
             </li>
           ))}
         </ul>

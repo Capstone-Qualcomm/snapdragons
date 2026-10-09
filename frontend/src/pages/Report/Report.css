@@ -11,8 +11,11 @@
 
 .report-bar h1 {
   margin: 0;
+  font-family: var(--mono);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .report-date {
@@ -32,14 +35,17 @@
   gap: 6px;
   padding: 5px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface-2);
+  border-radius: 7px;
+  background: transparent;
   color: var(--text);
   cursor: pointer;
-  font: inherit;
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
   text-decoration: none;
+  text-transform: uppercase;
   white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
 }
 
 .report-refresh {
@@ -53,6 +59,7 @@
 .panel-state a:hover,
 .filters button:hover {
   border-color: var(--blue);
+  color: var(--blue);
 }
 
 .report-refresh:disabled {
@@ -84,8 +91,8 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
   background: var(--panel);
   list-style: none;
 }
@@ -99,7 +106,7 @@
 }
 
 .stage + .stage {
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--line-strong);
 }
 
 .stage-top {
@@ -112,7 +119,7 @@
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--line-strong);
 }
 
@@ -127,12 +134,14 @@
 
 .stage-name {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 500;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .stage-state {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -157,11 +166,6 @@
   justify-self: start;
   margin-top: 6px;
   padding: 3px 8px;
-  font-size: 11.5px;
-}
-
-.tone-off .stage-action[href^="http"] {
-  font-family: var(--mono);
 }
 
 /* Work lists */
@@ -174,8 +178,9 @@
 
 .work-panel {
   min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
   background: var(--panel);
 }
 
@@ -184,20 +189,23 @@
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
 }
 
 .work-head h2 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .work-count {
-  min-width: 22px;
-  padding: 1px 6px;
-  border-radius: 5px;
-  background: var(--surface-3);
+  min-width: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
   font-family: var(--mono);
   font-size: 12px;
   text-align: center;
@@ -208,6 +216,8 @@
   color: var(--dim);
   font-family: var(--mono);
   font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .filters {
@@ -219,7 +229,8 @@
 }
 
 .filters button {
-  padding: 3px 9px;
+  padding: 3px 11px;
+  border-radius: 999px;
   border-color: var(--line);
   background: transparent;
   color: var(--muted);
@@ -232,6 +243,7 @@
 
 .filters button.is-active {
   border-color: var(--text);
+  background: var(--surface-2);
   color: var(--text);
 }
 
@@ -240,10 +252,13 @@
   align-items: baseline;
   gap: 8px;
   margin: 0;
-  padding: 12px 16px 4px;
+  padding: 14px 16px 6px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .work-group span {
@@ -252,7 +267,8 @@
 
 .work-group small {
   color: var(--dim);
-  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .work-list {
@@ -272,8 +288,65 @@
   border-top: 1px solid var(--line);
 }
 
+.work-row {
+  transition: background-color 0.2s;
+}
+
 .work-row:hover {
   background: var(--surface-2);
+}
+
+.work-row:hover .avatar {
+  transform: rotate(0deg) scale(1.08);
+}
+
+.avatar {
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+/* Things that do not exist yet are sketched: dashed edge, quieter text. */
+.stage.tone-off {
+  margin: 6px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 9px;
+}
+
+.stage.tone-off + .stage,
+.stage + .stage.tone-off {
+  border-left-style: dashed;
+}
+
+/* Rubber stamp, like the guestbook on sanyamgarg.com. */
+.stamp {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1.5px solid var(--blue);
+  border-radius: 4px;
+  color: var(--blue);
+  font-weight: 700;
+  transform: rotate(-2deg);
+}
+
+.report-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.report-keys kbd {
+  margin-right: 5px;
+  padding: 0 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+/* Like the featured rows on sanyamgarg.com: an accent edge marks what needs you. */
+.work-row.is-dm {
+  box-shadow: inset 3px 0 0 var(--blue);
 }
 
 .avatar,
@@ -286,17 +359,20 @@
 .avatar {
   display: grid;
   width: 28px;
-  height: 28px;
+  height: 30px;
   place-items: center;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  color: var(--muted);
+  border: 1px solid rgb(48 36 29 / 12%);
+  border-radius: 9px;
+  background: var(--sticker, var(--surface-2));
+  color: var(--text);
+  transform: rotate(var(--tilt, 0deg));
 }
 
 .issue-key {
-  min-width: 64px;
-  padding-top: 2px;
-  color: var(--blue);
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text);
 }
 
 .work-main {
@@ -315,7 +391,7 @@
 }
 
 .work-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -327,15 +403,15 @@
 
 .work-text {
   margin: 0;
-  color: var(--text-soft);
-  font-size: 13px;
-  line-height: 1.45;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .work-text mark {
   padding: 0 2px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--selection);
   color: var(--text);
 }
@@ -350,13 +426,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .status-pill::before {
   width: 7px;
   height: 7px;
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--line-strong);
   content: "";
 }

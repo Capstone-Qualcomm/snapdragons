@@ -32,13 +32,13 @@ function sourceStage(source: Source<unknown>, now: number): Stage {
     case "error":
       return { name: title, tone: "bad", state: "Failed", detail: source.error, action: { label: "Retry", onClick: () => void source.reload() } };
     case "ready":
-      return { name: title, tone: "ok", state: `${source.items.length} ${noun}`, detail: `Synced ${source.loadedAt ? ago(source.loadedAt, now) : ""}`, action: { label: "Sync", onClick: () => void source.reload() } };
+      return { name: title, tone: "ok", state: `${source.items.length} ${noun}`, detail: `Synced ${source.loadedAt ? ago(source.loadedAt, now) : ""}`, action: { label: "Sync ↻", onClick: () => void source.reload() } };
   }
 }
 
 // Stages that exist only as tickets so far; the ticket is the action.
 function plannedStage(name: string, detail: string, ticket: string): Stage {
-  return { name, tone: "off", state: "Not built yet", detail, action: { label: ticket, href: jiraBrowse + ticket } };
+  return { name, tone: "off", state: "On the workbench", detail, action: { label: `${ticket} ↗`, href: jiraBrowse + ticket } };
 }
 
 function StageCell({ stage }: { stage: Stage }) {
@@ -63,15 +63,15 @@ function StageCell({ stage }: { stage: Stage }) {
 export function Pipeline({ jira, slack, now }: { jira: Source<unknown>; slack: Source<unknown>; now: number }) {
   const groups: Array<{ label: string; stages: Stage[] }> = [
     { label: "Sources", stages: [sourceStage(jira, now), sourceStage(slack, now), plannedStage("Outlook", "Today's email into the list", "QT1S-27")] },
-    { label: "Cluster", stages: [plannedStage("Task queue", "Workers claim tasks from it", "QT1S-8"), plannedStage("Uno Q nodes", "0 of 6 boards connected", "QT1S-11")] },
+    { label: "Cluster", stages: [plannedStage("Task queue", "Workers claim tasks from it", "QT1S-8"), plannedStage("Uno Q nodes", "6 boards in the mail", "QT1S-11")] },
     { label: "Output", stages: [plannedStage("Ranking", "One LLM call orders the list", "QT1S-26")] },
   ];
 
   return (
     <section className="pipeline" aria-label="How the assistant is running">
-      {groups.map((group) => (
+      {groups.map((group, index) => (
         <div className="pipeline-group" key={group.label}>
-          <h2 className="pipeline-label">{group.label}</h2>
+          <h2 className="pipeline-label">{String(index + 1).padStart(2, "0")} {group.label}</h2>
           <ol className="pipeline-stages">
             {group.stages.map((stage) => <StageCell key={stage.name} stage={stage} />)}
           </ol>

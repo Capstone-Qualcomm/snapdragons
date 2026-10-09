@@ -12,7 +12,7 @@ export function ConsolePage() {
             <h1>{node}</h1>
             <span className="node-role">NODE</span>
           </header>
-          <div className="node-empty">Waiting for node connection</div>
+          <div className="node-empty">Board in the mail</div>
         </article>
       ))}
     </div>
