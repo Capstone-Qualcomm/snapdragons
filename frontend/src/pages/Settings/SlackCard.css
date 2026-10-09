@@ -4,7 +4,7 @@
 
 .settings-app-icon.is-slack {
   border-color: var(--line-strong);
-  background: #15161a;
+  background: var(--surface-2);
 }
 
 .slack-card-notice {
@@ -16,7 +16,7 @@
 }
 
 .slack-card-notice.is-error {
-  color: #ff9696;
+  color: var(--danger);
 }
 
 .slack-access {

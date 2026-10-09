@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: #000c;
+  background: var(--overlay);
 }
 
 .about-dialog {
@@ -17,7 +17,7 @@
   padding: 3rem 2rem 2rem;
   border: 1px solid var(--line-strong);
   border-radius: 0.75rem;
-  background: var(--bg);
+  background: var(--panel);
   text-align: center;
 }
 
@@ -42,7 +42,7 @@
   width: 9rem;
   height: 7.5rem;
   object-fit: contain;
-  filter: brightness(0) invert(1);
+  filter: var(--logo-filter);
 }
 
 .uw-madison-mark {

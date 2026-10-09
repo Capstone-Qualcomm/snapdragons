@@ -40,9 +40,9 @@
   height: 38px;
   flex: none;
   place-items: center;
-  border: 1px solid #2855a0;
+  border: 1px solid var(--jira-line);
   border-radius: 9px;
-  background: #142443;
+  background: var(--jira-bg);
 }
 
 .settings-app-icon img {
@@ -123,7 +123,7 @@
   width: 100%;
   border: 1px solid var(--line-strong);
   border-radius: 99px;
-  background: #191a1f;
+  background: var(--surface-3);
   transition: background 120ms ease;
 }
 
@@ -140,8 +140,8 @@
 }
 
 .settings-toggle input:checked + .settings-toggle-track {
-  border-color: #397b65;
-  background: #17392f;
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 20%, var(--panel));
 }
 
 .settings-toggle input:checked + .settings-toggle-track::after {
@@ -172,7 +172,7 @@
   padding: 9px 11px;
   border: 1px solid var(--line-strong);
   border-radius: 7px;
-  background: #111216;
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
 }
@@ -209,8 +209,9 @@
 }
 
 .settings-primary-button {
-  border-color: #3e71c5;
-  background: #1b3767;
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--on-accent);
 }
 
 .settings-primary-button:hover,
@@ -264,7 +265,7 @@
 }
 
 .settings-error {
-  color: #ff9696;
+  color: var(--danger);
 }
 
 .visually-hidden {
