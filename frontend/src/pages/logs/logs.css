@@ -1,5 +1,7 @@
 .logs-grid {
   display: grid;
+  height: calc(100vh - 116px);
+  height: calc(100dvh - 116px);
   min-height: calc(100vh - 116px);
   min-height: calc(100dvh - 116px);
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -11,6 +13,7 @@
   display: flex;
   min-height: 190px;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .log-card h2 {
@@ -31,6 +34,115 @@
   font-size: 12px;
 }
 
+.log-entries {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  list-style: none;
+}
+
+.log-entry {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--panel) 70%, #111216);
+}
+
+.log-entry-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.log-entry-toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.log-entry-carrot {
+  display: grid;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  color: var(--dim);
+  transition: transform 140ms ease;
+}
+
+.log-entry-carrot.is-expanded {
+  transform: rotate(180deg);
+}
+
+.log-entry-carrot svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.log-entry-heading {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.log-entry-heading code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.log-entry-heading time {
+  margin-left: auto;
+  color: var(--dim);
+}
+
+.log-method {
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #253b30;
+  color: #8ad6a6;
+}
+
+.log-method-post {
+  background: #3c3024;
+  color: #e7b979;
+}
+
+.log-entries pre {
+  max-height: 220px;
+  margin: 8px 0 0 21px;
+  overflow: auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 850px) {
   .logs-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -40,6 +152,7 @@
 
 @media (max-width: 560px) {
   .logs-grid {
+    height: auto;
     min-height: auto;
     grid-template-columns: 1fr;
     grid-template-rows: none;

@@ -15,6 +15,12 @@ const pendingStates = new Map();
 let jiraConnection = { connected: false, enabled: false, connectedAt: null, cloudId: null, sites: [], token: null };
 let refreshInFlight = null;
 let customFieldCache = { expiresAt: 0, sprintId: null, storyPointsId: null };
+const jiraLogs = [];
+
+function addJiraLog(method, path, values) {
+  jiraLogs.unshift({ id: randomBytes(8).toString("hex"), timestamp: new Date().toISOString(), node: "Q-01", method, path, values });
+  if (jiraLogs.length > 100) jiraLogs.length = 100;
+}
 
 function send(res, status, data) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -271,7 +277,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && url.pathname === "/api/jira/connection") {
-    send(res, 200, {
+    const result = {
       jira: {
         configured: Boolean(clientId && clientSecret),
         connected: jiraConnection.connected,
@@ -280,7 +286,14 @@ const server = createServer(async (req, res) => {
         cloudId: jiraConnection.cloudId,
         sites: jiraConnection.sites,
       },
-    });
+    };
+    addJiraLog("GET", url.pathname, result);
+    send(res, 200, result);
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/jira/logs") {
+    send(res, 200, { logs: jiraLogs });
     return;
   }
 
@@ -298,7 +311,10 @@ const server = createServer(async (req, res) => {
         return;
       }
       const result = await response.json();
-      send(res, 200, { transitions: (result.transitions ?? []).map(({ id, name, to }) => ({ id, name, status: to?.name ?? name })) });
+      const transitions = (result.transitions ?? []).map(({ id, name, to }) => ({ id, name, status: to?.name ?? name }));
+      const logResult = { transitions };
+      addJiraLog("GET", url.pathname, logResult);
+      send(res, 200, logResult);
     } catch (error) {
       send(res, 502, { error: error instanceof Error ? error.message : "Could not load Jira status transitions." });
     }
@@ -362,6 +378,7 @@ const server = createServer(async (req, res) => {
         send(res, 400, { error: "No changes were provided." });
         return;
       }
+      addJiraLog("POST", url.pathname, { request: { issueKey, changes }, response: { ok: true } });
       send(res, 200, { ok: true });
     } catch (error) {
       send(res, 400, { error: error instanceof Error ? error.message : "Could not update the Jira issue." });
@@ -380,6 +397,7 @@ const server = createServer(async (req, res) => {
     }
     try {
       const issues = await getAssignedIssues();
+      addJiraLog("GET", url.pathname, { issues });
       send(res, 200, { issues });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Jira could not load assigned issues. Please try again.";
