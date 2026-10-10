@@ -26,6 +26,10 @@
   background: var(--panel);
 }
 
+.settings-app-card + .settings-app-card {
+  margin-top: 14px;
+}
+
 .settings-app-header {
   display: flex;
   align-items: center;
@@ -49,6 +53,13 @@
   width: 25px;
   height: 25px;
   object-fit: contain;
+}
+
+.settings-app-icon-slack,
+.settings-app-icon-outlook,
+.settings-app-icon-github {
+  border-color: #3d3e46;
+  background: #f7f7f7;
 }
 
 .settings-app-name {

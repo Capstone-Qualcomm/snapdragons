@@ -180,6 +180,45 @@ export function SettingsPage() {
           </button>
         </div>
       </section>
+
+      <section className="settings-app-card" aria-labelledby="slack-app-title">
+        <div className="settings-app-header">
+          <div className="settings-app-icon settings-app-icon-slack" aria-hidden="true">
+            <img src="/slack-logo.png" alt="" />
+          </div>
+          <div className="settings-app-name">
+            <h2 id="slack-app-title">Slack</h2>
+            <p>Tasks and updates from your Slack workspace</p>
+          </div>
+          <span className="settings-connection-state">Coming soon</span>
+        </div>
+      </section>
+
+      <section className="settings-app-card" aria-labelledby="outlook-app-title">
+        <div className="settings-app-header">
+          <div className="settings-app-icon settings-app-icon-outlook" aria-hidden="true">
+            <img src="/outlook-logo.png" alt="" />
+          </div>
+          <div className="settings-app-name">
+            <h2 id="outlook-app-title">Outlook</h2>
+            <p>Tasks and events from your Outlook account</p>
+          </div>
+          <span className="settings-connection-state">Coming soon</span>
+        </div>
+      </section>
+
+      <section className="settings-app-card" aria-labelledby="github-app-title">
+        <div className="settings-app-header">
+          <div className="settings-app-icon settings-app-icon-github" aria-hidden="true">
+            <img src="/github-logo.png" alt="" />
+          </div>
+          <div className="settings-app-name">
+            <h2 id="github-app-title">GitHub</h2>
+            <p>Issues and pull requests from your repositories</p>
+          </div>
+          <span className="settings-connection-state">Coming soon</span>
+        </div>
+      </section>
     </section>
   );
 }

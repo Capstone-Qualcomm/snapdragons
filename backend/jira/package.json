@@ -1,0 +1,9 @@
+{
+  "name": "snapdragons-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "dev": "node --env-file-if-exists=.env --watch server.mjs"
+  }
+}
