@@ -95,19 +95,72 @@
 }
 
 .report-issue {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 17px 20px;
   border-bottom: 1px solid var(--line);
 }
 
-.report-issue-main {
+.report-issue-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.report-issue-expand {
   display: grid;
-  grid-template-columns: auto 1fr;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.report-issue-expand:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
+.report-issue-expand:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.report-issue-expand svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transition: transform 140ms ease;
+}
+
+.report-issue-expand.is-expanded svg {
+  transform: rotate(180deg);
+}
+
+.report-issue-logo {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+}
+
+.report-issue-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-issue-title {
+  display: flex;
   align-items: baseline;
-  gap: 6px 11px;
+  gap: 8px;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -121,13 +174,17 @@
 .report-issue-main h3 {
   overflow: hidden;
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 500;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.report-issue-type {
-  grid-column: 2;
+.report-issue-separator {
+  flex: none;
+  color: var(--dim);
 }
 
 .report-issue-meta {
@@ -137,6 +194,95 @@
   gap: 14px;
 }
 
+.report-issue-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 36px;
+  padding: 20px 28px 24px 92px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 72%, #101115);
+}
+
+.report-issue-details[hidden] {
+  display: none;
+}
+
+.report-detail-field {
+  min-width: 0;
+}
+
+.report-detail-field h4 {
+  margin: 0 0 8px;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.report-detail-value,
+.report-detail-description-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.report-detail-description {
+  grid-column: 1 / -1;
+}
+
+.report-detail-description-text {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.report-related-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-related-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.report-related-list a,
+.report-detail-value a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.report-related-list small,
+.report-related-relation {
+  color: var(--dim);
+  font-size: 10px;
+}
+
+.report-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.report-labels span {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .report-status {
   padding: 4px 7px;
   border: 1px solid var(--line);
@@ -144,13 +290,35 @@
 }
 
 @media (max-width: 640px) {
-  .report-issue {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
+  .report-issue-row {
+    display: grid;
+    grid-template-columns: 24px 22px minmax(0, 1fr);
+    gap: 10px;
+    padding: 14px 14px;
+  }
+
+  .report-issue-expand,
+  .report-issue-logo {
+    align-self: start;
+  }
+
+  .report-issue-main {
+    align-self: start;
   }
 
   .report-issue-meta {
+    grid-column: 3;
     flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .report-issue-details {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px 16px 20px 70px;
+  }
+
+  .report-detail-description {
+    grid-column: auto;
   }
 }

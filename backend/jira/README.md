@@ -21,4 +21,6 @@ npm start
 
 Run the frontend separately with `cd frontend && npm run dev`. In Settings, Connect Jira redirects the browser to Atlassian for login and consent. After authorization, the server exchanges the code and lists the Jira sites available to that account.
 
-This starter backend holds credentials and the connection in process memory for a single-user local setup. Restarting it clears the connection. Before multi-user or production use, persist encrypted tokens per authenticated app user and add refresh-token rotation and session protection.
+The report requests `GET /api/jira/issues`. The backend searches Jira for unfinished issues assigned to the connected account and returns row data plus expandable metadata: description, subtasks, linked issues, parent, sprint, labels, story point estimate, priority, and reporter. Sprint and story point custom fields are discovered from the Jira field catalog because their IDs vary between sites. It uses Jira Cloud's enhanced JQL search endpoint and refreshes expiring access tokens using Atlassian's rotating refresh-token flow.
+
+This starter backend holds credentials and the connection in process memory for a single-user local setup. Restarting it clears the connection. Before multi-user or production use, persist encrypted tokens per authenticated app user and add app-user session protection.

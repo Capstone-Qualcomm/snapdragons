@@ -13,6 +13,8 @@ const pendingStates = new Map();
 // the browser and are held in memory; durable, per-user storage belongs with
 // the app's eventual authenticated backend/database.
 let jiraConnection = { connected: false, enabled: false, connectedAt: null, cloudId: null, sites: [], token: null };
+let refreshInFlight = null;
+let customFieldCache = { expiresAt: 0, sprintId: null, storyPointsId: null };
 
 function send(res, status, data) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -26,6 +28,178 @@ function redirect(res, url) {
 
 function settingsUrl(outcome) {
   return `${appUrl}/settings?jira=${encodeURIComponent(outcome)}`;
+}
+
+function saveToken(token) {
+  jiraConnection.token = token;
+  jiraConnection.tokenExpiresAt = Date.now() + Math.max(0, Number(token.expires_in ?? 3600) - 60) * 1000;
+}
+
+async function refreshAccessToken() {
+  if (!jiraConnection.token?.refresh_token) {
+    throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+  }
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const response = await fetch("https://auth.atlassian.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          grant_type: "refresh_token",
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: jiraConnection.token.refresh_token,
+        }),
+      });
+      if (!response.ok) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+      const token = await response.json();
+      saveToken(token);
+      return token.access_token;
+    })();
+  }
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+async function getAccessToken(forceRefresh = false) {
+  if (!jiraConnection.token?.access_token) {
+    throw new Error("Jira is not connected. Connect Jira in Settings.");
+  }
+  if (forceRefresh || Date.now() >= (jiraConnection.tokenExpiresAt ?? 0)) {
+    return refreshAccessToken();
+  }
+  return jiraConnection.token.access_token;
+}
+
+async function jiraRequest(path, options = {}) {
+  const makeRequest = async (forceRefresh = false) => {
+    const accessToken = await getAccessToken(forceRefresh);
+    return fetch(`https://api.atlassian.com/ex/jira/${encodeURIComponent(jiraConnection.cloudId)}${path}`, {
+      ...options,
+      headers: {
+        Accept: "application/json",
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...options.headers,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  };
+  const response = await makeRequest();
+  return response.status === 401 ? makeRequest(true) : response;
+}
+
+async function getCustomFieldIds() {
+  if (customFieldCache.expiresAt > Date.now()) return customFieldCache;
+  const response = await jiraRequest("/rest/api/3/field");
+  if (!response.ok) return { sprintId: null, storyPointsId: null };
+  const fields = await response.json();
+  const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const sprint = fields.find(({ name }) => normalize(name) === "sprint");
+  const storyPoints = fields.find(({ name }) => ["storypoints", "storypoint", "storypointestimate"].includes(normalize(name)));
+  customFieldCache = {
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    sprintId: sprint?.id ?? null,
+    storyPointsId: storyPoints?.id ?? null,
+  };
+  return customFieldCache;
+}
+
+function toPlainText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(toPlainText).filter(Boolean).join(" ");
+  if (value.type === "text") return value.text ?? "";
+  if (value.type === "hardBreak") return "\n";
+  const content = (value.content ?? []).map(toPlainText).filter(Boolean).join("");
+  return ["paragraph", "heading", "listItem", "blockquote", "codeBlock"].includes(value.type) && content ? `${content}\n` : content;
+}
+
+function sprintNames(value) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  return values.map((sprint) => {
+    if (sprint && typeof sprint === "object") return sprint.name ?? "";
+    const match = String(sprint).match(/(?:^|[,\s])name=([^,\]]+)/);
+    return match?.[1]?.trim() ?? String(sprint);
+  }).filter(Boolean);
+}
+
+function relatedIssue(issue, siteUrl, relation = null) {
+  if (!issue?.key) return null;
+  return {
+    key: issue.key,
+    summary: issue.fields?.summary ?? "Untitled issue",
+    status: issue.fields?.status?.name ?? "Unknown",
+    url: `${siteUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(issue.key)}`,
+    ...(relation ? { relation } : {}),
+  };
+}
+
+async function searchAssignedIssues(nextPageToken, fields) {
+  return jiraRequest("/rest/api/3/search/jql", {
+    method: "POST",
+    body: JSON.stringify({
+      jql: "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC",
+      fields,
+      maxResults: 100,
+      ...(nextPageToken ? { nextPageToken } : {}),
+    }),
+  });
+}
+
+async function getAssignedIssues() {
+  if (!jiraConnection.connected || !jiraConnection.cloudId) {
+    throw new Error("Jira is not connected. Connect Jira in Settings.");
+  }
+  const customFields = await getCustomFieldIds();
+  const fieldNames = ["summary", "status", "priority", "issuetype", "updated", "description", "subtasks", "issuelinks", "parent", "labels", "reporter"];
+  if (customFields.sprintId) fieldNames.push(customFields.sprintId);
+  if (customFields.storyPointsId) fieldNames.push(customFields.storyPointsId);
+  const issues = [];
+  let nextPageToken;
+  for (let page = 0; page < 10; page += 1) {
+    const response = await searchAssignedIssues(nextPageToken, fieldNames);
+    if (!response.ok) {
+      if (response.status === 401) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+      if (response.status === 403) throw new Error("Jira denied access to assigned issues. Check the app's Jira scopes and your Jira permissions.");
+      if (response.status === 429) throw new Error("Jira is busy. Wait a moment and refresh the report.");
+      throw new Error("Jira could not load assigned issues. Please try again.");
+    }
+    const result = await response.json();
+    issues.push(...(result.issues ?? []));
+    nextPageToken = result.nextPageToken;
+    if (result.isLast || !nextPageToken) break;
+  }
+
+  const site = jiraConnection.sites.find(({ id }) => id === jiraConnection.cloudId);
+  const siteUrl = site?.url ?? "https://jira.atlassian.com";
+  return issues.map(({ key, fields = {} }) => {
+    const linkedWorkItems = (fields.issuelinks ?? []).flatMap((link) => {
+      const linked = link.outwardIssue
+        ? relatedIssue(link.outwardIssue, siteUrl, link.type?.outward)
+        : relatedIssue(link.inwardIssue, siteUrl, link.type?.inward);
+      return linked ? [linked] : [];
+    });
+    return {
+      key,
+      summary: fields.summary ?? "Untitled issue",
+      status: fields.status?.name ?? "Unknown",
+      priority: fields.priority?.name ?? "Unprioritized",
+      issueType: fields.issuetype?.name ?? "Issue",
+      updated: fields.updated ?? null,
+      url: `${siteUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(key)}`,
+      description: toPlainText(fields.description).trim(),
+      subtasks: (fields.subtasks ?? []).map((subtask) => relatedIssue(subtask, siteUrl)).filter(Boolean),
+      linkedWorkItems,
+      parent: relatedIssue(fields.parent, siteUrl),
+      sprints: sprintNames(customFields.sprintId ? fields[customFields.sprintId] : null),
+      labels: fields.labels ?? [],
+      storyPointEstimate: customFields.storyPointsId ? fields[customFields.storyPointsId] ?? null : null,
+      reporter: fields.reporter?.displayName ?? "Unknown",
+    };
+  });
 }
 
 const server = createServer(async (req, res) => {
@@ -91,8 +265,9 @@ const server = createServer(async (req, res) => {
         connectedAt: new Date().toISOString(),
         cloudId: sites[0]?.id ?? null,
         sites: sites.map(({ id, name, url: siteUrl }) => ({ id, name, url: siteUrl })),
-        token,
+        token: null,
       };
+      saveToken(token);
       redirect(res, settingsUrl("connected"));
     } catch (error) {
       console.error("Jira OAuth callback failed:", error instanceof Error ? error.message : "unknown error");
@@ -112,6 +287,24 @@ const server = createServer(async (req, res) => {
         sites: jiraConnection.sites,
       },
     });
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/jira/issues") {
+    if (!jiraConnection.connected) {
+      send(res, 401, { error: "Jira is not connected. Connect Jira in Settings." });
+      return;
+    }
+    if (!jiraConnection.enabled) {
+      send(res, 403, { error: "Jira is connected but disabled. Enable it in Settings to load tasks." });
+      return;
+    }
+    try {
+      send(res, 200, { issues: await getAssignedIssues() });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Jira could not load assigned issues. Please try again.";
+      send(res, message.includes("Reconnect Jira") || message.includes("not connected") ? 401 : 502, { error: message });
+    }
     return;
   }
 
