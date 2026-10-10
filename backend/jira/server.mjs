@@ -6,7 +6,7 @@ const clientId = process.env.ATLASSIAN_CLIENT_ID;
 const clientSecret = process.env.ATLASSIAN_CLIENT_SECRET;
 const redirectUri = process.env.ATLASSIAN_REDIRECT_URI ?? `http://localhost:${port}/auth/jira/callback`;
 const appUrl = (process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
-const scopes = process.env.ATLASSIAN_SCOPES ?? "read:jira-work read:jira-user offline_access";
+const scopes = process.env.ATLASSIAN_SCOPES ?? "read:jira-work read:jira-user write:jira-work offline_access";
 const pendingStates = new Map();
 
 // This initial backend is a single-user local integration. Tokens stay out of
@@ -107,6 +107,23 @@ async function getCustomFieldIds() {
   return customFieldCache;
 }
 
+function descriptionDocument(text) {
+  const paragraphs = String(text).split(/\r?\n/).map((line) => ({
+    type: "paragraph",
+    content: line ? [{ type: "text", text: line }] : [],
+  }));
+  return { type: "doc", version: 1, content: paragraphs.length ? paragraphs : [{ type: "paragraph", content: [] }] };
+}
+
+async function jiraErrorMessage(response) {
+  try {
+    const result = await response.json();
+    return result.errorMessages?.join(" ") || Object.values(result.errors ?? {}).join(" ") || `Jira request failed (${response.status}).`;
+  } catch {
+    return `Jira request failed (${response.status}).`;
+  }
+}
+
 function toPlainText(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -126,17 +143,6 @@ function sprintNames(value) {
   }).filter(Boolean);
 }
 
-function relatedIssue(issue, siteUrl, relation = null) {
-  if (!issue?.key) return null;
-  return {
-    key: issue.key,
-    summary: issue.fields?.summary ?? "Untitled issue",
-    status: issue.fields?.status?.name ?? "Unknown",
-    url: `${siteUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(issue.key)}`,
-    ...(relation ? { relation } : {}),
-  };
-}
-
 async function searchAssignedIssues(nextPageToken, fields) {
   return jiraRequest("/rest/api/3/search/jql", {
     method: "POST",
@@ -154,7 +160,7 @@ async function getAssignedIssues() {
     throw new Error("Jira is not connected. Connect Jira in Settings.");
   }
   const customFields = await getCustomFieldIds();
-  const fieldNames = ["summary", "status", "priority", "issuetype", "updated", "description", "subtasks", "issuelinks", "parent", "labels", "reporter"];
+  const fieldNames = ["summary", "status", "issuetype", "updated", "description", "labels", "reporter"];
   if (customFields.sprintId) fieldNames.push(customFields.sprintId);
   if (customFields.storyPointsId) fieldNames.push(customFields.storyPointsId);
   const issues = [];
@@ -175,31 +181,19 @@ async function getAssignedIssues() {
 
   const site = jiraConnection.sites.find(({ id }) => id === jiraConnection.cloudId);
   const siteUrl = site?.url ?? "https://jira.atlassian.com";
-  return issues.map(({ key, fields = {} }) => {
-    const linkedWorkItems = (fields.issuelinks ?? []).flatMap((link) => {
-      const linked = link.outwardIssue
-        ? relatedIssue(link.outwardIssue, siteUrl, link.type?.outward)
-        : relatedIssue(link.inwardIssue, siteUrl, link.type?.inward);
-      return linked ? [linked] : [];
-    });
-    return {
+  return issues.map(({ key, fields = {} }) => ({
       key,
       summary: fields.summary ?? "Untitled issue",
       status: fields.status?.name ?? "Unknown",
-      priority: fields.priority?.name ?? "Unprioritized",
       issueType: fields.issuetype?.name ?? "Issue",
       updated: fields.updated ?? null,
       url: `${siteUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(key)}`,
       description: toPlainText(fields.description).trim(),
-      subtasks: (fields.subtasks ?? []).map((subtask) => relatedIssue(subtask, siteUrl)).filter(Boolean),
-      linkedWorkItems,
-      parent: relatedIssue(fields.parent, siteUrl),
       sprints: sprintNames(customFields.sprintId ? fields[customFields.sprintId] : null),
       labels: fields.labels ?? [],
       storyPointEstimate: customFields.storyPointsId ? fields[customFields.storyPointsId] ?? null : null,
       reporter: fields.reporter?.displayName ?? "Unknown",
-    };
-  });
+    }));
 }
 
 const server = createServer(async (req, res) => {
@@ -290,6 +284,91 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  const transitionsPath = url.pathname.match(/^\/api\/jira\/issues\/([^/]+)\/transitions$/);
+  if (req.method === "GET" && transitionsPath) {
+    if (!jiraConnection.connected) {
+      send(res, 401, { error: "Jira is not connected. Connect Jira in Settings." });
+      return;
+    }
+    try {
+      const issueKey = decodeURIComponent(transitionsPath[1]);
+      const response = await jiraRequest(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`);
+      if (!response.ok) {
+        send(res, response.status === 401 ? 401 : 502, { error: await jiraErrorMessage(response) });
+        return;
+      }
+      const result = await response.json();
+      send(res, 200, { transitions: (result.transitions ?? []).map(({ id, name, to }) => ({ id, name, status: to?.name ?? name })) });
+    } catch (error) {
+      send(res, 502, { error: error instanceof Error ? error.message : "Could not load Jira status transitions." });
+    }
+    return;
+  }
+
+  const issueEditPath = url.pathname.match(/^\/api\/jira\/issues\/([^/]+)$/);
+  if (req.method === "POST" && issueEditPath) {
+    if (!jiraConnection.connected) {
+      send(res, 401, { error: "Jira is not connected. Connect Jira in Settings." });
+      return;
+    }
+    try {
+      const issueKey = decodeURIComponent(issueEditPath[1]);
+      let body = "";
+      for await (const chunk of req) body += chunk;
+      const changes = JSON.parse(body);
+      const fields = {};
+
+      if (Object.hasOwn(changes, "description")) {
+        if (typeof changes.description !== "string") throw new Error("Description must be text.");
+        fields.description = descriptionDocument(changes.description);
+      }
+      if (Object.hasOwn(changes, "storyPointEstimate")) {
+        const customFields = await getCustomFieldIds();
+        if (!customFields.storyPointsId) throw new Error("A story point estimate field is not configured in this Jira site.");
+        const value = changes.storyPointEstimate;
+        if (value !== null && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+          throw new Error("Story point estimate must be a non-negative number or blank.");
+        }
+        if (value !== null && ![1, 2, 3, 5, 8, 13, 21].includes(value)) {
+          throw new Error("Story point estimate must use a Fibonacci value: 1, 2, 3, 5, 8, 13, or 21.");
+        }
+        fields[customFields.storyPointsId] = value;
+      }
+
+      if (Object.keys(fields).length) {
+        const response = await jiraRequest(`/rest/api/3/issue/${encodeURIComponent(issueKey)}`, {
+          method: "PUT",
+          body: JSON.stringify({ fields }),
+        });
+        if (!response.ok) {
+          send(res, response.status === 401 ? 401 : 502, { error: await jiraErrorMessage(response) });
+          return;
+        }
+      }
+
+      if (changes.transitionId !== undefined && changes.transitionId !== "") {
+        if (typeof changes.transitionId !== "string") throw new Error("Choose a valid status transition.");
+        const response = await jiraRequest(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`, {
+          method: "POST",
+          body: JSON.stringify({ transition: { id: changes.transitionId } }),
+        });
+        if (!response.ok) {
+          send(res, response.status === 401 ? 401 : 502, { error: await jiraErrorMessage(response) });
+          return;
+        }
+      }
+
+      if (!Object.keys(fields).length && !changes.transitionId) {
+        send(res, 400, { error: "No changes were provided." });
+        return;
+      }
+      send(res, 200, { ok: true });
+    } catch (error) {
+      send(res, 400, { error: error instanceof Error ? error.message : "Could not update the Jira issue." });
+    }
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/jira/issues") {
     if (!jiraConnection.connected) {
       send(res, 401, { error: "Jira is not connected. Connect Jira in Settings." });
@@ -300,7 +379,8 @@ const server = createServer(async (req, res) => {
       return;
     }
     try {
-      send(res, 200, { issues: await getAssignedIssues() });
+      const issues = await getAssignedIssues();
+      send(res, 200, { issues });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Jira could not load assigned issues. Please try again.";
       send(res, message.includes("Reconnect Jira") || message.includes("not connected") ? 401 : 502, { error: message });

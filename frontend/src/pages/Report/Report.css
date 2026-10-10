@@ -197,6 +197,11 @@
 .report-issue-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "description description"
+    "estimate sprint"
+    "status labels"
+    "actions reporter";
   gap: 20px 36px;
   padding: 20px 28px 24px 92px;
   border-top: 1px solid var(--line);
@@ -220,6 +225,33 @@
   text-transform: uppercase;
 }
 
+.report-detail-field input,
+.report-detail-field select,
+.report-detail-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111216;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.report-detail-field textarea {
+  min-height: 92px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.report-detail-field input:focus-visible,
+.report-detail-field select:focus-visible,
+.report-detail-field textarea:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
 .report-detail-value,
 .report-detail-description-text {
   margin: 0;
@@ -229,7 +261,31 @@
 }
 
 .report-detail-description {
-  grid-column: 1 / -1;
+  grid-area: description;
+}
+
+.report-detail-editable-estimate {
+  grid-area: estimate;
+}
+
+.report-detail-editable-status {
+  grid-area: status;
+}
+
+.report-detail-editable-actions {
+  grid-area: actions;
+}
+
+.report-detail-static-sprint {
+  grid-area: sprint;
+}
+
+.report-detail-static-labels {
+  grid-area: labels;
+}
+
+.report-detail-static-reporter {
+  grid-area: reporter;
 }
 
 .report-detail-description-text {
@@ -239,34 +295,9 @@
   overflow-wrap: anywhere;
 }
 
-.report-related-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.report-related-list li {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 5px 9px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.report-related-list a,
 .report-detail-value a {
   color: var(--blue);
   text-decoration: none;
-}
-
-.report-related-list small,
-.report-related-relation {
-  color: var(--dim);
-  font-size: 10px;
 }
 
 .report-labels {
@@ -281,6 +312,45 @@
   border-radius: 99px;
   color: var(--muted);
   font-size: 11px;
+}
+
+.report-edit-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-edit-actions button {
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid #3e71c5;
+  border-radius: 7px;
+  background: #1b3767;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.report-edit-actions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.report-edit-success,
+.report-edit-error {
+  margin: 0;
+  font-size: 12px;
+}
+
+.report-edit-success {
+  color: var(--green);
+}
+
+.report-edit-error {
+  color: #ff9696;
 }
 
 .report-status {
@@ -314,11 +384,16 @@
 
   .report-issue-details {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "description"
+      "estimate"
+      "status"
+      "actions"
+      "sprint"
+      "labels"
+      "reporter";
     gap: 18px;
     padding: 18px 16px 20px 70px;
   }
 
-  .report-detail-description {
-    grid-column: auto;
-  }
 }
