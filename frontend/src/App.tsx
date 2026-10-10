@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { ConsolePage } from "./pages/Console/Console";
-import { LogsPage } from "./pages/Logs/Logs";
-import { ReportPage } from "./pages/Report/Report";
+import { ConsolePage } from "./pages/console/console";
+import { LogsPage } from "./pages/logs/logs";
+import { ReportPage } from "./pages/report/report";
 import { About } from "./components/About/About";
-import { SettingsPage } from "./pages/Settings/Settings";
+import { SettingsPage } from "./pages/settings/settings";
 
 type View = "Console" | "Report" | "Logs" | "Settings";
 

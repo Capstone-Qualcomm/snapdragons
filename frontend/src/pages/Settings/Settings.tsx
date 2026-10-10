@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import "./Settings.css";
+import "./settings.css";
 
 type JiraConnection = {
   configured: boolean;

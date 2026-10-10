@@ -1,0 +1,47 @@
+.logs-grid {
+  display: grid;
+  min-height: calc(100vh - 116px);
+  min-height: calc(100dvh - 116px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.log-card {
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+}
+
+.log-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.log-card p {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  margin: 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+@media (max-width: 850px) {
+  .logs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .logs-grid {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+}
