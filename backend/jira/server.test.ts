@@ -1,12 +1,22 @@
 import assert from "node:assert/strict";
+import type { Server } from "node:http";
 import { afterEach, test } from "node:test";
-import { createJiraServer } from "./server.mjs";
+import { createJiraServer } from "./server.ts";
 
-const servers = new Set();
+type JiraFetchOptions = {
+  onRequest?: (request: { url: URL; init: RequestInit }) => void;
+  fields?: Array<{ id: string; name: string }>;
+  issues?: Array<{ key: string; fields: Record<string, unknown> }>;
+  transitions?: Array<{ id: string; name: string; to?: { name?: string } }>;
+};
 
-function createJiraFetch({ onRequest, fields, issues, transitions } = {}) {
-  return async (input, init = {}) => {
-    const url = new URL(input);
+type StartServerOptions = { fetch?: typeof fetch; configured?: boolean };
+
+const servers = new Set<Server>();
+
+function createJiraFetch({ onRequest, fields, issues, transitions }: JiraFetchOptions = {}): typeof fetch {
+  return async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const url = new URL(input instanceof Request ? input.url : input);
     onRequest?.({ url, init });
 
     if (url.hostname === "auth.atlassian.com") {
@@ -49,36 +59,44 @@ function exampleIssue() {
   };
 }
 
-async function startServer({ fetch = createJiraFetch(), configured = true } = {}) {
+async function startServer(options: StartServerOptions = {}): Promise<string> {
+  const fetchImpl = options.fetch ?? createJiraFetch();
+  const configured = options.configured ?? true;
   const server = createJiraServer({
     port: 0,
     clientId: configured ? "test-client" : undefined,
     clientSecret: configured ? "test-secret" : undefined,
     appUrl: "http://frontend.test",
-    fetch,
+    fetch: fetchImpl,
   });
   servers.add(server);
-  await new Promise((resolve) => server.once("listening", resolve));
-  return `http://127.0.0.1:${server.address().port}`;
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return `http://127.0.0.1:${address.port}`;
 }
 
 afterEach(async () => {
-  await Promise.all([...servers].map((server) => new Promise((resolve, reject) => {
+  await Promise.all([...servers].map((server) => new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   })));
   servers.clear();
 });
 
-async function request(baseUrl, path, options) {
+async function request(baseUrl: string, path: string, options?: RequestInit) {
   const response = await fetch(`${baseUrl}${path}`, options);
   return { response, body: await response.json() };
 }
 
-async function connectJira(baseUrl) {
+async function connectJira(baseUrl: string): Promise<Response> {
   const startResponse = await fetch(`${baseUrl}/auth/jira/start`, { redirect: "manual" });
-  const authorizeUrl = new URL(startResponse.headers.get("location"));
+  const authorizeLocation = startResponse.headers.get("location");
+  assert.ok(authorizeLocation);
+  const authorizeUrl = new URL(authorizeLocation);
+  const state = authorizeUrl.searchParams.get("state");
+  assert.ok(state);
   const callbackUrl = new URL("/auth/jira/callback", baseUrl);
-  callbackUrl.searchParams.set("state", authorizeUrl.searchParams.get("state"));
+  callbackUrl.searchParams.set("state", state);
   callbackUrl.searchParams.set("code", "test-code");
   return fetch(callbackUrl, { redirect: "manual" });
 }
@@ -117,7 +135,9 @@ test("rejects issue requests before Jira is connected", async () => {
 test("redirects OAuth start to Atlassian with a state value", async () => {
   const baseUrl = await startServer();
   const response = await fetch(`${baseUrl}/auth/jira/start`, { redirect: "manual" });
-  const authorizeUrl = new URL(response.headers.get("location"));
+  const authorizeLocation = response.headers.get("location");
+  assert.ok(authorizeLocation);
+  const authorizeUrl = new URL(authorizeLocation);
 
   assert.equal(response.status, 302);
   assert.equal(authorizeUrl.hostname, "auth.atlassian.com");
@@ -175,10 +195,12 @@ test("returns available Jira status transitions", async () => {
 });
 
 test("updates an issue description and story point estimate", async () => {
-  let updateBody;
+  let updateBody: { fields: Record<string, unknown> } | undefined;
   const baseUrl = await startServer({ fetch: createJiraFetch({
     onRequest: ({ url, init }) => {
-      if (url.pathname.endsWith("/rest/api/3/issue/SD-7") && init.method === "PUT") updateBody = JSON.parse(init.body);
+      if (url.pathname.endsWith("/rest/api/3/issue/SD-7") && init.method === "PUT" && typeof init.body === "string") {
+        updateBody = JSON.parse(init.body);
+      }
     },
   }) });
   await connectJira(baseUrl);
@@ -190,15 +212,19 @@ test("updates an issue description and story point estimate", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(body, { ok: true });
+  assert.ok(updateBody);
   assert.equal(updateBody.fields.customfield_10016, 5);
-  assert.equal(updateBody.fields.description.content[0].content[0].text, "Updated description");
+  const description = updateBody.fields.description as { content: Array<{ content?: Array<{ text?: string }> }> };
+  assert.equal(description.content[0].content?.[0].text, "Updated description");
 });
 
 test("changes an issue status using the requested transition", async () => {
-  let transitionBody;
+  let transitionBody: { transition: { id: string } } | undefined;
   const baseUrl = await startServer({ fetch: createJiraFetch({
     onRequest: ({ url, init }) => {
-      if (url.pathname.endsWith("/transitions") && init.method === "POST") transitionBody = JSON.parse(init.body);
+      if (url.pathname.endsWith("/transitions") && init.method === "POST" && typeof init.body === "string") {
+        transitionBody = JSON.parse(init.body);
+      }
     },
   }) });
   await connectJira(baseUrl);
@@ -250,7 +276,7 @@ test("records Jira API requests in the Q-01 activity log", async () => {
   await request(baseUrl, "/api/jira/issues/SD-7/transitions");
   const { body } = await request(baseUrl, "/api/jira/logs");
 
-  const transitionLog = body.logs.find(({ path }) => path === "/api/jira/issues/SD-7/transitions");
+  const transitionLog = body.logs.find((log: { path: string }) => log.path === "/api/jira/issues/SD-7/transitions");
   assert.equal(transitionLog.node, "Q-01");
   assert.equal(transitionLog.method, "GET");
 });

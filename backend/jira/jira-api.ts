@@ -1,10 +1,39 @@
-export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
-  let customFieldCache = { expiresAt: 0, sprintId: null, storyPointsId: null };
+import type { JiraConnection } from "./jira-auth.ts";
 
-  async function jiraRequest(path, options = {}) {
+type JiraApiOptions = {
+  jiraConnection: JiraConnection;
+  fetchImpl: typeof fetch;
+  getAccessToken: (forceRefresh?: boolean) => Promise<string>;
+};
+
+type JiraIssue = { key: string; fields?: Record<string, unknown> };
+type JiraSearchResult = { issues?: JiraIssue[]; nextPageToken?: string; isLast?: boolean };
+type JiraTransition = { id: string; name: string; to?: { name?: string } };
+type IssueSummary = {
+  key: string;
+  summary: string;
+  status: string;
+  issueType: string;
+  updated: string | null;
+  url: string;
+  description: string;
+  sprints: string[];
+  labels: string[];
+  storyPointEstimate: number | null;
+  reporter: string;
+};
+
+export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }: JiraApiOptions) {
+  let customFieldCache: { expiresAt: number; sprintId: string | null; storyPointsId: string | null } = {
+    expiresAt: 0,
+    sprintId: null,
+    storyPointsId: null,
+  };
+
+  async function jiraRequest(path: string, options: RequestInit = {}): Promise<Response> {
     const makeRequest = async (forceRefresh = false) => {
       const accessToken = await getAccessToken(forceRefresh);
-      return fetchImpl(`https://api.atlassian.com/ex/jira/${encodeURIComponent(jiraConnection.cloudId)}${path}`, {
+      return fetchImpl(`https://api.atlassian.com/ex/jira/${encodeURIComponent(jiraConnection.cloudId ?? "")}${path}`, {
         ...options,
         headers: {
           Accept: "application/json",
@@ -18,7 +47,7 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
     return response.status === 401 ? makeRequest(true) : response;
   }
 
-  async function errorMessage(response) {
+  async function errorMessage(response: Response): Promise<string> {
     try {
       const result = await response.json();
       return result.errorMessages?.join(" ") || Object.values(result.errors ?? {}).join(" ") || `Jira request failed (${response.status}).`;
@@ -31,8 +60,8 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
     if (customFieldCache.expiresAt > Date.now()) return customFieldCache;
     const response = await jiraRequest("/rest/api/3/field");
     if (!response.ok) return { sprintId: null, storyPointsId: null };
-    const fields = await response.json();
-    const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const fields = await response.json() as Array<{ id: string; name: string }>;
+    const normalize = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
     const sprint = fields.find(({ name }) => normalize(name) === "sprint");
     const storyPoints = fields.find(({ name }) => ["storypoints", "storypoint", "storypointestimate"].includes(normalize(name)));
     customFieldCache = {
@@ -43,26 +72,28 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
     return customFieldCache;
   }
 
-  function toPlainText(value) {
+  function toPlainText(value: unknown): string {
     if (!value) return "";
     if (typeof value === "string") return value;
     if (Array.isArray(value)) return value.map(toPlainText).filter(Boolean).join(" ");
-    if (value.type === "text") return value.text ?? "";
-    if (value.type === "hardBreak") return "\n";
-    const content = (value.content ?? []).map(toPlainText).filter(Boolean).join("");
-    return ["paragraph", "heading", "listItem", "blockquote", "codeBlock"].includes(value.type) && content ? `${content}\n` : content;
+    if (typeof value !== "object") return "";
+    const node = value as { type?: string; text?: string; content?: unknown[] };
+    if (node.type === "text") return node.text ?? "";
+    if (node.type === "hardBreak") return "\n";
+    const content = (node.content ?? []).map(toPlainText).filter(Boolean).join("");
+    return ["paragraph", "heading", "listItem", "blockquote", "codeBlock"].includes(node.type ?? "") && content ? `${content}\n` : content;
   }
 
-  function sprintNames(value) {
+  function sprintNames(value: unknown): string[] {
     const values = Array.isArray(value) ? value : value ? [value] : [];
     return values.map((sprint) => {
-      if (sprint && typeof sprint === "object") return sprint.name ?? "";
+      if (sprint && typeof sprint === "object") return (sprint as { name?: string }).name ?? "";
       const match = String(sprint).match(/(?:^|[,\s])name=([^,\]]+)/);
       return match?.[1]?.trim() ?? String(sprint);
     }).filter(Boolean);
   }
 
-  async function getAssignedIssues() {
+  async function getAssignedIssues(): Promise<IssueSummary[]> {
     if (!jiraConnection.connected || !jiraConnection.cloudId) {
       throw new Error("Jira is not connected. Connect Jira in Settings.");
     }
@@ -88,7 +119,7 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
         if (response.status === 429) throw new Error("Jira is busy. Wait a moment and refresh the report.");
         throw new Error("Jira could not load assigned issues. Please try again.");
       }
-      const result = await response.json();
+      const result = await response.json() as JiraSearchResult;
       issues.push(...(result.issues ?? []));
       nextPageToken = result.nextPageToken;
       if (result.isLast || !nextPageToken) break;
@@ -96,29 +127,36 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
 
     const site = jiraConnection.sites.find(({ id }) => id === jiraConnection.cloudId);
     const siteUrl = site?.url ?? "https://jira.atlassian.com";
-    return issues.map(({ key, fields = {} }) => ({
-      key,
-      summary: fields.summary ?? "Untitled issue",
-      status: fields.status?.name ?? "Unknown",
-      issueType: fields.issuetype?.name ?? "Issue",
-      updated: fields.updated ?? null,
-      url: `${siteUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(key)}`,
-      description: toPlainText(fields.description).trim(),
-      sprints: sprintNames(customFields.sprintId ? fields[customFields.sprintId] : null),
-      labels: fields.labels ?? [],
-      storyPointEstimate: customFields.storyPointsId ? fields[customFields.storyPointsId] ?? null : null,
-      reporter: fields.reporter?.displayName ?? "Unknown",
-    }));
+    return issues.map(({ key, fields = {} }) => {
+      const status = fields.status as { name?: string } | undefined;
+      const issueType = fields.issuetype as { name?: string } | undefined;
+      const reporter = fields.reporter as { displayName?: string } | undefined;
+      return {
+        key,
+        summary: typeof fields.summary === "string" ? fields.summary : "Untitled issue",
+        status: status?.name ?? "Unknown",
+        issueType: issueType?.name ?? "Issue",
+        updated: typeof fields.updated === "string" ? fields.updated : null,
+        url: `${siteUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(key)}`,
+        description: toPlainText(fields.description).trim(),
+        sprints: sprintNames(customFields.sprintId ? fields[customFields.sprintId] : null),
+        labels: Array.isArray(fields.labels) ? fields.labels.filter((label): label is string => typeof label === "string") : [],
+        storyPointEstimate: customFields.storyPointsId && typeof fields[customFields.storyPointsId] === "number"
+          ? fields[customFields.storyPointsId] as number
+          : null,
+        reporter: reporter?.displayName ?? "Unknown",
+      };
+    });
   }
 
-  async function getTransitions(issueKey) {
+  async function getTransitions(issueKey: string): Promise<{ status: number; error: string } | { transitions: Array<{ id: string; name: string; status: string }> }> {
     const response = await jiraRequest(`/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions`);
     if (!response.ok) return { status: response.status === 401 ? 401 : 502, error: await errorMessage(response) };
-    const result = await response.json();
+    const result = await response.json() as { transitions?: JiraTransition[] };
     return { transitions: (result.transitions ?? []).map(({ id, name, to }) => ({ id, name, status: to?.name ?? name })) };
   }
 
-  function descriptionDocument(text) {
+  function descriptionDocument(text: string) {
     const paragraphs = String(text).split(/\r?\n/).map((line) => ({
       type: "paragraph",
       content: line ? [{ type: "text", text: line }] : [],
@@ -126,8 +164,8 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }) {
     return { type: "doc", version: 1, content: paragraphs.length ? paragraphs : [{ type: "paragraph", content: [] }] };
   }
 
-  async function updateIssue(issueKey, changes) {
-    const fields = {};
+  async function updateIssue(issueKey: string, changes: Record<string, unknown>): Promise<{ status: number; error: string } | { ok: true }> {
+    const fields: Record<string, unknown> = {};
     if (Object.hasOwn(changes, "description")) {
       if (typeof changes.description !== "string") throw new Error("Description must be text.");
       fields.description = descriptionDocument(changes.description);

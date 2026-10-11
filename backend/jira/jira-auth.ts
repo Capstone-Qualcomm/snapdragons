@@ -1,17 +1,40 @@
 import { randomBytes } from "node:crypto";
+import type { ServerResponse } from "node:http";
 
-export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, scopes, fetchImpl, jiraConnection }) {
+export type JiraSite = { id: string; name?: string; url?: string };
+export type JiraToken = { access_token: string; refresh_token?: string; expires_in?: number };
+export type JiraConnection = {
+  connected: boolean;
+  enabled: boolean;
+  connectedAt: string | null;
+  cloudId: string | null;
+  sites: JiraSite[];
+  token: JiraToken | null;
+  tokenExpiresAt?: number;
+};
+
+type JiraAuthOptions = {
+  clientId?: string;
+  clientSecret?: string;
+  redirectUri: string;
+  appUrl: string;
+  scopes: string;
+  fetchImpl: typeof fetch;
+  jiraConnection: JiraConnection;
+};
+
+export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, scopes, fetchImpl, jiraConnection }: JiraAuthOptions) {
   const pendingStates = new Map();
-  let refreshInFlight = null;
+  let refreshInFlight: Promise<string> | null = null;
   const configured = Boolean(clientId && clientSecret);
-  const settingsUrl = (outcome) => `${appUrl}/settings?jira=${encodeURIComponent(outcome)}`;
+  const settingsUrl = (outcome: string) => `${appUrl}/settings?jira=${encodeURIComponent(outcome)}`;
 
-  function redirect(res, url) {
+  function redirect(res: ServerResponse, url: string) {
     res.writeHead(302, { Location: url, "Cache-Control": "no-store" });
     res.end();
   }
 
-  function start(res) {
+  function start(res: ServerResponse): void {
     if (!configured) {
       redirect(res, settingsUrl("unconfigured"));
       return;
@@ -22,7 +45,7 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
     const authorizeUrl = new URL("https://auth.atlassian.com/authorize");
     authorizeUrl.search = new URLSearchParams({
       audience: "api.atlassian.com",
-      client_id: clientId,
+      client_id: clientId ?? "",
       scope: scopes,
       redirect_uri: redirectUri,
       state,
@@ -32,12 +55,12 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
     redirect(res, authorizeUrl.toString());
   }
 
-  function saveToken(token) {
+  function saveToken(token: JiraToken): void {
     jiraConnection.token = token;
     jiraConnection.tokenExpiresAt = Date.now() + Math.max(0, Number(token.expires_in ?? 3600) - 60) * 1000;
   }
 
-  async function handleCallback(url, res) {
+  async function handleCallback(url: URL, res: ServerResponse): Promise<void> {
     const state = url.searchParams.get("state") ?? "";
     const expiresAt = pendingStates.get(state);
     pendingStates.delete(state);
@@ -68,7 +91,7 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
         headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" },
       });
       if (!resourcesResponse.ok) throw new Error("Could not list Jira sites");
-      const sites = await resourcesResponse.json();
+      const sites = await resourcesResponse.json() as JiraSite[];
       Object.assign(jiraConnection, {
         connected: true,
         enabled: true,
@@ -85,8 +108,9 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
     }
   }
 
-  async function refreshAccessToken() {
-    if (!jiraConnection.token?.refresh_token) {
+  async function refreshAccessToken(): Promise<string> {
+    const refreshToken = jiraConnection.token?.refresh_token;
+    if (!refreshToken) {
       throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
     }
     if (!refreshInFlight) {
@@ -98,28 +122,30 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
             grant_type: "refresh_token",
             client_id: clientId,
             client_secret: clientSecret,
-            refresh_token: jiraConnection.token.refresh_token,
+            refresh_token: refreshToken,
           }),
         });
         if (!response.ok) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
-        const token = await response.json();
+        const token = await response.json() as JiraToken;
         saveToken(token);
         return token.access_token;
       })();
     }
     try {
+      if (!refreshInFlight) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
       return await refreshInFlight;
     } finally {
       refreshInFlight = null;
     }
   }
 
-  async function getAccessToken(forceRefresh = false) {
-    if (!jiraConnection.token?.access_token) {
+  async function getAccessToken(forceRefresh = false): Promise<string> {
+    const accessToken = jiraConnection.token?.access_token;
+    if (!accessToken) {
       throw new Error("Jira is not connected. Connect Jira in Settings.");
     }
     if (forceRefresh || Date.now() >= (jiraConnection.tokenExpiresAt ?? 0)) return refreshAccessToken();
-    return jiraConnection.token.access_token;
+    return accessToken;
   }
 
   function reset() {

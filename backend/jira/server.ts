@@ -1,10 +1,21 @@
 import { createServer } from "node:http";
+import type { ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
-import { createJiraApi } from "./jira-api.mjs";
-import { createJiraAuth } from "./jira-auth.mjs";
-import { createJiraLogs } from "./jira-logs.mjs";
+import { createJiraApi } from "./jira-api.ts";
+import { createJiraAuth } from "./jira-auth.ts";
+import { createJiraLogs } from "./jira-logs.ts";
 
-export function createJiraServer(options = {}) {
+type ServerOptions = {
+  port?: number;
+  clientId?: string;
+  clientSecret?: string;
+  redirectUri?: string;
+  appUrl?: string;
+  scopes?: string;
+  fetch?: typeof fetch;
+};
+
+export function createJiraServer(options: ServerOptions = {}) {
   const port = Number(options.port ?? process.env.PORT ?? 3001);
   const clientId = options.clientId ?? process.env.ATLASSIAN_CLIENT_ID;
   const clientSecret = options.clientSecret ?? process.env.ATLASSIAN_CLIENT_SECRET;
@@ -20,7 +31,7 @@ export function createJiraServer(options = {}) {
   const jiraApi = createJiraApi({ jiraConnection, fetchImpl, getAccessToken: auth.getAccessToken });
   const jiraLogs = createJiraLogs();
 
-  function send(res, status, data) {
+  function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
     res.end(JSON.stringify(data));
   }
@@ -70,7 +81,7 @@ export function createJiraServer(options = {}) {
       try {
         const issueKey = decodeURIComponent(transitionsPath[1]);
         const result = await jiraApi.getTransitions(issueKey);
-        if (result.error) {
+        if ("error" in result) {
           send(res, result.status, { error: result.error });
           return;
         }
@@ -94,7 +105,7 @@ export function createJiraServer(options = {}) {
         for await (const chunk of req) body += chunk;
         const changes = JSON.parse(body);
         const result = await jiraApi.updateIssue(issueKey, changes);
-        if (result.error) {
+        if ("error" in result) {
           send(res, result.status, { error: result.error });
           return;
         }
@@ -154,7 +165,11 @@ export function createJiraServer(options = {}) {
     send(res, 404, { error: "Not found" });
   });
 
-  server.listen(port, () => console.log(`SnapDragons backend listening on http://localhost:${server.address().port}`));
+  server.listen(port, () => {
+    const address = server.address();
+    const actualPort = typeof address === "object" && address ? address.port : port;
+    console.log(`SnapDragons backend listening on http://localhost:${actualPort}`);
+  });
   return server;
 }
 

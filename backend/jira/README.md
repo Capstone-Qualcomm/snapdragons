@@ -14,10 +14,14 @@ Copy `backend/.env.example` to `backend/.env` from the repository root, then set
 
 ## Run locally
 
+The Jira backend uses native TypeScript support in Node.js 22.18 or newer. TypeScript is type-checked separately with the `typecheck` script.
+
 ```sh
 cd backend/jira
 npm start
 ```
+
+Run `npm run typecheck` in `backend/jira` to check the backend and its tests. `bash tests/local_tests.sh` runs the backend tests.
 
 Run the frontend separately with `cd frontend && npm run dev`. In Settings, Connect Jira redirects the browser to Atlassian for login and consent. After authorization, the server exchanges the code and lists the Jira sites available to that account.
 
