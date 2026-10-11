@@ -5,8 +5,8 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT/backend/jira"
 FRONTEND_DIR="$ROOT/frontend"
 
-if [[ ! -f "$BACKEND_DIR/.env" ]]; then
-  echo "Missing backend/jira/.env. Copy .env.example to .env and add the Atlassian OAuth credentials first." >&2
+if [[ ! -f "$ROOT/backend/.env" ]]; then
+  echo "Missing backend/.env. Copy backend/.env.example to backend/.env and add the integration credentials first." >&2
   exit 1
 fi
 

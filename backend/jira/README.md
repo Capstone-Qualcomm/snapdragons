@@ -10,7 +10,7 @@ Create an OAuth 2.0 (3LO) integration in the Atlassian developer console. Add th
 http://localhost:3001/auth/jira/callback
 ```
 
-Copy `.env.example` to `.env` and set `ATLASSIAN_CLIENT_ID` and `ATLASSIAN_CLIENT_SECRET`. The app requests `read:jira-work`, `read:jira-user`, `write:jira-work`, and `offline_access`. Add the corresponding scopes to the integration's configuration. For a deployed app, set `APP_URL` to the frontend origin and `ATLASSIAN_REDIRECT_URI` to the public HTTPS callback URL registered in Atlassian.
+Copy `backend/.env.example` to `backend/.env` from the repository root, then set `ATLASSIAN_CLIENT_ID` and `ATLASSIAN_CLIENT_SECRET`. This shared backend environment file sits alongside the Jira, Outlook, and Slack integration folders. The Jira server loads it when started from `backend/jira`. The app requests `read:jira-work`, `read:jira-user`, `write:jira-work`, and `offline_access`. Add the corresponding scopes to the integration's configuration. For a deployed app, set `APP_URL` to the frontend origin and `ATLASSIAN_REDIRECT_URI` to the public HTTPS callback URL registered in Atlassian.
 
 ## Run locally
 
