@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      "/api/cluster": "http://127.0.0.1:3003",
       "/api/slack": "http://127.0.0.1:3002",
       "/auth/slack": "http://127.0.0.1:3002",
       "/api": "http://127.0.0.1:3001",

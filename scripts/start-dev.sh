@@ -33,6 +33,7 @@ trap stop_services INT TERM EXIT
 
 echo "Jira backend, Slack backend and Vite frontend are starting. Open the URL printed by Vite (usually http://localhost:5173)."
 echo "Jira listens on 3001, Slack on 3002, Vite proxies /api/slack* and /auth/slack* to 3002."
+echo "For live nodes on the Console page, run ./scripts/start-cluster.sh in another terminal."
 echo "Press Ctrl+C to stop everything."
 
 wait "$JIRA_PID" "$SLACK_PID" "$FRONTEND_PID"
