@@ -4,3 +4,5 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 JIRA_BACKEND_DIR="$SCRIPT_DIR/../backend/jira"
 (cd "$JIRA_BACKEND_DIR" && node --test server.test.ts)
+(cd "$SCRIPT_DIR/../backend/cluster" && node --test)
+(cd "$SCRIPT_DIR/.." && node --test tests/integration/cluster.test.ts)
