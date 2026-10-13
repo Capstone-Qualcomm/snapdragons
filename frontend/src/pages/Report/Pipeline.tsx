@@ -64,7 +64,7 @@ export function Pipeline({ slack, jiraCount, now }: { slack: Source<unknown>; ji
   const groups: Array<{ label: string; stages: Stage[] }> = [
     { label: "Sources", stages: [sourceStage({ name: "jira", status: "ready", items: [], error: "", loadedAt: null, reload: async () => {}, enable: async () => {} }, now, jiraCount), sourceStage(slack, now), plannedStage("Outlook", "Today's email into the list", "QT1S-27")] },
     { label: "Cluster", stages: [plannedStage("Task queue", "Workers claim tasks from it", "QT1S-8"), plannedStage("Uno Q nodes", "6 boards in the mail", "QT1S-11")] },
-    { label: "Output", stages: [plannedStage("Ranking", "One LLM call orders the list", "QT1S-26")] },
+    { label: "Output", stages: [{ name: "Ranking", tone: "off", state: "Page ready", detail: "Connect model to rank the list", action: { label: "QT1S-26 ↗", href: jiraBrowse + "QT1S-26" } }] },
   ];
 
   return (

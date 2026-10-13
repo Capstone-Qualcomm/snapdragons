@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { JiraReport } from "./jira/jiraReport";
 import { Pipeline } from "./Pipeline";
+import { PriorityList } from "./PriorityList";
 import { SlackPanel } from "./SlackPanel";
 import { useSlackSource } from "./useSlackSource";
+import type { JiraIssue } from "./jira/jiraService";
 import "./Report.css";
 
 export function ReportPage() {
@@ -10,6 +12,7 @@ export function ReportPage() {
   const [now, setNow] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
   const [jiraCount, setJiraCount] = useState(0);
+  const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>([]);
 
   const syncAll = useCallback(() => {
     setRefreshKey((key) => key + 1);
@@ -43,10 +46,11 @@ export function ReportPage() {
         </button>
       </header>
       <Pipeline slack={slack} jiraCount={jiraCount} now={now} />
+      <PriorityList issues={jiraIssues} slack={slack} />
       <div className="work-columns">
         <SlackPanel source={slack} now={now} />
         <div className="work-panel">
-          <JiraReport refreshKey={refreshKey} onCountChange={setJiraCount} />
+          <JiraReport refreshKey={refreshKey} onCountChange={setJiraCount} onItemsChange={setJiraIssues} />
         </div>
       </div>
       <footer className="report-keys">

@@ -7,7 +7,7 @@ import type { JiraIssue, JiraTransition } from "./jiraService";
 type IssueDraft = { description: string; storyPointEstimate: string; transitionId: string };
 const storyPointOptions = ["", "1", "2", "3", "5", "8", "13", "21"];
 
-export function JiraReport({ refreshKey = 0, onCountChange }: { refreshKey?: number; onCountChange?: (count: number) => void }) {
+export function JiraReport({ refreshKey = 0, onCountChange, onItemsChange }: { refreshKey?: number; onCountChange?: (count: number) => void; onItemsChange?: (issues: JiraIssue[]) => void }) {
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
   const [transitions, setTransitions] = useState<Record<string, JiraTransition[]>>({});
@@ -30,20 +30,25 @@ export function JiraReport({ refreshKey = 0, onCountChange }: { refreshKey?: num
 
       if (!connection.connected) {
         setIssues([]);
+        onItemsChange?.([]);
         setConnectionMessage("No apps are connected to pull from. Connect an app in Settings.");
         return;
       }
 
       if (!connection.enabled) {
         setIssues([]);
+        onItemsChange?.([]);
         setConnectionMessage("Jira is connected but disabled. Enable it in Settings to pull tasks.");
         return;
       }
 
-      setIssues(await getAssignedJiraIssues());
+      const nextIssues = await getAssignedJiraIssues();
+      setIssues(nextIssues);
+      onItemsChange?.(nextIssues);
     } catch (cause) {
       if (!connectionChecked) {
         setIssues([]);
+        onItemsChange?.([]);
         setConnectionMessage("No apps are connected to pull from. Connect an app in Settings.");
       } else {
         setError(cause instanceof Error ? cause.message : "Could not load Jira tasks.");
@@ -51,7 +56,7 @@ export function JiraReport({ refreshKey = 0, onCountChange }: { refreshKey?: num
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onItemsChange]);
 
   useEffect(() => {
     void loadIssues();

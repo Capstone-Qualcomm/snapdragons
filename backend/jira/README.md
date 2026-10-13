@@ -60,3 +60,7 @@ From the repository root, run:
 ```
 
 Open the frontend URL printed by Vite (usually `http://localhost:5173`), then go to Settings and choose **Connect Jira**. Sign in to Atlassian and grant access. Press **Ctrl+C** in the terminal to stop the backend and frontend.
+
+## Daily list ranking
+
+The Report page combines assigned Jira issues and available Slack messages into one priority list. `POST /api/rank` accepts `{ "items": [{ "id", "source", "title", "detail" }] }` and returns `{ "rankedIds": [...] }`. The endpoint validates that the result contains every submitted ID exactly once. The model provider is intentionally configured on the backend; the provider must be connected before using the **Rank with AI** button. Do not place model credentials in frontend code.

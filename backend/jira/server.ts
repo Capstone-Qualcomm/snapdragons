@@ -13,7 +13,10 @@ type ServerOptions = {
   appUrl?: string;
   scopes?: string;
   fetch?: typeof fetch;
+  ranker?: (items: RankableItem[]) => Promise<string[]>;
 };
+
+type RankableItem = { id: string; source: string; title: string; detail: string };
 
 export function createJiraServer(options: ServerOptions = {}) {
   const port = Number(options.port ?? process.env.PORT ?? 3001);
@@ -23,6 +26,7 @@ export function createJiraServer(options: ServerOptions = {}) {
   const appUrl = (options.appUrl ?? process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
   const scopes = options.scopes ?? process.env.ATLASSIAN_SCOPES ?? "read:jira-work read:jira-user write:jira-work offline_access";
   const fetchImpl = options.fetch ?? globalThis.fetch;
+  const ranker = options.ranker;
 
   // This starter is a single-user local integration. Credentials and tokens
   // stay on the server in memory and are cleared when it restarts.
@@ -69,6 +73,47 @@ export function createJiraServer(options: ServerOptions = {}) {
 
     if (req.method === "GET" && url.pathname === "/api/jira/logs") {
       send(res, 200, { logs: jiraLogs.list() });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/rank") {
+      if (!ranker) {
+        send(res, 503, { error: "AI ranking is not connected yet - no model available." });
+        return;
+      }
+      try {
+        let body = "";
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 100_000) throw new Error("The item list is too large to rank.");
+        }
+        const parsed = JSON.parse(body) as { items?: unknown };
+        if (!Array.isArray(parsed.items) || parsed.items.length === 0 || parsed.items.length > 100) {
+          send(res, 400, { error: "Provide between 1 and 100 items to rank." });
+          return;
+        }
+        const items: RankableItem[] = parsed.items.map((item: unknown) => {
+          if (!item || typeof item !== "object") throw new Error("Every item must have an id, source, title, and detail.");
+          const candidate = item as Record<string, unknown>;
+          if ([candidate.id, candidate.source, candidate.title, candidate.detail].some((value) => typeof value !== "string")) {
+            throw new Error("Every item must have an id, source, title, and detail.");
+          }
+          return { id: candidate.id as string, source: candidate.source as string, title: candidate.title as string, detail: candidate.detail as string };
+        });
+        const ids = items.map(({ id }) => id);
+        if (new Set(ids).size !== ids.length) {
+          send(res, 400, { error: "Every item must have a unique id." });
+          return;
+        }
+        const rankedIds = await ranker(items);
+        if (rankedIds.length !== ids.length || new Set(rankedIds).size !== ids.length || rankedIds.some((id) => !ids.includes(id))) {
+          throw new Error("The model returned an invalid ranking. Try again.");
+        }
+        send(res, 200, { rankedIds });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not rank the list.";
+        send(res, message.startsWith("Unexpected token") ? 400 : 502, { error: message });
+      }
       return;
     }
 
