@@ -114,7 +114,7 @@ export function SettingsPage() {
       <section className="settings-app-card" aria-labelledby="jira-app-title">
         <div className="settings-app-header">
           <div className="settings-app-icon" aria-hidden="true">
-            <img src="/jira-logo.png" alt="" />
+            <img src={appPath("jira-logo.png")} alt="" />
           </div>
           <div className="settings-app-name">
             <h2 id="jira-app-title">Jira</h2>
@@ -188,7 +188,7 @@ export function SettingsPage() {
       <section className="settings-app-card" aria-labelledby="outlook-app-title">
         <div className="settings-app-header">
           <div className="settings-app-icon settings-app-icon-outlook" aria-hidden="true">
-            <img src="/outlook-logo.png" alt="" />
+            <img src={appPath("outlook-logo.png")} alt="" />
           </div>
           <div className="settings-app-name">
             <h2 id="outlook-app-title">Outlook</h2>
@@ -201,7 +201,7 @@ export function SettingsPage() {
       <section className="settings-app-card" aria-labelledby="github-app-title">
         <div className="settings-app-header">
           <div className="settings-app-icon settings-app-icon-github" aria-hidden="true">
-            <img src="/github-logo.png" alt="" />
+            <img src={appPath("github-logo.png")} alt="" />
           </div>
           <div className="settings-app-name">
             <h2 id="github-app-title">GitHub</h2>

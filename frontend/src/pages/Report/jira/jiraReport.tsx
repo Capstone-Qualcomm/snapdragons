@@ -164,7 +164,7 @@ export function JiraReport() {
                   >
                     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 6 3 3 3-3" /></svg>
                   </button>
-                  <img className="report-issue-logo" src="/jira-logo.png" alt="" aria-hidden="true" />
+                  <img className="report-issue-logo" src={appPath("jira-logo.png")} alt="" aria-hidden="true" />
                   <div className="report-issue-main">
                     <div className="report-issue-title">
                       <span className="report-issue-type">{issue.issueType}</span>
