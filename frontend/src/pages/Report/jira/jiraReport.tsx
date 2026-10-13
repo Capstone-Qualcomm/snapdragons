@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import "../report.css";
+import "../Report.css";
 import { getAssignedJiraIssues, getJiraConnection, getJiraTransitions, updateJiraIssue } from "./jiraService";
 import type { JiraIssue, JiraTransition } from "./jiraService";
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import "./settings.css";
-import { SlackCard } from "./slackCard";
+import "./Settings.css";
+import { SlackCard } from "./SlackCard";
 
 type JiraConnection = {
   configured: boolean;

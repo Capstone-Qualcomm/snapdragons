@@ -1,4 +1,4 @@
-import "./console.css";
+import "./Console.css";
 
 const nodes = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
 

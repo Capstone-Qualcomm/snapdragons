@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import "./slackCard.css";
+import "./SlackCard.css";
 
 type SlackConnection = {
   configured: boolean;

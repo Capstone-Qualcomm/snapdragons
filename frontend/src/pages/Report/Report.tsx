@@ -3,7 +3,7 @@ import { JiraReport } from "./jira/jiraReport";
 import { Pipeline } from "./Pipeline";
 import { SlackPanel } from "./SlackPanel";
 import { useSlackSource } from "./useSlackSource";
-import "./report.css";
+import "./Report.css";
 
 export function ReportPage() {
   const slack = useSlackSource();
