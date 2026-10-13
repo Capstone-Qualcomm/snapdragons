@@ -1,4 +1,5 @@
 import "./About.css";
+import { appPath } from "../../lib/urls";
 
 type AboutProps = {
   onClose: () => void;
@@ -27,16 +28,16 @@ export function About({ onClose }: AboutProps) {
           ×
         </button>
         <div className="about-logos">
-          <img className="about-dragon" src="/dragon.png" alt="SnapDragons" />
+          <img className="about-dragon" src={appPath("dragon.png")} alt="SnapDragons" />
           <img
             className="uw-madison-mark"
-            src="/uw-madison-crescent.png"
+            src={appPath("uw-madison-crescent.png")}
             alt="UW–Madison"
           />
         </div>
         <img
           className="qualcomm-logo"
-          src="/qualcomm-logo.png"
+          src={appPath("qualcomm-logo.png")}
           alt="Qualcomm"
         />
         <p>
