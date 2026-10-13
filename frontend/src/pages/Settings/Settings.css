@@ -19,6 +19,98 @@
   font-size: 13px;
 }
 
+.settings-sections {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-section-tab {
+  padding: 0 0 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.settings-section-tab.active {
+  border-bottom-color: var(--blue);
+  color: var(--text);
+}
+
+.settings-preferences {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.settings-preferences-heading h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.settings-preferences-heading p {
+  margin: 6px 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-theme-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.settings-theme-option {
+  display: grid;
+  min-width: 145px;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.settings-theme-option.selected {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1px var(--blue);
+}
+
+.settings-theme-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.settings-theme-option:focus-within { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+.settings-theme-swatch {
+  display: flex;
+  height: 58px;
+  align-items: end;
+  gap: 5px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #101318;
+}
+
+.settings-theme-swatch i { width: 23%; height: 27px; border-radius: 3px; background: #1c212a; }
+.settings-theme-swatch i:nth-child(2) { height: 36px; background: #252b36; }
+.settings-theme-swatch i:nth-child(3) { height: 18px; background: #3f6fdc; }
+.theme-preview-sand .settings-theme-swatch { border-color: #cfb99e; background: #e8d9c5; }
+.theme-preview-sand .settings-theme-swatch i { background: #ddc8ae; }
+.theme-preview-sand .settings-theme-swatch i:nth-child(2) { background: #d4bc9f; }
+.theme-preview-sand .settings-theme-swatch i:nth-child(3) { background: #b34f29; }
+
 .settings-app-card {
   overflow: hidden;
   border: 1px solid var(--line);

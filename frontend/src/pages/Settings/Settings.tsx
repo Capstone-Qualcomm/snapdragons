@@ -38,6 +38,14 @@ async function readJson<T>(response: Response): Promise<T | null> {
 }
 
 export function SettingsPage() {
+  const [section, setSection] = useState<"preferences" | "connections">(() =>
+    new URLSearchParams(window.location.search).has("jira") || new URLSearchParams(window.location.search).has("slack")
+      ? "connections"
+      : "preferences",
+  );
+  const [theme, setTheme] = useState<"dark" | "sand">(() =>
+    document.documentElement.dataset.theme === "sand" ? "sand" : "dark",
+  );
   const [jira, setJira] = useState(emptyConnection);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -99,18 +107,50 @@ export function SettingsPage() {
 
   const selectedSite = jira.sites.find((site) => site.id === jira.cloudId);
 
+  function chooseTheme(nextTheme: "dark" | "sand") {
+    setTheme(nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    try {
+      localStorage.setItem("continuum-theme", nextTheme);
+    } catch {
+      // Keep the selected theme active for this session if storage is unavailable.
+    }
+  }
+
   return (
     <section className="settings-view">
       <header className="settings-heading">
         <div>
           <h1>Settings</h1>
-          <p className="settings-description">Choose which apps can provide tasks to your report.</p>
+          <p className="settings-description">Manage how the app looks and which services it uses.</p>
         </div>
       </header>
 
+      <nav className="settings-sections" aria-label="Settings sections">
+        <button type="button" className={section === "preferences" ? "settings-section-tab active" : "settings-section-tab"} aria-current={section === "preferences" ? "page" : undefined} onClick={() => setSection("preferences")}>Preferences</button>
+        <button type="button" className={section === "connections" ? "settings-section-tab active" : "settings-section-tab"} aria-current={section === "connections" ? "page" : undefined} onClick={() => setSection("connections")}>Connections</button>
+      </nav>
+
+      {section === "preferences" ? (
+        <section className="settings-preferences" aria-labelledby="appearance-title">
+          <div className="settings-preferences-heading">
+            <h2 id="appearance-title">Appearance</h2>
+            <p>Choose the color theme for this app.</p>
+          </div>
+          <div className="settings-theme-options" role="radiogroup" aria-label="Color theme">
+            {(["dark", "sand"] as const).map((option) => (
+              <label className={`settings-theme-option theme-preview-${option}${theme === option ? " selected" : ""}`} key={option}>
+                <input type="radio" name="theme" value={option} checked={theme === option} onChange={() => chooseTheme(option)} />
+                <span className="settings-theme-swatch" aria-hidden="true"><i /><i /><i /></span>
+                <span>{option === "dark" ? "Dark" : "Sand"}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <>
       {notice && <p className="settings-message settings-notice" role="status">{notice}</p>}
       {error && <p className="settings-message settings-error" role="alert">{error}</p>}
-
       <section className="settings-app-card" aria-labelledby="jira-app-title">
         <div className="settings-app-header">
           <div className="settings-app-icon" aria-hidden="true">
@@ -210,6 +250,8 @@ export function SettingsPage() {
           <span className="settings-connection-state">Coming soon</span>
         </div>
       </section>
+        </>
+      )}
     </section>
   );
 }
