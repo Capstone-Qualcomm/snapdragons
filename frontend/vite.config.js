@@ -7,11 +7,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api/cluster": "http://127.0.0.1:3003",
-      "/api/slack": "http://127.0.0.1:3002",
-      "/auth/slack": "http://127.0.0.1:3002",
-      "/api": "http://127.0.0.1:3001",
-      "/auth": "http://127.0.0.1:3001",
+      "/snapdragons/api/cluster": { target: "http://127.0.0.1:3003", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/api/slack": { target: "http://127.0.0.1:3002", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/auth/slack": { target: "http://127.0.0.1:3002", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/api": { target: "http://127.0.0.1:3001", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/auth": { target: "http://127.0.0.1:3001", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
     },
   },
 })

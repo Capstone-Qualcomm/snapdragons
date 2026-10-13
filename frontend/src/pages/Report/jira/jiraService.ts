@@ -1,3 +1,5 @@
+import { apiPath } from "../../../lib/urls";
+
 export type JiraIssue = {
   key: string;
   summary: string;
@@ -27,7 +29,7 @@ async function readJson<T>(response: Response): Promise<T | null> {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
+  const response = await fetch(apiPath(url), options);
   const result = await readJson<T & JiraErrorResponse>(response);
   if (!response.ok) throw new Error(result?.error ?? "Could not load Jira data. Please try again.");
   if (result == null) throw new Error("Could not load Jira data. Please try again.");

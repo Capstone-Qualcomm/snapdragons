@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "./Settings.css";
 import { SlackCard } from "./SlackCard";
+import { apiPath, appPath } from "../../lib/urls";
 
 type JiraConnection = {
   configured: boolean;
@@ -47,7 +48,7 @@ export function SettingsPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/jira/connection", { cache: "no-store" });
+      const response = await fetch(apiPath("/api/jira/connection"), { cache: "no-store" });
       const result = await readJson<{ jira?: JiraConnection; error?: string }>(response);
       if (!response.ok) throw new Error(result?.error ?? "Could not load connection status. Check the server and refresh.");
       if (!result?.jira) throw new Error("Could not load connection status. Check the server and refresh.");
@@ -73,7 +74,7 @@ export function SettingsPage() {
     setError("");
     setNotice("");
     try {
-      const response = await fetch(path, {
+      const response = await fetch(apiPath(path), {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
         body: JSON.stringify(body),
@@ -163,14 +164,14 @@ export function SettingsPage() {
         <div className="settings-app-actions">
           {!jira.connected ? (
             <>
-              <a className={`settings-primary-button ${!jira.configured || loading || busy ? "is-disabled" : ""}`} href={jira.configured && !loading && !busy ? "/auth/jira/start" : undefined} aria-disabled={!jira.configured || loading || busy} tabIndex={!jira.configured || loading || busy ? -1 : undefined}>
+              <a className={`settings-primary-button ${!jira.configured || loading || busy ? "is-disabled" : ""}`} href={jira.configured && !loading && !busy ? appPath("auth/jira/start") : undefined} aria-disabled={!jira.configured || loading || busy} tabIndex={!jira.configured || loading || busy ? -1 : undefined}>
                 Connect Jira
               </a>
               {!jira.configured && !loading && <span className="settings-hint">The app administrator needs to configure Jira OAuth.</span>}
             </>
           ) : (
             <>
-              <a className="settings-secondary-button" href="/auth/jira/start">Reconnect</a>
+              <a className="settings-secondary-button" href={appPath("auth/jira/start")}>Reconnect</a>
               <button className="settings-text-button" type="button" disabled={busy} onClick={() => void disconnectJira()}>
                 Disconnect
               </button>

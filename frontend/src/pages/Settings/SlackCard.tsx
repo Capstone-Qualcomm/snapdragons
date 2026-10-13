@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiPath, appPath } from "../../lib/urls";
 import "./SlackCard.css";
 
 type SlackConnection = {
@@ -36,7 +37,7 @@ export function SlackCard() {
   const loadConnection = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/slack/connection", { cache: "no-store" });
+      const response = await fetch(apiPath("/api/slack/connection"), { cache: "no-store" });
       const result = await readJson<{ slack?: SlackConnection; error?: string }>(response);
       if (!response.ok || !result?.slack) throw new Error(result?.error ?? "Could not load Slack status.");
       setSlack(result.slack);
@@ -60,7 +61,7 @@ export function SlackCard() {
     setBusy(true);
     setMessage({ text: "", isError: false });
     try {
-      const response = await fetch(path, {
+      const response = await fetch(apiPath(path), {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
         body: JSON.stringify(body),
@@ -131,14 +132,14 @@ export function SlackCard() {
       <div className="settings-app-actions">
         {!slack.connected ? (
           <>
-            <a className={`settings-primary-button ${blocked ? "is-disabled" : ""}`} href={blocked ? undefined : "/auth/slack/start"} aria-disabled={blocked} tabIndex={blocked ? -1 : undefined}>
+            <a className={`settings-primary-button ${blocked ? "is-disabled" : ""}`} href={blocked ? undefined : appPath("auth/slack/start")} aria-disabled={blocked} tabIndex={blocked ? -1 : undefined}>
               Connect Slack
             </a>
             {!slack.configured && !loading && <span className="settings-hint">The app administrator needs to configure Slack OAuth.</span>}
           </>
         ) : (
           <>
-            <a className="settings-secondary-button" href="/auth/slack/start">Reconnect</a>
+            <a className="settings-secondary-button" href={appPath("auth/slack/start")}>Reconnect</a>
             <button className="settings-text-button" type="button" disabled={busy} onClick={() => void post("/api/slack/connection/disconnect", {})}>
               Disconnect
             </button>

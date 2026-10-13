@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiPath } from "../../lib/urls";
 import "./logs.css";
 
 const nodes = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
@@ -13,7 +14,7 @@ export function LogsPage() {
     let active = true;
     async function loadLogs() {
       try {
-        const response = await fetch("/api/jira/logs", { cache: "no-store" });
+        const response = await fetch(apiPath("/api/jira/logs"), { cache: "no-store" });
         const result = await response.json() as { logs?: NodeLog[] };
         if (!response.ok || !Array.isArray(result.logs)) throw new Error("Logs unavailable");
         if (active) {

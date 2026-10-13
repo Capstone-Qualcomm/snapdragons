@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { appPath } from "../../lib/urls";
 import type { SlackMessage, Source } from "./useSlackSource";
 import { ago } from "./useSlackSource";
 
@@ -6,7 +7,7 @@ function SourceState({ source, empty }: { source: Source<unknown>; empty: string
   const title = source.name === "jira" ? "Jira" : "Slack";
   if (source.status === "loading") return <p className="panel-state">Loading {title}…</p>;
   if (source.status === "unconfigured") return <p className="panel-state">{title} sign-in is not set up on this server yet.</p>;
-  if (source.status === "disconnected") return <p className="panel-state">{title} is not connected. <a href={`/auth/${source.name}/start`}>Connect {title}</a></p>;
+  if (source.status === "disconnected") return <p className="panel-state">{title} is not connected. <a href={appPath(`auth/${source.name}/start`)}>Connect {title}</a></p>;
   if (source.status === "disabled") return <p className="panel-state">{title} is turned off for Report. <button type="button" onClick={() => void source.enable()}>Turn on</button></p>;
   if (source.status === "error") return <p className="panel-state is-error">{source.error} <button type="button" onClick={() => void source.reload()}>Retry</button></p>;
   if (source.items.length === 0) return <p className="panel-state">{empty}</p>;

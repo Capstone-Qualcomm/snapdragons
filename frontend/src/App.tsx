@@ -4,6 +4,7 @@ import { LogsPage } from "./pages/logs/logs";
 import { ReportPage } from "./pages/Report/Report";
 import { About } from "./components/About/About";
 import { SettingsPage } from "./pages/Settings/Settings";
+import { appPath } from "./lib/urls";
 
 type View = "Console" | "Report" | "Logs" | "Settings";
 
@@ -38,7 +39,7 @@ function App() {
   }, [aboutOpen]);
 
   function navigateTo(nextView: View) {
-    const path = "/" + nextView.toLowerCase();
+    const path = appPath(nextView.toLowerCase());
     if (window.location.pathname !== path) {
       window.history.pushState({}, "", path);
     }
@@ -50,7 +51,7 @@ function App() {
       <header className="topbar">
         <a
           className="brand"
-          href="/console"
+          href={appPath("console")}
           aria-label="Continuum console"
           onClick={(event) => {
             event.preventDefault();

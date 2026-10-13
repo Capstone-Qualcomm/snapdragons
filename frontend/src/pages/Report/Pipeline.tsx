@@ -1,3 +1,4 @@
+import { appPath } from "../../lib/urls";
 import type { Source } from "./useSlackSource";
 import { ago } from "./useSlackSource";
 
@@ -26,7 +27,7 @@ function sourceStage(source: Source<unknown>, now: number): Stage {
     case "unconfigured":
       return { name: title, tone: "off", state: "Not set up", detail: `Add ${title} OAuth keys to the backend .env` };
     case "disconnected":
-      return { name: title, tone: "off", state: "Not connected", detail: "Sign in to pull items", action: { label: `Connect ${title}`, href: `/auth/${source.name}/start` } };
+      return { name: title, tone: "off", state: "Not connected", detail: "Sign in to pull items", action: { label: `Connect ${title}`, href: appPath(`auth/${source.name}/start`) } };
     case "disabled":
       return { name: title, tone: "warn", state: "Turned off", detail: "Connected but excluded from Report", action: { label: "Turn on", onClick: () => void source.enable() } };
     case "error":

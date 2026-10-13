@@ -22,9 +22,9 @@ stop_services() {
   wait "$JIRA_PID" "$SLACK_PID" "$FRONTEND_PID" 2>/dev/null || true
 }
 
-(cd "$JIRA_DIR" && npm start) &
+(cd "$JIRA_DIR" && APP_URL="${APP_URL:-http://localhost:5173/snapdragons}" npm start) &
 JIRA_PID=$!
-(cd "$SLACK_DIR" && npm start) &
+(cd "$SLACK_DIR" && APP_URL="${APP_URL:-http://localhost:5173/snapdragons}" npm start) &
 SLACK_PID=$!
 (cd "$FRONTEND_DIR" && npm run dev) &
 FRONTEND_PID=$!
@@ -32,7 +32,7 @@ FRONTEND_PID=$!
 trap stop_services INT TERM EXIT
 
 echo "Jira backend, Slack backend and Vite frontend are starting. Open the URL printed by Vite (usually http://localhost:5173)."
-echo "Jira listens on 3001, Slack on 3002, Vite proxies /api/slack* and /auth/slack* to 3002."
+echo "Jira listens on 3001, Slack on 3002, Vite serves the app at /snapdragons/ and proxies its API and OAuth routes."
 echo "For live nodes on the Console page, run ./scripts/start-cluster.sh in another terminal."
 echo "Press Ctrl+C to stop everything."
 

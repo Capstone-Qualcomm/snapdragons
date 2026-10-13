@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiPath } from "../../lib/urls";
 import "./Console.css";
 
 const nodes = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
@@ -19,7 +20,7 @@ export function ConsolePage() {
   useEffect(() => {
     async function load() {
       try {
-        const response = await fetch("/api/cluster/state", { cache: "no-store" });
+        const response = await fetch(apiPath("/api/cluster/state"), { cache: "no-store" });
         const state = await response.json();
         setWorkers(Array.isArray(state?.workers) ? state.workers : []);
       } catch {

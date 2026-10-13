@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { appPath } from "../../../lib/urls";
 import "../Report.css";
 import { getAssignedJiraIssues, getJiraConnection, getJiraTransitions, updateJiraIssue } from "./jiraService";
 import type { JiraIssue, JiraTransition } from "./jiraService";
@@ -134,12 +135,12 @@ export function JiraReport() {
       ) : error ? (
         <div className="report-empty report-error" role="alert">
           <p>{error}</p>
-          <a href="/settings">Open Settings</a>
+          <a href={appPath("settings")}>Open Settings</a>
         </div>
       ) : connectionMessage ? (
         <div className="report-empty report-error" role="status">
           <p>{connectionMessage}</p>
-          <a href="/settings">Open Settings</a>
+          <a href={appPath("settings")}>Open Settings</a>
         </div>
       ) : issues.length === 0 ? (
         <div className="report-empty"><p>No assigned Jira tasks</p></div>

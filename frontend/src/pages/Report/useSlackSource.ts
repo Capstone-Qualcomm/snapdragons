@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiPath } from "../../lib/urls";
 
 export type SourceStatus = "loading" | "unconfigured" | "disconnected" | "disabled" | "error" | "ready";
 
@@ -36,14 +37,14 @@ export function useSlackSource(): Source<SlackMessage> {
   const reload = useCallback(async () => {
     setState((current) => ({ ...current, status: "loading", error: "" }));
     try {
-      const connectionResponse = await fetch("/api/slack/connection", { cache: "no-store" });
+      const connectionResponse = await fetch(apiPath("/api/slack/connection"), { cache: "no-store" });
       const connection = (await readJson(connectionResponse))?.slack;
       if (!connectionResponse.ok || !connection) throw new Error("The app server did not answer. Check that the backend is running.");
       if (!connection.configured && !connection.connected) return setState({ status: "unconfigured", items: [], error: "", loadedAt: null });
       if (!connection.connected) return setState({ status: "disconnected", items: [], error: "", loadedAt: null });
       if (!connection.enabled) return setState({ status: "disabled", items: [], error: "", loadedAt: null });
 
-      const response = await fetch("/api/slack/messages", { cache: "no-store" });
+      const response = await fetch(apiPath("/api/slack/messages"), { cache: "no-store" });
       const result = await readJson(response);
       if (!response.ok || !Array.isArray(result?.messages)) throw new Error(result?.error ?? "Could not load Slack right now.");
       setState({ status: "ready", items: result.messages, error: "", loadedAt: Date.now() });
@@ -54,7 +55,7 @@ export function useSlackSource(): Source<SlackMessage> {
   }, []);
 
   const enable = useCallback(async () => {
-    await fetch("/api/slack/connection/enabled", {
+    await fetch(apiPath("/api/slack/connection/enabled"), {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
       body: JSON.stringify({ enabled: true }),
