@@ -14,9 +14,10 @@ type Stage = {
   action?: { label: string; href?: string; onClick?: () => void };
 };
 
-const labels: Record<"jira" | "slack", { title: string; noun: string }> = {
+const labels: Record<"jira" | "slack" | "github", { title: string; noun: string }> = {
   jira: { title: "Jira", noun: "assigned" },
   slack: { title: "Slack", noun: "waiting on you" },
+  github: { title: "GitHub", noun: "assigned" },
 };
 
 function sourceStage(source: Source<unknown>, now: number, itemCount = source.items.length): Stage {
@@ -60,9 +61,9 @@ function StageCell({ stage }: { stage: Stage }) {
   );
 }
 
-export function Pipeline({ slack, jiraCount, now }: { slack: Source<unknown>; jiraCount: number; now: number }) {
+export function Pipeline({ slack, github, jiraCount, now }: { slack: Source<unknown>; github: Source<unknown>; jiraCount: number; now: number }) {
   const groups: Array<{ label: string; stages: Stage[] }> = [
-    { label: "Sources", stages: [sourceStage({ name: "jira", status: "ready", items: [], error: "", loadedAt: null, reload: async () => {}, enable: async () => {} }, now, jiraCount), sourceStage(slack, now), plannedStage("Outlook", "Today's email into the list", "QT1S-27")] },
+    { label: "Sources", stages: [sourceStage({ name: "jira", status: "ready", items: [], error: "", loadedAt: null, reload: async () => {}, enable: async () => {} }, now, jiraCount), sourceStage(slack, now), sourceStage(github, now), plannedStage("Outlook", "Today's email into the list", "QT1S-27")] },
     { label: "Cluster", stages: [plannedStage("Task queue", "Workers claim tasks from it", "QT1S-8"), plannedStage("Uno Q nodes", "6 boards in the mail", "QT1S-11")] },
     { label: "Output", stages: [plannedStage("Ranking", "One LLM call orders the list", "QT1S-26")] },
   ];
