@@ -9,6 +9,7 @@ export function ReportPage() {
   const slack = useSlackSource();
   const [now, setNow] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
+  const [jiraCount, setJiraCount] = useState(0);
 
   const syncAll = useCallback(() => {
     setRefreshKey((key) => key + 1);
@@ -41,11 +42,11 @@ export function ReportPage() {
           {syncing ? "Syncing…" : "Sync all ↻"}
         </button>
       </header>
-      <Pipeline slack={slack} now={now} />
+      <Pipeline slack={slack} jiraCount={jiraCount} now={now} />
       <div className="work-columns">
         <SlackPanel source={slack} now={now} />
         <div className="work-panel">
-          <JiraReport refreshKey={refreshKey} />
+          <JiraReport refreshKey={refreshKey} onCountChange={setJiraCount} />
         </div>
       </div>
       <footer className="report-keys">
