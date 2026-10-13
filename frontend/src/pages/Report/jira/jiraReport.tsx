@@ -7,7 +7,7 @@ import type { JiraIssue, JiraTransition } from "./jiraService";
 type IssueDraft = { description: string; storyPointEstimate: string; transitionId: string };
 const storyPointOptions = ["", "1", "2", "3", "5", "8", "13", "21"];
 
-export function JiraReport({ refreshKey = 0, onCountChange }: { refreshKey?: number; onCountChange?: (count: number) => void }) {
+export function JiraReport({ refreshKey = 0, onCountChange, onLoadingChange }: { refreshKey?: number; onCountChange?: (count: number) => void; onLoadingChange?: (loading: boolean) => void }) {
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
   const [transitions, setTransitions] = useState<Record<string, JiraTransition[]>>({});
@@ -60,6 +60,10 @@ export function JiraReport({ refreshKey = 0, onCountChange }: { refreshKey?: num
   useEffect(() => {
     onCountChange?.(issues.length);
   }, [issues, onCountChange]);
+
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
 
   function initialDraft(issue: JiraIssue): IssueDraft {
     return {
