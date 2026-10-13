@@ -1,7 +1,7 @@
 html {
   min-width: 360px;
-  background: #0c0d0f;
-  color-scheme: dark;
+  background: var(--bg);
+  color-scheme: light;
 }
 
 body {
@@ -14,11 +14,11 @@ button {
 
 button:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #7aa7ff;
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: #273449;
-  color: #f0f0ec;
+  background: var(--selection);
+  color: var(--text);
 }

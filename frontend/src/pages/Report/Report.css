@@ -205,7 +205,7 @@
   gap: 20px 36px;
   padding: 20px 28px 24px 92px;
   border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--panel) 72%, #101115);
+  background: var(--surface-2);
 }
 
 .report-issue-details[hidden] {
@@ -233,7 +233,7 @@
   padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #111216;
+  background: var(--panel);
   color: var(--text);
   font: inherit;
   font-size: 12px;
@@ -325,9 +325,9 @@
 .report-edit-actions button {
   min-height: 34px;
   padding: 0 13px;
-  border: 1px solid #3e71c5;
+  border: 1px solid var(--blue);
   border-radius: 7px;
-  background: #1b3767;
+  background: var(--accent-strong);
   color: var(--text);
   cursor: pointer;
   font: inherit;
@@ -359,7 +359,341 @@
   border-radius: 5px;
 }
 
+/* ── Dashboard layout ── */
+.report-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.report-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.report-bar h1 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.report-date {
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.report-bar .report-refresh,
+.stage-action,
+.row-action,
+.panel-state button,
+.panel-state a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.report-bar .report-refresh {
+  margin-left: auto;
+}
+
+.report-bar .report-refresh:hover:not(:disabled),
+.stage-action:hover,
+.row-action:hover,
+.panel-state button:hover,
+.panel-state a:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+/* ── Pipeline ── */
+.pipeline {
+  display: grid;
+  grid-template-columns: 3fr 2fr 1fr;
+  gap: 12px;
+}
+
+.pipeline-label {
+  margin: 0 0 6px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pipeline-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.stage-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.tone-ok .led { background: var(--green); }
+.tone-busy .led { background: var(--amber); }
+.tone-warn .led { background: var(--amber); }
+.tone-bad .led { background: var(--danger); }
+.tone-off .led { background: var(--dim); }
+
+.stage-name {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.stage-state {
+  grid-row: 2;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stage-detail {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-action {
+  margin-left: 8px;
+}
+
+/* ── Work columns ── */
+.work-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.work-panel {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.work-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.work-head h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.work-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--line);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.work-source {
+  margin-left: auto;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.panel-state {
+  margin: 0;
+  padding: 24px 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.panel-state.is-error {
+  color: var(--danger);
+}
+
+/* ── Work items ── */
+.work-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.work-row:last-child {
+  border-bottom: 0;
+}
+
+.avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--sticker, var(--surface-2));
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  transform: rotate(var(--tilt, 0deg));
+}
+
+.work-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.work-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.work-sub {
+  color: var(--dim);
+  font-size: 11px;
+}
+
+.work-meta time {
+  margin-left: auto;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.work-text {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.work-text mark {
+  background: color-mix(in srgb, var(--amber) 22%, transparent);
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.row-action {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* ── Work groups ── */
+.work-group {
+  margin: 0;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.work-group small {
+  margin-left: 4px;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.stamp {
+  color: var(--amber);
+}
+
+/* ── Report footer ── */
+.report-keys {
+  display: flex;
+  gap: 16px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.report-keys kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--dim);
+  border-radius: 4px;
+}
+
+@media (max-width: 860px) {
+  .pipeline {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .work-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
+  .pipeline {
+    grid-template-columns: 1fr;
+  }
+
   .report-issue-row {
     display: grid;
     grid-template-columns: 24px 22px minmax(0, 1fr);

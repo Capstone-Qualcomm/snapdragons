@@ -8,7 +8,7 @@
   gap: 40px;
   padding: 0 var(--gutter);
   border-bottom: 1px solid var(--line);
-  background: rgb(12 13 15 / 92%);
+  background: rgb(232 217 197 / 94%);
   backdrop-filter: blur(10px);
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import "./settings.css";
+import { SlackCard } from "./slackCard";
 
 type JiraConnection = {
   configured: boolean;
@@ -181,18 +182,7 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="settings-app-card" aria-labelledby="slack-app-title">
-        <div className="settings-app-header">
-          <div className="settings-app-icon settings-app-icon-slack" aria-hidden="true">
-            <img src="/slack-logo.png" alt="" />
-          </div>
-          <div className="settings-app-name">
-            <h2 id="slack-app-title">Slack</h2>
-            <p>Tasks and updates from your Slack workspace</p>
-          </div>
-          <span className="settings-connection-state">Coming soon</span>
-        </div>
-      </section>
+      <SlackCard />
 
       <section className="settings-app-card" aria-labelledby="outlook-app-title">
         <div className="settings-app-header">

@@ -2,7 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-BACKEND_DIR="$ROOT/backend/jira"
+JIRA_DIR="$ROOT/backend/jira"
+SLACK_DIR="$ROOT/backend/slack"
 FRONTEND_DIR="$ROOT/frontend"
 
 if [[ ! -f "$ROOT/backend/.env" ]]; then
@@ -17,18 +18,21 @@ fi
 
 stop_services() {
   trap - INT TERM EXIT
-  kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
-  wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+  kill "$JIRA_PID" "$SLACK_PID" "$FRONTEND_PID" 2>/dev/null || true
+  wait "$JIRA_PID" "$SLACK_PID" "$FRONTEND_PID" 2>/dev/null || true
 }
 
-(cd "$BACKEND_DIR" && npm start) &
-BACKEND_PID=$!
+(cd "$JIRA_DIR" && npm start) &
+JIRA_PID=$!
+(cd "$SLACK_DIR" && npm start) &
+SLACK_PID=$!
 (cd "$FRONTEND_DIR" && npm run dev) &
 FRONTEND_PID=$!
 
 trap stop_services INT TERM EXIT
 
-echo "Jira backend and Vite frontend are starting. Open the URL printed by Vite (usually http://localhost:5173)."
-echo "Press Ctrl+C to stop both."
+echo "Jira backend, Slack backend and Vite frontend are starting. Open the URL printed by Vite (usually http://localhost:5173)."
+echo "Jira listens on 3001, Slack on 3002, Vite proxies /api/slack* and /auth/slack* to 3002."
+echo "Press Ctrl+C to stop everything."
 
-wait "$BACKEND_PID" "$FRONTEND_PID"
+wait "$JIRA_PID" "$SLACK_PID" "$FRONTEND_PID"

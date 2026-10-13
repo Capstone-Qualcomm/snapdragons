@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: #000c;
+  background: var(--overlay);
 }
 
 .about-dialog {
