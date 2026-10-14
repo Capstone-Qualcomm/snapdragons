@@ -124,13 +124,20 @@ export function createGitHubAuth({
         grant_type: "refresh_token",
         refresh_token: token.refreshToken,
       });
-      githubConnection.token = {
+      if (githubConnection.token !== token || !githubConnection.connected) {
+        throw new Error("GitHub connection changed during token refresh. Please retry.");
+      }
+      const refreshedToken = {
         ...refreshed,
         refreshToken: refreshed.refreshToken ?? token.refreshToken,
         refreshTokenExpiresAt: refreshed.refreshTokenExpiresAt ?? token.refreshTokenExpiresAt,
       };
-      return githubConnection.token.accessToken;
-    } catch {
+      githubConnection.token = refreshedToken;
+      return refreshedToken.accessToken;
+    } catch (error) {
+      if (githubConnection.token !== token || !githubConnection.connected) {
+        throw new Error("GitHub connection changed during token refresh. Please retry.");
+      }
       reset();
       throw new Error("GitHub authorization expired. Reconnect GitHub in Settings.");
     }

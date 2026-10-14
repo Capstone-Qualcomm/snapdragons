@@ -19,6 +19,7 @@ export function createGitHubServer(options: ServerOptions = {}) {
   const clientSecret = options.clientSecret ?? process.env.GITHUB_CLIENT_SECRET;
   const redirectUri = options.redirectUri ?? process.env.GITHUB_REDIRECT_URI ?? `http://localhost:${port}/auth/github/callback`;
   const appUrl = (options.appUrl ?? process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  const appOrigin = new URL(appUrl).origin;
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
   const githubConnection = {
@@ -69,6 +70,20 @@ export function createGitHubServer(options: ServerOptions = {}) {
       if (req.method === "GET" && url.pathname === "/api/github/connection") {
         send(res, 200, { github: connectionStatus() });
         return;
+      }
+
+      if (req.method === "POST" && ["/api/github/connection/disconnect", "/api/github/connection/enabled"].includes(url.pathname)) {
+        const origin = req.headers.origin;
+        let trustedOrigin = false;
+        try {
+          trustedOrigin = typeof origin === "string" && new URL(origin).origin === appOrigin;
+        } catch {
+          trustedOrigin = false;
+        }
+        if (!trustedOrigin) {
+          send(res, 403, { error: "This request must come from the application." });
+          return;
+        }
       }
 
       if (req.method === "GET" && url.pathname === "/api/github/issues") {
@@ -124,7 +139,7 @@ export function createGitHubServer(options: ServerOptions = {}) {
     }
   });
 
-  server.listen(port, () => {
+  server.listen(port, "127.0.0.1", () => {
     const address = server.address();
     const actualPort = typeof address === "object" && address ? address.port : port;
     console.log(`SnapDragons GitHub backend listening on http://localhost:${actualPort}`);
