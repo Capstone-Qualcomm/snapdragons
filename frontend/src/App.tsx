@@ -12,7 +12,7 @@ const navViews: View[] = ["Console", "Report", "Logs"];
 
 function viewFromPath(path: string): View {
   const pathView = path.split("/").filter(Boolean).at(-1)?.toLowerCase();
-  return [...navViews, "Settings"].find((view) => view.toLowerCase() === pathView) ?? "Console";
+  return [...navViews, "Settings" as const].find((view) => view.toLowerCase() === pathView) ?? "Console";
 }
 
 function App() {

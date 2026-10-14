@@ -5,6 +5,7 @@ import { SlackPanel } from "./SlackPanel";
 import { GitHubPanel } from "./GitHubPanel";
 import { useGitHubSource } from "./useGitHubSource";
 import { useSlackSource } from "./useSlackSource";
+import type { Source } from "./useSlackSource";
 import "./Report.css";
 
 export function ReportPage() {
@@ -12,7 +13,7 @@ export function ReportPage() {
   const github = useGitHubSource();
   const [now, setNow] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
-  const [jiraCount, setJiraCount] = useState(0);
+  const [jira, setJira] = useState<Source<unknown> | null>(null);
 
   const syncAll = useCallback(() => {
     setRefreshKey((key) => key + 1);
@@ -36,7 +37,6 @@ export function ReportPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [syncAll]);
 
-  // Only include Slack in the pipeline while Jira reports its own status internally.
   return (
     <section className="report-view">
       <header className="report-bar">
@@ -46,11 +46,11 @@ export function ReportPage() {
           {syncing ? "Syncing…" : "Sync all ↻"}
         </button>
       </header>
-      <Pipeline slack={slack} github={github} jiraCount={jiraCount} now={now} />
+      <Pipeline slack={slack} github={github} jira={jira} now={now} />
       <div className="work-columns">
         <SlackPanel source={slack} now={now} />
         <div className="work-panel">
-          <JiraReport refreshKey={refreshKey} onCountChange={setJiraCount} />
+          <JiraReport refreshKey={refreshKey} onSourceChange={setJira} />
         </div>
         <GitHubPanel source={github} />
       </div>
