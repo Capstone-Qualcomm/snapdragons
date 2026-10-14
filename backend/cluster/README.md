@@ -25,6 +25,19 @@ WORKER_ID=Q-01 npm run worker
 curl -X POST localhost:3003/api/cluster/tasks -d '{"input":"hello"}'
 ```
 
+## Failover
+
+A busy worker sends a heartbeat every second. If the queue hears nothing from a worker for 2 seconds (`LEASE_MS`), its lease expires and its task goes back in the queue for the next worker that asks. If the old worker comes back and tries to finish it, it gets a 409.
+
+To see it, run the cluster with long tasks and kill a worker mid-task while the Console page is open:
+
+```
+WORK_MS=8000 ./scripts/start-cluster.sh
+./scripts/kill-worker.sh Q-02
+```
+
+The task starts over on the new worker. Picking up from a checkpoint, as the concept page shows, comes later.
+
 ## Routes
 
 | Method | Path | Purpose |
@@ -32,6 +45,7 @@ curl -X POST localhost:3003/api/cluster/tasks -d '{"input":"hello"}'
 | GET | `/api/cluster/state` | Every task, and what each worker holds and has finished |
 | POST | `/api/cluster/tasks` | Queue a task: `{ "input": "..." }` |
 | POST | `/api/cluster/claim` | A worker asks for work: `{ "worker": "Q-01" }`. `task` is null when the queue is empty |
+| POST | `/api/cluster/heartbeat` | A busy worker says it is still alive: `{ "worker": "Q-01" }` |
 | POST | `/api/cluster/complete` | A worker reports a result: `{ "id", "worker", "result" }`. 409 if that worker does not hold the task |
 
 ## Tests
@@ -42,6 +56,5 @@ cd backend/cluster && npm test
 
 ## Not done yet
 
-- A claim never expires. If a worker dies mid-task, the task stays claimed. That is QT1S-9.
 - The queue is in memory, so restarting the server loses it.
 - The work is a timer. Real tasks come once the assistant side has something to hand out.
