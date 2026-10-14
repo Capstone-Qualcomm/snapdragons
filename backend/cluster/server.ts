@@ -3,11 +3,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createQueue } from "./queue.ts";
 
-type ServerOptions = { port?: number };
+type ServerOptions = { port?: number; leaseMs?: number };
 
 export function createClusterServer(options: ServerOptions = {}) {
   const port = Number(options.port ?? process.env.CLUSTER_PORT ?? 3003);
-  const queue = createQueue();
+  const queue = createQueue({ leaseMs: Number(options.leaseMs ?? process.env.LEASE_MS ?? 2000) });
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -49,6 +49,17 @@ export function createClusterServer(options: ServerOptions = {}) {
         }
         // task is null when the queue is empty, so the worker knows to wait and ask again.
         send(res, 200, { task: queue.claim(worker) });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/cluster/heartbeat") {
+        const { worker } = await readBody(req);
+        if (typeof worker !== "string" || !worker) {
+          send(res, 400, { error: "worker is required." });
+          return;
+        }
+        queue.heartbeat(worker);
+        send(res, 200, { ok: true });
         return;
       }
 
