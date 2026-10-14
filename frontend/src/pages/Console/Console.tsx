@@ -4,14 +4,15 @@ import "./Console.css";
 
 const nodes = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
 
-type Worker = { id: string; lastSeen: string; current: string | null; done: number };
+type Worker = { id: string; lastSeen: string; current: string | null; takenFrom: string | null; done: number };
 
-// An idle worker asks the queue for work every half second, so one that has
-// been quiet this long has stopped. A worker holding a task does not poll.
-const STALE_MS = 5000;
+// An idle worker asks the queue for work every half second and a busy one
+// sends a heartbeat every second, so one that has been quiet this long has
+// stopped. The queue hands its task to another worker after 2 seconds.
+const STALE_MS = 3000;
 
 function isLive(worker: Worker) {
-  return worker.current !== null || Date.now() - new Date(worker.lastSeen).getTime() < STALE_MS;
+  return Date.now() - new Date(worker.lastSeen).getTime() < STALE_MS;
 }
 
 export function ConsolePage() {
@@ -36,7 +37,8 @@ export function ConsolePage() {
   return (
     <div className="node-grid" aria-label="Six node console">
       {nodes.map((node) => {
-        const worker = workers.find((candidate) => candidate.id === node && isLive(candidate));
+        const seen = workers.find((candidate) => candidate.id === node);
+        const worker = seen && isLive(seen) ? seen : undefined;
         return (
           <article className="node-card" key={node}>
             <header className="node-card-header">
@@ -47,7 +49,13 @@ export function ConsolePage() {
             {worker ? (
               <div className="node-status">
                 <strong>{worker.current ? `Working on ${worker.current}` : "Idle"}</strong>
+                {worker.takenFrom && <span className="node-takeover">Took over from {worker.takenFrom}</span>}
                 <span>{worker.done} done</span>
+              </div>
+            ) : seen ? (
+              <div className="node-status node-lost">
+                <strong>No heartbeat</strong>
+                <span>Work handed to other nodes</span>
               </div>
             ) : (
               <div className="node-empty">Waiting for node connection</div>
