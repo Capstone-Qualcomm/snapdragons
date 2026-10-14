@@ -25,7 +25,8 @@ PIDS+=($!)
 until curl -sf "$URL/api/cluster/state" >/dev/null; do sleep 0.2; done
 
 for id in Q-01 Q-02 Q-03; do
-  WORKER_ID="$id" node worker.ts &
+  # The name goes on the command line so ./scripts/kill-worker.sh can find the process.
+  node worker.ts "$id" &
   PIDS+=($!)
 done
 
