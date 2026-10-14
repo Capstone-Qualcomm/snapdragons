@@ -4,7 +4,7 @@ import { apiPath } from "../../lib/urls";
 export type SourceStatus = "loading" | "unconfigured" | "disconnected" | "disabled" | "error" | "ready";
 
 export type Source<T> = {
-  name: "jira" | "slack";
+  name: "jira" | "slack" | "github";
   status: SourceStatus;
   items: T[];
   error: string;

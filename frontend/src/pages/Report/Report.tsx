@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { JiraReport } from "./jira/jiraReport";
 import { Pipeline } from "./Pipeline";
 import { SlackPanel } from "./SlackPanel";
+import { GitHubPanel } from "./GitHubPanel";
+import { useGitHubSource } from "./useGitHubSource";
 import { useSlackSource } from "./useSlackSource";
 import "./Report.css";
 
 export function ReportPage() {
   const slack = useSlackSource();
+  const github = useGitHubSource();
   const [now, setNow] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
   const [jiraCount, setJiraCount] = useState(0);
@@ -14,14 +17,15 @@ export function ReportPage() {
   const syncAll = useCallback(() => {
     setRefreshKey((key) => key + 1);
     void slack.reload();
-  }, [slack.reload]);
+    void github.reload();
+  }, [github.reload, slack.reload]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(timer);
   }, []);
 
-  const syncing = slack.status === "loading";
+  const syncing = slack.status === "loading" || github.status === "loading";
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -42,12 +46,13 @@ export function ReportPage() {
           {syncing ? "Syncing…" : "Sync all ↻"}
         </button>
       </header>
-      <Pipeline slack={slack} jiraCount={jiraCount} now={now} />
+      <Pipeline slack={slack} github={github} jiraCount={jiraCount} now={now} />
       <div className="work-columns">
         <SlackPanel source={slack} now={now} />
         <div className="work-panel">
           <JiraReport refreshKey={refreshKey} onCountChange={setJiraCount} />
         </div>
+        <GitHubPanel source={github} />
       </div>
       <footer className="report-keys">
         <span><kbd>r</kbd> sync everything</span>
