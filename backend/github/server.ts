@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createGitHubApi } from "./github-api.ts";
 import { createGitHubAuth } from "./github-auth.ts";
+import { createSourceActivity } from "../source-activity.mts";
 
 type ServerOptions = {
   port?: number;
@@ -37,6 +38,7 @@ export function createGitHubServer(options: ServerOptions = {}) {
 
   const auth = createGitHubAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, githubConnection });
   const githubApi = createGitHubApi({ fetchImpl });
+  const activity = createSourceActivity();
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -72,6 +74,11 @@ export function createGitHubServer(options: ServerOptions = {}) {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/api/github/activity") {
+        send(res, 200, { events: activity.list() });
+        return;
+      }
+
       if (req.method === "POST" && ["/api/github/connection/disconnect", "/api/github/connection/enabled"].includes(url.pathname)) {
         const origin = req.headers.origin;
         let trustedOrigin = false;
@@ -88,20 +95,25 @@ export function createGitHubServer(options: ServerOptions = {}) {
 
       if (req.method === "GET" && url.pathname === "/api/github/issues") {
         if (!githubConnection.connected) {
+          activity.add(401);
           send(res, 401, { error: "GitHub is not connected. Connect GitHub in Settings." });
           return;
         }
         if (!githubConnection.enabled) {
+          activity.add(403);
           send(res, 403, { error: "GitHub is connected but disabled. Enable it in Settings to load issues." });
           return;
         }
         try {
           const accessToken = await auth.getAccessToken();
           const issues = await githubApi.getAssignedOpenIssues(accessToken);
+          activity.add(200, issues.length);
           send(res, 200, { issues });
         } catch (error) {
           const message = error instanceof Error ? error.message : "GitHub could not load assigned issues.";
-          send(res, message.includes("Reconnect GitHub") || message.includes("not connected") ? 401 : 502, { error: message });
+          const status = message.includes("Reconnect GitHub") || message.includes("not connected") ? 401 : 502;
+          activity.add(status);
+          send(res, status, { error: message });
         }
         return;
       }

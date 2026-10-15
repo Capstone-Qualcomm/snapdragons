@@ -5,6 +5,7 @@ import { createSlackApi } from "./slack-api.ts";
 import { createSlackAuth } from "./slack-auth.ts";
 import type { SlackConnection } from "./slack-auth.ts";
 import { createSlackLogs } from "./slack-logs.ts";
+import { createSourceActivity } from "../source-activity.mts";
 
 type ServerOptions = {
   port?: number;
@@ -27,6 +28,7 @@ export function createSlackServer(options: ServerOptions = {}) {
   const auth = createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection });
   const slackApi = createSlackApi({ slackConnection, fetchImpl });
   const slackLogs = createSlackLogs();
+  const activity = createSourceActivity();
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -52,22 +54,32 @@ export function createSlackServer(options: ServerOptions = {}) {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/api/slack/activity") {
+        send(res, 200, { events: activity.list() });
+        return;
+      }
+
       if (req.method === "GET" && url.pathname === "/api/slack/messages") {
         if (!slackConnection.connected) {
+          activity.add(401);
           send(res, 401, { error: "Slack is not connected. Connect Slack in Settings." });
           return;
         }
         if (!slackConnection.enabled) {
+          activity.add(403);
           send(res, 403, { error: "Slack is connected but disabled. Enable it in Settings to load messages." });
           return;
         }
         try {
           const messages = await slackApi.getMessages();
           slackLogs.add("GET", url.pathname, { count: messages.length });
+          activity.add(200, messages.length);
           send(res, 200, { messages });
         } catch (error) {
           const message = error instanceof Error ? error.message : "Slack could not load messages.";
-          send(res, message.includes("Reconnect Slack") || message.includes("not connected") ? 401 : 502, { error: message });
+          const status = message.includes("Reconnect Slack") || message.includes("not connected") ? 401 : 502;
+          activity.add(status);
+          send(res, status, { error: message });
         }
         return;
       }

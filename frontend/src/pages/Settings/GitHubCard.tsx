@@ -19,7 +19,7 @@ const emptyConnection: GitHubConnection = {
 };
 
 const callbackMessages: Record<string, string> = {
-  connected: "GitHub is connected. Assigned issues are ready to load in Report.",
+  connected: "GitHub is connected. Assigned issues and PRs are ready to load in Report.",
   denied: "GitHub access was not granted.",
   error: "GitHub could not be connected. Check the server configuration and try again.",
   invalid_state: "The GitHub sign-in expired or could not be verified. Please connect again.",
@@ -92,7 +92,7 @@ export function GitHubCard() {
         </div>
         <div className="settings-app-name">
           <h2 id="github-app-title">GitHub</h2>
-          <p>{github.user ? `Connected as ${github.user}` : "Assigned open issues from your repositories"}</p>
+          <p>{github.user ? `Connected as ${github.user}` : "Assigned open issues and PRs from your repositories"}</p>
         </div>
         <span className={`settings-connection-state ${github.connected ? "is-connected" : ""}`}>
           {loading ? "Checking…" : github.connected ? "Connected" : "Not connected"}
@@ -110,7 +110,7 @@ export function GitHubCard() {
         <div className="settings-enable-copy">
           <span className="settings-enable-title">Include GitHub in Report</span>
           <span className="settings-enable-description">
-            {github.enabled ? "GitHub issues appear in your report." : "GitHub issues are not currently included."}
+            {github.enabled ? "GitHub issues and PRs appear in your report." : "GitHub issues and PRs are not currently included."}
           </span>
         </div>
         <label className="settings-toggle">

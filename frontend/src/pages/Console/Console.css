@@ -1,6 +1,27 @@
+.console-page {
+  display: flex;
+  min-height: calc(100vh - 116px);
+  flex-direction: column;
+  gap: 14px;
+}
+
+.console-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.console-summary strong {
+  color: var(--text);
+}
+
 .node-grid {
   display: grid;
-  min-height: calc(100vh - 116px);
+  flex: 1;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(220px, 1fr));
   gap: 14px;
@@ -74,8 +95,11 @@
 }
 
 @media (max-width: 560px) {
-  .node-grid {
+  .console-page {
     min-height: auto;
+  }
+
+  .node-grid {
     grid-template-columns: 1fr;
     grid-template-rows: none;
   }
