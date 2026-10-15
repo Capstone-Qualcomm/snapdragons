@@ -139,3 +139,19 @@ test("records a GitHub upstream failure without exposing the error in activity",
   assert.equal(activity.events[0].count, null);
   assert.equal(JSON.stringify(activity).includes("private upstream detail"), false);
 });
+
+test("keeps a GitHub connection after the server restarts", async () => {
+  const fakeGitHub: typeof fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/login/oauth/access_token") return Response.json({ access_token: "private-token", expires_in: 3600 });
+    if (url.pathname === "/user") return Response.json({ id: 1, login: "tester" });
+    if (url.pathname === "/issues") return Response.json([]);
+    throw new Error(`Unexpected GitHub request: ${url}`);
+  };
+  await connectGitHub(await startServer(fakeGitHub));
+  const restarted = await startServer(fakeGitHub);
+
+  const { github } = await (await fetch(restarted + "/api/github/connection")).json() as { github: { user: string | null } };
+  assert.equal(github.user, "tester");
+  assert.equal((await fetch(restarted + "/api/github/issues")).status, 200);
+});

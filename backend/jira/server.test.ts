@@ -342,3 +342,13 @@ test("records Jira API requests in the Q-01 activity log", async () => {
   assert.equal(transitionLog.node, "Q-01");
   assert.equal(transitionLog.method, "GET");
 });
+
+test("keeps a Jira connection after the server restarts", async () => {
+  await connectJira(await startServer());
+  const restarted = await startServer();
+  const { body } = await request(restarted, "/api/jira/connection");
+
+  assert.equal(body.jira.connected, true);
+  assert.equal(body.jira.cloudId, "cloud-1");
+  assert.equal((await request(restarted, "/api/jira/issues")).response.status, 200);
+});
