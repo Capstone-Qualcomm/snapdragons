@@ -1,9 +1,23 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { once } from "node:events";
 import { afterEach, test } from "node:test";
 import { createGitHubServer } from "./server.ts";
+
+// Save connected sessions in a temp folder instead of the repo's .data.
+process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-github-"));
+
+// Send the session cookie back like a browser, so one test is one browser.
+let cookie = "";
+async function fetch(input: string | URL | Request, init: RequestInit = {}) {
+  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
+  return response;
+}
 
 const servers = new Set<Server>();
 type ActivityResponse = { events: Array<{ status: number; count: number | null }> };
@@ -27,6 +41,7 @@ afterEach(async () => {
     server.close((error) => error ? reject(error) : resolve());
   })));
   servers.clear();
+  cookie = "";
 });
 
 async function connectGitHub(base: string) {

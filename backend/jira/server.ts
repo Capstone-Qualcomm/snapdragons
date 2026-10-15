@@ -3,8 +3,10 @@ import type { ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createJiraApi } from "./jira-api.ts";
 import { createJiraAuth } from "./jira-auth.ts";
+import type { JiraConnection } from "./jira-auth.ts";
 import { createJiraLogs } from "./jira-logs.ts";
 import { createSourceActivity } from "../source-activity.mts";
+import { createSessions } from "../sessions.mts";
 
 type ServerOptions = {
   port?: number;
@@ -25,32 +27,36 @@ export function createJiraServer(options: ServerOptions = {}) {
   const scopes = options.scopes ?? process.env.ATLASSIAN_SCOPES ?? "read:jira-work read:jira-user write:jira-work offline_access";
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
-  // This starter is a single-user local integration. Credentials and tokens
-  // stay on the server in memory and are cleared when it restarts.
-  const jiraConnection = { connected: false, enabled: false, connectedAt: null, cloudId: null, sites: [], token: null };
-  const auth = createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, scopes, fetchImpl, jiraConnection });
-  const jiraApi = createJiraApi({ jiraConnection, fetchImpl, getAccessToken: auth.getAccessToken });
-  const jiraLogs = createJiraLogs();
-  const activity = createSourceActivity();
+  // Each browser gets its own Jira connection. Credentials and tokens stay on
+  // the server and connected ones are saved in .data so a restart keeps them.
+  const sessions = createSessions("jira", (saved?: JiraConnection) => {
+    const jiraConnection: JiraConnection = saved ?? { connected: false, enabled: false, connectedAt: null, cloudId: null, sites: [], token: null };
+    const auth = createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, scopes, fetchImpl, jiraConnection });
+    const jiraApi = createJiraApi({ jiraConnection, fetchImpl, getAccessToken: auth.getAccessToken });
+    const jiraLogs = createJiraLogs();
+    const activity = createSourceActivity();
+    return { jiraConnection, auth, jiraApi, jiraLogs, activity };
+  }, (session) => session.jiraConnection);
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
     res.end(JSON.stringify(data));
   }
 
-  function connectionStatus() {
-    return {
-      configured: auth.configured,
-      connected: jiraConnection.connected,
-      enabled: jiraConnection.enabled,
-      connectedAt: jiraConnection.connectedAt,
-      cloudId: jiraConnection.cloudId,
-      sites: jiraConnection.sites,
-    };
-  }
-
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    const { jiraConnection, auth, jiraApi, jiraLogs, activity } = sessions.get(req, res);
+
+    function connectionStatus() {
+      return {
+        configured: auth.configured,
+        connected: jiraConnection.connected,
+        enabled: jiraConnection.enabled,
+        connectedAt: jiraConnection.connectedAt,
+        cloudId: jiraConnection.cloudId,
+        sites: jiraConnection.sites,
+      };
+    }
 
     if (req.method === "GET" && url.pathname === "/auth/jira/start") {
       auth.start(res);

@@ -6,6 +6,7 @@ import { createSlackAuth } from "./slack-auth.ts";
 import type { SlackConnection } from "./slack-auth.ts";
 import { createSlackLogs } from "./slack-logs.ts";
 import { createSourceActivity } from "../source-activity.mts";
+import { createSessions } from "../sessions.mts";
 
 type ServerOptions = {
   port?: number;
@@ -24,30 +25,34 @@ export function createSlackServer(options: ServerOptions = {}) {
   const appUrl = (options.appUrl ?? process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
-  const slackConnection: SlackConnection = { connected: false, enabled: false, connectedAt: null, userId: null, team: null, token: null };
-  const auth = createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection });
-  const slackApi = createSlackApi({ slackConnection, fetchImpl });
-  const slackLogs = createSlackLogs();
-  const activity = createSourceActivity();
+  const sessions = createSessions("slack", (saved?: SlackConnection) => {
+    const slackConnection: SlackConnection = saved ?? { connected: false, enabled: false, connectedAt: null, userId: null, team: null, token: null };
+    const auth = createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection });
+    const slackApi = createSlackApi({ slackConnection, fetchImpl });
+    const slackLogs = createSlackLogs();
+    const activity = createSourceActivity();
+    return { slackConnection, auth, slackApi, slackLogs, activity };
+  }, (session) => session.slackConnection);
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
     res.end(JSON.stringify(data));
   }
 
-  function connectionStatus() {
-    return {
-      configured: auth.configured,
-      connected: slackConnection.connected,
-      enabled: slackConnection.enabled,
-      connectedAt: slackConnection.connectedAt,
-      team: slackConnection.team?.name ?? null,
-    };
-  }
-
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+      const { slackConnection, auth, slackApi, slackLogs, activity } = sessions.get(req, res);
+
+      function connectionStatus() {
+        return {
+          configured: auth.configured,
+          connected: slackConnection.connected,
+          enabled: slackConnection.enabled,
+          connectedAt: slackConnection.connectedAt,
+          team: slackConnection.team?.name ?? null,
+        };
+      }
 
       if (req.method === "GET" && url.pathname === "/api/slack/connection") {
         send(res, 200, { slack: connectionStatus() });

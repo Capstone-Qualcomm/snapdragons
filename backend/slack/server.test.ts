@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { createSlackServer } from "./server.ts";
+
+// Save connected sessions in a temp folder instead of the repo's .data.
+process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-slack-"));
+
+// Send the session cookie back like a browser, so one test is one browser.
+let cookie = "";
+async function fetch(input: string | URL | Request, init: RequestInit = {}) {
+  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
+  return response;
+}
 
 const servers = new Set<Server>();
 
@@ -23,6 +37,7 @@ async function startServer(fetchImpl?: typeof fetch) {
 afterEach(async () => {
   await Promise.all([...servers].map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
   servers.clear();
+  cookie = "";
 });
 
 async function connectSlack(base: string) {
