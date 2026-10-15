@@ -130,6 +130,22 @@ test("rejects issue requests before Jira is connected", async () => {
 
   assert.equal(response.status, 401);
   assert.match(body.error, /not connected/i);
+  const activity = await request(baseUrl, "/api/jira/activity");
+  assert.equal(activity.body.events[0].status, 401);
+  assert.equal(activity.body.events[0].count, null);
+});
+
+test("records a real Jira fetch without exposing issue contents in activity", async () => {
+  const baseUrl = await startServer();
+  await connectJira(baseUrl);
+  const issues = await request(baseUrl, "/api/jira/issues");
+  const activity = await request(baseUrl, "/api/jira/activity");
+
+  assert.equal(issues.response.status, 200);
+  assert.equal(activity.body.events[0].status, 200);
+  assert.equal(activity.body.events[0].count, 1);
+  assert.equal(JSON.stringify(activity.body).includes("Test issue"), false);
+  assert.equal(JSON.stringify(activity.body).includes("test-access"), false);
 });
 
 test("redirects OAuth start to Atlassian with a state value", async () => {
