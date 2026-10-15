@@ -34,22 +34,35 @@ export function createQueue({ leaseMs = 2000, now = Date.now }: QueueOptions = {
     for (const task of tasks) {
       if (task.status !== "claimed" || !task.worker) continue;
       if (now() - (lastSeen.get(task.worker) ?? 0) <= leaseMs) continue;
-      task.lostBy.push(task.worker);
-      task.status = "queued";
-      task.worker = null;
+      release(task);
     }
   }
 
+  function release(task: Task): void {
+    if (task.worker) task.lostBy.push(task.worker);
+    task.status = "queued";
+    task.worker = null;
+  }
+
   // A busy worker calls this every second so the queue knows it has not died.
+  // Leases are checked first, so a late heartbeat cannot revive an expired claim.
   function heartbeat(worker: string): void {
+    requeueExpired();
     lastSeen.set(worker, now());
   }
 
   // Finding a queued task and marking it happen in one synchronous call, and
   // the server runs on a single thread, so two workers can never get the same task.
   function claim(worker: string): Task | null {
-    lastSeen.set(worker, now());
+    // Leases are checked before this claim counts as a sign of life, or a worker
+    // that died and restarted under the same name would revive its old task.
     requeueExpired();
+    // A worker only asks for work when it is idle, so anything it still holds
+    // was dropped by an earlier run of it that died.
+    for (const task of tasks) {
+      if (task.status === "claimed" && task.worker === worker) release(task);
+    }
+    lastSeen.set(worker, now());
     const task = tasks.find((candidate) => candidate.status === "queued");
     if (!task) return null;
     task.status = "claimed";

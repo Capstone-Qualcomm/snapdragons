@@ -99,3 +99,30 @@ test("state shows who a handed-over task was taken from", () => {
     { id: "Q-02", current: "T-1", takenFrom: "Q-01" },
   ]);
 });
+
+test("a worker that restarts under the same name does not keep its old task stuck", () => {
+  const clock = fakeClock();
+  const queue = createQueue({ leaseMs: 2000, now: clock.now });
+  queue.add("a");
+  queue.add("b");
+  queue.claim("Q-02");
+
+  // Q-02 dies, then a new Q-02 starts and asks for work before anyone else does.
+  clock.advance(2001);
+  const task = queue.claim("Q-02");
+
+  assert.equal(task?.id, "T-1");
+  assert.deepEqual(task?.lostBy, ["Q-02"]);
+  assert.equal(queue.claim("Q-01")?.id, "T-2");
+});
+
+test("a worker asking for work again gives up the task it was holding", () => {
+  const queue = createQueue();
+  queue.add("a");
+  queue.add("b");
+  queue.claim("Q-02");
+  queue.claim("Q-02");
+
+  const held = queue.state().tasks.filter((task) => task.status === "claimed");
+  assert.deepEqual(held.map((task) => task.id), ["T-1"]);
+});
