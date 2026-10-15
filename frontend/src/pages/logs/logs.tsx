@@ -81,11 +81,12 @@ export function LogsPage() {
 
   return (
     <section className="logs-view" aria-label="Logs">
-      <section className="sync-activity" aria-label="Source sync activity">
-        <header>
-          <h1>Source sync activity</h1>
-          <span>Recent Report fetches</span>
-        </header>
+      <details className="sync-activity" open>
+        <summary>
+          <strong>Source sync activity</strong>
+          <span className="sync-activity-description">Recent Report fetches</span>
+          <span className="sync-activity-chevron" aria-hidden="true">▾</span>
+        </summary>
         {unavailableSources.length > 0 && <p className="sync-unavailable" role="status">Activity unavailable: {unavailableSources.join(", ")}</p>}
         {activity.length === 0 ? <p className="sync-empty">{unavailableSources.length === sources.length
           ? "Start the source backends to view sync activity."
@@ -100,7 +101,7 @@ export function LogsPage() {
             ))}
           </ol>
         )}
-      </section>
+      </details>
       <div className="logs-grid">
         {nodes.map((node) => (
           <article className="log-card" key={node}>
