@@ -55,7 +55,7 @@ export function ConsolePage() {
             ) : seen ? (
               <div className="node-status node-lost">
                 <strong>No heartbeat</strong>
-                <span>Work handed to other nodes</span>
+                <span>Worker stopped responding</span>
               </div>
             ) : (
               <div className="node-empty">Waiting for node connection</div>
