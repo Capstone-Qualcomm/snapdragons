@@ -130,6 +130,53 @@ test("rejects issue requests before Jira is connected", async () => {
 
   assert.equal(response.status, 401);
   assert.match(body.error, /not connected/i);
+  const activity = await request(baseUrl, "/api/jira/activity");
+  assert.equal(activity.body.events[0].status, 401);
+  assert.equal(activity.body.events[0].count, null);
+});
+
+test("records a real Jira fetch without exposing issue contents in activity", async () => {
+  const baseUrl = await startServer();
+  await connectJira(baseUrl);
+  const issues = await request(baseUrl, "/api/jira/issues");
+  const activity = await request(baseUrl, "/api/jira/activity");
+
+  assert.equal(issues.response.status, 200);
+  assert.equal(activity.body.events[0].status, 200);
+  assert.equal(activity.body.events[0].count, 1);
+  assert.equal(JSON.stringify(activity.body).includes("Test issue"), false);
+  assert.equal(JSON.stringify(activity.body).includes("test-access"), false);
+});
+
+test("records a disabled Jira fetch", async () => {
+  const baseUrl = await startServer();
+  await connectJira(baseUrl);
+  await request(baseUrl, "/api/jira/connection/enabled", {
+    method: "POST", body: JSON.stringify({ enabled: false }),
+  });
+
+  assert.equal((await request(baseUrl, "/api/jira/issues")).response.status, 403);
+  const activity = await request(baseUrl, "/api/jira/activity");
+  assert.deepEqual(
+    { status: activity.body.events[0].status, count: activity.body.events[0].count },
+    { status: 403, count: null },
+  );
+});
+
+test("records a Jira upstream failure without exposing the error in activity", async () => {
+  const normalFetch = createJiraFetch();
+  const failingFetch: typeof fetch = (input, init) => {
+    if (new URL(String(input)).pathname.endsWith("/rest/api/3/field")) throw new Error("private upstream detail");
+    return normalFetch(input, init);
+  };
+  const baseUrl = await startServer({ fetch: failingFetch });
+  await connectJira(baseUrl);
+
+  assert.equal((await request(baseUrl, "/api/jira/issues")).response.status, 502);
+  const activity = await request(baseUrl, "/api/jira/activity");
+  assert.equal(activity.body.events[0].status, 502);
+  assert.equal(activity.body.events[0].count, null);
+  assert.equal(JSON.stringify(activity.body).includes("private upstream detail"), false);
 });
 
 test("redirects OAuth start to Atlassian with a state value", async () => {

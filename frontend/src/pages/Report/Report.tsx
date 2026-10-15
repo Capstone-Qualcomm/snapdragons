@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { JiraReport } from "./jira/jiraReport";
 import { Pipeline } from "./Pipeline";
 import { SlackPanel } from "./SlackPanel";
@@ -14,19 +14,31 @@ export function ReportPage() {
   const [now, setNow] = useState(() => Date.now());
   const [refreshKey, setRefreshKey] = useState(0);
   const [jira, setJira] = useState<Source<unknown> | null>(null);
+  const lastRefreshAt = useRef(Date.now());
+  const syncing = slack.status === "loading" || github.status === "loading" || !jira || jira.status === "loading";
 
   const syncAll = useCallback(() => {
+    if (syncing) return;
+    lastRefreshAt.current = Date.now();
     setRefreshKey((key) => key + 1);
     void slack.reload();
     void github.reload();
-  }, [github.reload, slack.reload]);
+  }, [github.reload, slack.reload, syncing]);
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const syncing = slack.status === "loading" || github.status === "loading";
+    function refreshIfDue() {
+      if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current >= 5 * 60_000) syncAll();
+    }
+    const timer = setInterval(() => {
+      setNow(Date.now());
+      refreshIfDue();
+    }, 30_000);
+    document.addEventListener("visibilitychange", refreshIfDue);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshIfDue);
+    };
+  }, [syncAll]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -56,7 +68,7 @@ export function ReportPage() {
       </div>
       <footer className="report-keys">
         <span><kbd>r</kbd> sync everything</span>
-        <span>times update every 30s</span>
+        <span>data refreshes every 5m while open · times update every 30s</span>
       </footer>
     </section>
   );

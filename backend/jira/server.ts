@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { createJiraApi } from "./jira-api.ts";
 import { createJiraAuth } from "./jira-auth.ts";
 import { createJiraLogs } from "./jira-logs.ts";
+import { createSourceActivity } from "../source-activity.mts";
 
 type ServerOptions = {
   port?: number;
@@ -30,6 +31,7 @@ export function createJiraServer(options: ServerOptions = {}) {
   const auth = createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, scopes, fetchImpl, jiraConnection });
   const jiraApi = createJiraApi({ jiraConnection, fetchImpl, getAccessToken: auth.getAccessToken });
   const jiraLogs = createJiraLogs();
+  const activity = createSourceActivity();
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -69,6 +71,11 @@ export function createJiraServer(options: ServerOptions = {}) {
 
     if (req.method === "GET" && url.pathname === "/api/jira/logs") {
       send(res, 200, { logs: jiraLogs.list() });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/jira/activity") {
+      send(res, 200, { events: activity.list() });
       return;
     }
 
@@ -119,20 +126,25 @@ export function createJiraServer(options: ServerOptions = {}) {
 
     if (req.method === "GET" && url.pathname === "/api/jira/issues") {
       if (!jiraConnection.connected) {
+        activity.add(401);
         send(res, 401, { error: "Jira is not connected. Connect Jira in Settings." });
         return;
       }
       if (!jiraConnection.enabled) {
+        activity.add(403);
         send(res, 403, { error: "Jira is connected but disabled. Enable it in Settings to load tasks." });
         return;
       }
       try {
         const issues = await jiraApi.getAssignedIssues();
         jiraLogs.add("GET", url.pathname, { issues });
+        activity.add(200, issues.length);
         send(res, 200, { issues });
       } catch (error) {
         const message = error instanceof Error ? error.message : "Jira could not load assigned issues. Please try again.";
-        send(res, message.includes("Reconnect Jira") || message.includes("not connected") ? 401 : 502, { error: message });
+        const status = message.includes("Reconnect Jira") || message.includes("not connected") ? 401 : 502;
+        activity.add(status);
+        send(res, status, { error: message });
       }
       return;
     }
