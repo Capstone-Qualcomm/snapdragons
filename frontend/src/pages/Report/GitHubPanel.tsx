@@ -11,7 +11,7 @@ function SourceState({ source }: { source: GitHubSource }) {
   if (source.status === "disconnected") return <p className="panel-state">GitHub is not connected. <a href={appPath("settings")}>Connect GitHub in Settings</a></p>;
   if (source.status === "disabled") return <p className="panel-state">GitHub is turned off for Report. <button type="button" onClick={() => void source.enable()}>Turn on</button></p>;
   if (source.status === "error") return <p className="panel-state is-error">{source.error} <button type="button" onClick={() => void source.reload()}>Retry</button></p>;
-  if (source.items.length === 0) return <p className="panel-state">No open issues are assigned to you in GitHub.</p>;
+  if (source.items.length === 0) return <p className="panel-state">No open issues or PRs are assigned to you in GitHub.</p>;
   return null;
 }
 
