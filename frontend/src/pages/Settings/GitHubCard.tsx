@@ -110,7 +110,7 @@ export function GitHubCard() {
         <div className="settings-enable-copy">
           <span className="settings-enable-title">Include GitHub in Report</span>
           <span className="settings-enable-description">
-            {github.enabled ? "GitHub issues appear in your report." : "GitHub issues are not currently included."}
+            {github.enabled ? "GitHub issues and PRs appear in your report." : "GitHub issues and PRs are not currently included."}
           </span>
         </div>
         <label className="settings-toggle">
