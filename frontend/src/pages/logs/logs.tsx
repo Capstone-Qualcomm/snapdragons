@@ -24,22 +24,29 @@ export function LogsPage() {
 
   useEffect(() => {
     let active = true;
+    let loading = false;
     async function loadActivity() {
-      const results = await Promise.all(sources.map(async (source) => {
-        try {
-          const response = await fetch(apiPath(`/api/${source.toLowerCase()}/activity`), { cache: "no-store" });
-          const result = await response.json() as { events?: Omit<SyncEvent, "source">[] };
-          if (!response.ok || !Array.isArray(result.events) || !result.events.every((event) =>
-            typeof event.id === "number" && typeof event.timestamp === "string" && typeof event.status === "number" &&
-            (event.count === null || typeof event.count === "number"))) throw new Error("Activity unavailable");
-          return { source, events: result.events.map((event) => ({ ...event, source })), available: true };
-        } catch {
-          return { source, events: [] as SyncEvent[], available: false };
-        }
-      }));
-      if (!active) return;
-      setActivity(results.flatMap((result) => result.events).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 15));
-      setUnavailableSources(results.filter((result) => !result.available).map((result) => result.source));
+      if (loading) return;
+      loading = true;
+      try {
+        const results = await Promise.all(sources.map(async (source) => {
+          try {
+            const response = await fetch(apiPath(`/api/${source.toLowerCase()}/activity`), { cache: "no-store" });
+            const result = await response.json() as { events?: Omit<SyncEvent, "source">[] };
+            if (!response.ok || !Array.isArray(result.events) || !result.events.every((event) =>
+              typeof event.id === "number" && typeof event.timestamp === "string" && typeof event.status === "number" &&
+              (event.count === null || typeof event.count === "number"))) throw new Error("Activity unavailable");
+            return { source, events: result.events.map((event) => ({ ...event, source })), available: true };
+          } catch {
+            return { source, events: [] as SyncEvent[], available: false };
+          }
+        }));
+        if (!active) return;
+        setActivity(results.flatMap((result) => result.events).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 15));
+        setUnavailableSources(results.filter((result) => !result.available).map((result) => result.source));
+      } finally {
+        loading = false;
+      }
     }
     void loadActivity();
     const interval = window.setInterval(() => void loadActivity(), 3000);
