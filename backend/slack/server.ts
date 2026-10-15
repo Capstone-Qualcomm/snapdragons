@@ -3,6 +3,7 @@ import type { ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createSlackApi } from "./slack-api.ts";
 import { createSlackAuth } from "./slack-auth.ts";
+import type { SlackConnection } from "./slack-auth.ts";
 import { createSlackLogs } from "./slack-logs.ts";
 
 type ServerOptions = {
@@ -22,7 +23,7 @@ export function createSlackServer(options: ServerOptions = {}) {
   const appUrl = (options.appUrl ?? process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
-  const slackConnection = { connected: false, enabled: false, connectedAt: null, userId: null, team: null, token: null };
+  const slackConnection: SlackConnection = { connected: false, enabled: false, connectedAt: null, userId: null, team: null, token: null };
   const auth = createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection });
   const slackApi = createSlackApi({ slackConnection, fetchImpl });
   const slackLogs = createSlackLogs();

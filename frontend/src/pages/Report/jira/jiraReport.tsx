@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { appPath } from "../../../lib/urls";
+import { apiPath, appPath } from "../../../lib/urls";
+import type { Source, SourceStatus } from "../useSlackSource";
 import "../Report.css";
 import { getAssignedJiraIssues, getJiraConnection, getJiraTransitions, updateJiraIssue } from "./jiraService";
 import type { JiraIssue, JiraTransition } from "./jiraService";
@@ -7,7 +8,7 @@ import type { JiraIssue, JiraTransition } from "./jiraService";
 type IssueDraft = { description: string; storyPointEstimate: string; transitionId: string };
 const storyPointOptions = ["", "1", "2", "3", "5", "8", "13", "21"];
 
-export function JiraReport({ refreshKey = 0, onCountChange, onLoadingChange }: { refreshKey?: number; onCountChange?: (count: number) => void; onLoadingChange?: (loading: boolean) => void }) {
+export function JiraReport({ refreshKey = 0, onSourceChange }: { refreshKey?: number; onSourceChange?: (source: Source<JiraIssue>) => void }) {
   const [issues, setIssues] = useState<JiraIssue[]>([]);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
   const [transitions, setTransitions] = useState<Record<string, JiraTransition[]>>({});
@@ -18,11 +19,14 @@ export function JiraReport({ refreshKey = 0, onCountChange, onLoadingChange }: {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [connectionMessage, setConnectionMessage] = useState("");
+  const [status, setStatus] = useState<SourceStatus>("loading");
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
 
   const loadIssues = useCallback(async () => {
     setLoading(true);
     setError("");
     setConnectionMessage("");
+    setStatus("loading");
     let connectionChecked = false;
     try {
       const connection = await getJiraConnection();
@@ -31,23 +35,28 @@ export function JiraReport({ refreshKey = 0, onCountChange, onLoadingChange }: {
       if (!connection.connected) {
         setIssues([]);
         setConnectionMessage("No apps are connected to pull from. Connect an app in Settings.");
+        setStatus("disconnected");
         return;
       }
 
       if (!connection.enabled) {
         setIssues([]);
         setConnectionMessage("Jira is connected but disabled. Enable it in Settings to pull tasks.");
+        setStatus("disabled");
         return;
       }
 
       setIssues(await getAssignedJiraIssues());
+      setStatus("ready");
+      setLoadedAt(Date.now());
     } catch (cause) {
       if (!connectionChecked) {
         setIssues([]);
-        setConnectionMessage("No apps are connected to pull from. Connect an app in Settings.");
+        setError("Could not reach the app server. Check that it is running.");
       } else {
         setError(cause instanceof Error ? cause.message : "Could not load Jira tasks.");
       }
+      setStatus("error");
     } finally {
       setLoading(false);
     }
@@ -58,12 +67,16 @@ export function JiraReport({ refreshKey = 0, onCountChange, onLoadingChange }: {
   }, [loadIssues, refreshKey]);
 
   useEffect(() => {
-    onCountChange?.(issues.length);
-  }, [issues, onCountChange]);
-
-  useEffect(() => {
-    onLoadingChange?.(loading);
-  }, [loading, onLoadingChange]);
+    const enable = async () => {
+      await fetch(apiPath("/api/jira/connection/enabled"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+        body: JSON.stringify({ enabled: true }),
+      });
+      await loadIssues();
+    };
+    onSourceChange?.({ name: "jira", status, items: issues, error, loadedAt, reload: loadIssues, enable });
+  }, [issues, status, error, loadedAt, loadIssues, onSourceChange]);
 
   function initialDraft(issue: JiraIssue): IssueDraft {
     return {
@@ -199,11 +212,11 @@ export function JiraReport({ refreshKey = 0, onCountChange, onLoadingChange }: {
                   </section>
                   <section className="report-detail-field report-detail-static-sprint">
                     <h4>Sprint</h4>
-                    <p className="report-detail-value">{issue.sprints.length ? issue.sprints.join(", ") : "None"}</p>
+                    <p className="report-detail-value">{issue.sprints?.length ? issue.sprints.join(", ") : "None"}</p>
                   </section>
                   <section className="report-detail-field report-detail-static-labels">
                     <h4>Labels</h4>
-                    {issue.labels.length ? <div className="report-labels">{issue.labels.map((label) => <span key={label}>{label}</span>)}</div> : <p className="report-detail-value">None</p>}
+                    {issue.labels?.length ? <div className="report-labels">{issue.labels.map((label) => <span key={label}>{label}</span>)}</div> : <p className="report-detail-value">None</p>}
                   </section>
                   <section className="report-detail-field report-detail-editable-estimate">
                     <h4>Story point estimate</h4>

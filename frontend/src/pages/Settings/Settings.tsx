@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "./Settings.css";
 import { SlackCard } from "./SlackCard";
+import { GitHubCard } from "./GitHubCard";
 import { apiPath, appPath } from "../../lib/urls";
 
 type JiraConnection = {
@@ -39,7 +40,7 @@ async function readJson<T>(response: Response): Promise<T | null> {
 
 export function SettingsPage() {
   const [section, setSection] = useState<"preferences" | "connections">(() =>
-    new URLSearchParams(window.location.search).has("jira") || new URLSearchParams(window.location.search).has("slack")
+    new URLSearchParams(window.location.search).has("jira") || new URLSearchParams(window.location.search).has("slack") || new URLSearchParams(window.location.search).has("github")
       ? "connections"
       : "preferences",
   );
@@ -238,18 +239,7 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="settings-app-card" aria-labelledby="github-app-title">
-        <div className="settings-app-header">
-          <div className="settings-app-icon settings-app-icon-github" aria-hidden="true">
-            <img src={appPath("github-logo.png")} alt="" />
-          </div>
-          <div className="settings-app-name">
-            <h2 id="github-app-title">GitHub</h2>
-            <p>Issues and pull requests from your repositories</p>
-          </div>
-          <span className="settings-connection-state">Coming soon</span>
-        </div>
-      </section>
+      <GitHubCard />
         </>
       )}
     </section>

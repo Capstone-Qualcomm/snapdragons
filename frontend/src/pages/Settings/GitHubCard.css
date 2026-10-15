@@ -1,0 +1,33 @@
+.github-card-notice {
+  margin: 0;
+  padding: 11px 21px;
+  border-bottom: 1px solid var(--line);
+  color: var(--green);
+  font-size: 12px;
+}
+
+.github-card-notice.is-error { color: var(--danger); }
+
+.github-access {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 21px;
+  border-bottom: 1px solid var(--line);
+}
+
+.github-access-label {
+  margin-right: 4px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.github-access-chip {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
