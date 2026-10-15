@@ -61,3 +61,19 @@ describe("Console queue summary", () => {
     expect(await screen.findByRole("status")).toHaveProperty("textContent", "Cluster unavailable");
   });
 });
+
+describe("Console failover", () => {
+  it("shows a quiet node as lost and the node that took over its task", async () => {
+    mockState({
+      workers: [
+        { id: "Q-01", lastSeen: new Date().toISOString(), current: "T-3", takenFrom: "Q-02", done: 1 },
+        { id: "Q-02", lastSeen: new Date(Date.now() - 10_000).toISOString(), current: null, takenFrom: null, done: 0 },
+      ],
+      tasks: [{ status: "claimed" }],
+    });
+    render(<ConsolePage />);
+    expect(await screen.findByText("Took over from Q-02")).toBeTruthy();
+    expect(screen.getByText("No heartbeat")).toBeTruthy();
+    expect(screen.getAllByText("Waiting for node connection")).toHaveLength(4);
+  });
+});

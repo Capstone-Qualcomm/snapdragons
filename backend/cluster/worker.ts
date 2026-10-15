@@ -7,12 +7,13 @@ type WorkerOptions = {
   url: string;
   workMs?: number;
   pollMs?: number;
+  heartbeatMs?: number;
   signal?: AbortSignal;
 };
 
 // One worker is one process. It only talks to the queue over HTTP, so the same
 // file can run on a laptop now and on an Uno Q board later by changing the URL.
-export async function runWorker({ id, url, workMs = 1000, pollMs = 500, signal }: WorkerOptions): Promise<void> {
+export async function runWorker({ id, url, workMs = 1000, pollMs = 500, heartbeatMs = 1000, signal }: WorkerOptions): Promise<void> {
   const base = url.replace(/\/$/, "");
 
   async function post<T>(path: string, body: unknown): Promise<T> {
@@ -34,9 +35,18 @@ export async function runWorker({ id, url, workMs = 1000, pollMs = 500, signal }
         continue;
       }
       console.log(`${id} claimed ${task.id}: ${task.input}`);
-      // Stand-in for real work (an LLM call, an API request). It just takes time.
-      await sleep(workMs, undefined, { signal });
-      await post("/api/cluster/complete", { id: task.id, worker: id, result: `${task.input} (handled by ${id})` });
+      // Keep telling the queue we are alive while the work runs, or it will
+      // hand the task to another worker once the lease runs out.
+      const beat = setInterval(() => {
+        post("/api/cluster/heartbeat", { worker: id }).catch(() => {});
+      }, heartbeatMs);
+      try {
+        // Stand-in for real work (an LLM call, an API request). It just takes time.
+        await sleep(workMs, undefined, { signal });
+        await post("/api/cluster/complete", { id: task.id, worker: id, result: `${task.input} (handled by ${id})` });
+      } finally {
+        clearInterval(beat);
+      }
       console.log(`${id} finished ${task.id}`);
     } catch (cause) {
       if (signal?.aborted) break;
@@ -60,6 +70,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     id,
     url: process.env.CLUSTER_URL ?? `http://localhost:${process.env.CLUSTER_PORT ?? 3003}`,
     workMs: Number(process.env.WORK_MS ?? 1000),
+    heartbeatMs: Number(process.env.HEARTBEAT_MS ?? 1000),
     signal: controller.signal,
   });
 }

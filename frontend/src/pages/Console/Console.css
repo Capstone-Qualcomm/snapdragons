@@ -79,6 +79,14 @@
   color: var(--dim);
 }
 
+.node-status .node-takeover {
+  color: var(--amber);
+}
+
+.node-lost strong {
+  color: var(--danger);
+}
+
 @media (max-width: 850px) {
   .node-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
