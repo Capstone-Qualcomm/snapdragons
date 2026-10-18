@@ -83,8 +83,12 @@ export function createGitHubAuth({
     const error = url.searchParams.get("error");
     const code = url.searchParams.get("code");
 
-    if (error || !code || !pending || pending.expiresAt < Date.now()) {
-      redirect(res, settingsUrl(error ? "denied" : pending ? "invalid_state" : "error"));
+    if (!pending || pending.expiresAt < Date.now()) {
+      redirect(res, settingsUrl("invalid_state"));
+      return;
+    }
+    if (error || !code) {
+      redirect(res, settingsUrl(error === "access_denied" ? "denied" : "error"));
       return;
     }
 
@@ -99,6 +103,7 @@ export function createGitHubAuth({
       const profile = await getProfile(token.accessToken);
 
       githubConnection.connected = true;
+      githubConnection.enabled = true;
       githubConnection.connectedAt = new Date().toISOString();
       githubConnection.user = profile;
       githubConnection.token = token;

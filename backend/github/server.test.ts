@@ -47,13 +47,29 @@ afterEach(async () => {
 async function connectGitHub(base: string) {
   const start = await fetch(base + "/auth/github/start", { redirect: "manual" });
   const state = new URL(start.headers.get("location")!).searchParams.get("state");
-  await fetch(base + `/auth/github/callback?state=${state}&code=test`, { redirect: "manual" });
-  await fetch(base + "/api/github/connection/enabled", {
-    method: "POST",
-    headers: { Origin: "http://localhost:5173" },
-    body: JSON.stringify({ enabled: true }),
-  });
+  return fetch(base + `/auth/github/callback?state=${state}&code=test`, { redirect: "manual" });
 }
+
+const connectingGitHub: typeof fetch = async (input) => {
+  const url = new URL(String(input));
+  if (url.pathname === "/login/oauth/access_token") return Response.json({ access_token: "private-token", expires_in: 3600 });
+  if (url.pathname === "/user") return Response.json({ id: 1, login: "tester" });
+  throw new Error(`Unexpected GitHub request: ${url}`);
+};
+
+test("turns GitHub on when it connects", async () => {
+  const base = await startServer(connectingGitHub);
+  const callback = await connectGitHub(base);
+  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/settings?github=connected");
+  const { github } = await (await fetch(base + "/api/github/connection")).json() as { github: { enabled: boolean } };
+  assert.equal(github.enabled, true);
+});
+
+test("sends a sign-in with an unknown state back as invalid_state", async () => {
+  const base = await startServer(connectingGitHub);
+  const callback = await fetch(base + "/auth/github/callback?state=unknown&code=test", { redirect: "manual" });
+  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/settings?github=invalid_state");
+});
 
 test("binds the GitHub backend to IPv4 loopback", async () => {
   await startServer();

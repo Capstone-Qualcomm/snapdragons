@@ -49,8 +49,12 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
   async function handleCallback(state: string, code: string | null, error: string | null, res: ServerResponse) {
     const pending = pendingStates.get(state);
     pendingStates.delete(state);
-    if (error || !code || !pending || pending.expiresAt < Date.now()) {
-      redirect(res, settingsUrl(error ? "denied" : pending ? "invalid_state" : "error"));
+    if (!pending || pending.expiresAt < Date.now()) {
+      redirect(res, settingsUrl("invalid_state"));
+      return;
+    }
+    if (error || !code) {
+      redirect(res, settingsUrl(error === "access_denied" ? "denied" : "error"));
       return;
     }
     try {
@@ -71,6 +75,7 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
       const authedUser = result.authed_user as Record<string, unknown>;
       const team = result.team as Record<string, unknown> | undefined;
       slackConnection.connected = true;
+      slackConnection.enabled = true;
       slackConnection.connectedAt = new Date().toISOString();
       slackConnection.userId = String(authedUser.id ?? "");
       slackConnection.team = team ? { id: String(team.id ?? ""), name: String(team.name ?? "") } : null;
