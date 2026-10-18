@@ -56,6 +56,11 @@ export function createGitHubAuth({
       return;
     }
 
+    const now = Date.now();
+    for (const [state, pending] of pendingStates) {
+      if (pending.expiresAt < now) pendingStates.delete(state);
+    }
+
     const state = randomBytes(32).toString("hex");
     const codeVerifier = randomBytes(32).toString("base64url");
     const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
@@ -190,14 +195,6 @@ export function createGitHubAuth({
     githubConnection.user = null;
     githubConnection.token = null;
   }
-
-  const cleaner = setInterval(() => {
-    const now = Date.now();
-    for (const [state, pending] of pendingStates) {
-      if (pending.expiresAt < now) pendingStates.delete(state);
-    }
-  }, 60_000);
-  if (cleaner.unref) cleaner.unref();
 
   return { configured, startAuthorization, handleCallback, getAccessToken, reset };
 }

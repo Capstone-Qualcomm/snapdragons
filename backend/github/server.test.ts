@@ -1,9 +1,23 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { once } from "node:events";
 import { afterEach, test } from "node:test";
 import { createGitHubServer } from "./server.ts";
+
+// Save connected sessions in a temp folder instead of the repo's .data.
+process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-github-"));
+
+// Send the session cookie back like a browser, so one test is one browser.
+let cookie = "";
+async function fetch(input: string | URL | Request, init: RequestInit = {}) {
+  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
+  return response;
+}
 
 const servers = new Set<Server>();
 type ActivityResponse = { events: Array<{ status: number; count: number | null }> };
@@ -27,6 +41,7 @@ afterEach(async () => {
     server.close((error) => error ? reject(error) : resolve());
   })));
   servers.clear();
+  cookie = "";
 });
 
 async function connectGitHub(base: string) {
@@ -123,4 +138,20 @@ test("records a GitHub upstream failure without exposing the error in activity",
   assert.equal(activity.events[0].status, 502);
   assert.equal(activity.events[0].count, null);
   assert.equal(JSON.stringify(activity).includes("private upstream detail"), false);
+});
+
+test("keeps a GitHub connection after the server restarts", async () => {
+  const fakeGitHub: typeof fetch = async (input) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/login/oauth/access_token") return Response.json({ access_token: "private-token", expires_in: 3600 });
+    if (url.pathname === "/user") return Response.json({ id: 1, login: "tester" });
+    if (url.pathname === "/issues") return Response.json([]);
+    throw new Error(`Unexpected GitHub request: ${url}`);
+  };
+  await connectGitHub(await startServer(fakeGitHub));
+  const restarted = await startServer(fakeGitHub);
+
+  const { github } = await (await fetch(restarted + "/api/github/connection")).json() as { github: { user: string | null } };
+  assert.equal(github.user, "tester");
+  assert.equal((await fetch(restarted + "/api/github/issues")).status, 200);
 });

@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { createJiraServer } from "./server.ts";
+
+// Save connected sessions in a temp folder instead of the repo's .data.
+process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-jira-"));
+
+// Send the session cookie back like a browser, so one test is one browser.
+let cookie = "";
+async function fetch(input: string | URL | Request, init: RequestInit = {}) {
+  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
+  return response;
+}
 
 type JiraFetchOptions = {
   onRequest?: (request: { url: URL; init: RequestInit }) => void;
@@ -81,6 +95,7 @@ afterEach(async () => {
     server.close((error) => error ? reject(error) : resolve());
   })));
   servers.clear();
+  cookie = "";
 });
 
 async function request(baseUrl: string, path: string, options?: RequestInit) {
@@ -326,4 +341,14 @@ test("records Jira API requests in the Q-01 activity log", async () => {
   const transitionLog = body.logs.find((log: { path: string }) => log.path === "/api/jira/issues/SD-7/transitions");
   assert.equal(transitionLog.node, "Q-01");
   assert.equal(transitionLog.method, "GET");
+});
+
+test("keeps a Jira connection after the server restarts", async () => {
+  await connectJira(await startServer());
+  const restarted = await startServer();
+  const { body } = await request(restarted, "/api/jira/connection");
+
+  assert.equal(body.jira.connected, true);
+  assert.equal(body.jira.cloudId, "cloud-1");
+  assert.equal((await request(restarted, "/api/jira/issues")).response.status, 200);
 });
