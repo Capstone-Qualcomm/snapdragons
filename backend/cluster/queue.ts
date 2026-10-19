@@ -1,147 +1,232 @@
+import type { Command } from "./raft.ts";
+
+// The queue every node keeps a copy of. It only changes through apply(), which
+// Raft calls with each committed command in log order, so every copy stays the
+// same. Commands carry the orchestrator's clock in `at`, so applying one never reads
+// this node's own clock.
+
+// One stretch of work on a step by one node. A step that a node lost when it
+// died has a "lost" run, then a new run on another node starting where it stopped.
+export type Run = { worker: string; start: number; heardAt: number; end: number | null; from: number; to: number; outcome: "running" | "done" | "lost" };
+
 export type Task = {
   id: string;
   input: string;
   status: "queued" | "claimed" | "done";
   worker: string | null;
-  result: string | null;
   // Workers that held this task and went quiet before finishing it, oldest first.
   lostBy: string[];
-  // The job this task is a step of, if it was queued as part of one.
-  job: { id: string; name: string } | null;
+  job: string | null;
   // Tasks that have to be done before this one can be claimed.
   after: string[];
+  // The last checkpoint, from 0 to 1. A node picking up a lost step starts here.
+  progress: number;
+  runs: Run[];
 };
 
-export type ClusterEvent = { at: string; text: string };
+export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null };
+export type Worker = { id: string; alive: boolean; leaving: boolean; done: number };
+export type ClusterEvent = { at: number; text: string };
+export type ClaimResult = { task: Task | null; leave?: boolean };
 
-// Old finished tasks and events are dropped past these, so a long-running demo does not grow forever.
-const KEEP_DONE = 50;
+type Data = { nextTask: number; nextJob: number; tasks: Task[]; jobs: Job[]; workers: Worker[]; events: ClusterEvent[] };
+
+// Old finished work is dropped past these, so an always-on cluster does not grow forever.
+const KEEP_DONE = 80;
+const KEEP_JOBS = 30;
 const KEEP_EVENTS = 40;
 
-type QueueOptions = {
-  // How long a worker can go without being heard from before its task is handed to someone else.
-  leaseMs?: number;
-  // Tests pass a fake clock so they can skip ahead without waiting.
-  now?: () => number;
-};
+const percent = (progress: number) => `${Math.round(progress * 100)}%`;
 
-export function createQueue({ leaseMs = 2000, now = Date.now }: QueueOptions = {}) {
-  const tasks: Task[] = [];
-  // When each worker last talked to the queue (a claim or a heartbeat), in milliseconds.
-  const lastSeen = new Map<string, number>();
-  // Workers whose lease ran out and who have not been heard from since.
-  const gone = new Set<string>();
-  // Kept apart from the tasks so the counts survive old tasks being dropped.
-  const doneBy = new Map<string, number>();
-  const events: ClusterEvent[] = [];
-  let nextId = 1;
+export function createQueue() {
+  let data: Data = { nextTask: 1, nextJob: 1, tasks: [], jobs: [], workers: [], events: [] };
 
-  function add(input: string, job: Task["job"] = null, after: string[] = []): Task {
-    const task: Task = { id: `T-${nextId++}`, input, status: "queued", worker: null, result: null, lostBy: [], job, after };
-    tasks.push(task);
-    return task;
+  function log(at: number, text: string): void {
+    data.events.push({ at, text });
+    if (data.events.length > KEEP_EVENTS) data.events.shift();
   }
 
-  function log(text: string): void {
-    events.push({ at: new Date(now()).toISOString(), text });
-    if (events.length > KEEP_EVENTS) events.shift();
-  }
-
-  function seen(worker: string): void {
-    if (!lastSeen.has(worker) || gone.delete(worker)) log(`${worker} joined`);
-    lastSeen.set(worker, now());
-  }
-
-  function pending(): number {
-    return tasks.filter((task) => task.status !== "done").length;
-  }
-
-  // A worker that has been quiet for longer than the lease has stopped, so its
-  // task goes back in the queue for the next worker that asks. claim() and
-  // state() call this first, so no timer is needed.
-  function requeueExpired(): void {
-    for (const [worker, seenAt] of lastSeen) {
-      if (gone.has(worker) || now() - seenAt <= leaseMs) continue;
-      gone.add(worker);
-      log(`${worker} stopped responding`);
-    }
-    for (const task of tasks) {
-      if (task.status === "claimed" && task.worker && gone.has(task.worker)) release(task);
-    }
-  }
-
-  function release(task: Task): void {
-    if (task.worker) task.lostBy.push(task.worker);
-    task.status = "queued";
-    task.worker = null;
-    log(`${task.id} back in the queue`);
-  }
+  const workerById = (id: string) => data.workers.find((worker) => worker.id === id);
+  const held = (worker: string) => data.tasks.filter((task) => task.status === "claimed" && task.worker === worker);
+  const currentRun = (task: Task) => task.runs.at(-1)!;
 
   // A step waiting on others can be claimed once they are all done. A task
   // dropped from the history was done, so a missing id counts as done.
   function ready(task: Task): boolean {
-    return task.status === "queued" && task.after.every((id) => !tasks.some((other) => other.id === id && other.status !== "done"));
+    return task.status === "queued" && task.after.every((id) => !data.tasks.some((other) => other.id === id && other.status !== "done"));
   }
 
-  // A busy worker calls this every second so the queue knows it has not died.
-  // Leases are checked first, so a late heartbeat cannot revive an expired claim.
-  function heartbeat(worker: string): void {
-    requeueExpired();
-    seen(worker);
-  }
-
-  // Finding a queued task and marking it happen in one synchronous call, and
-  // the server runs on a single thread, so two workers can never get the same task.
-  function claim(worker: string): Task | null {
-    // Leases are checked before this claim counts as a sign of life, or a worker
-    // that died and restarted under the same name would revive its old task.
-    requeueExpired();
-    // A worker only asks for work when it is idle, so anything it still holds
-    // was dropped by an earlier run of it that died.
-    for (const task of tasks) {
-      if (task.status === "claimed" && task.worker === worker) release(task);
+  function join(worker: string, at: number): Worker {
+    let entry = workerById(worker);
+    if (!entry) {
+      entry = { id: worker, alive: true, leaving: false, done: 0 };
+      data.workers.push(entry);
+      log(at, `${worker} joined`);
+    } else if (!entry.alive) {
+      entry.alive = true;
+      log(at, `${worker} is back`);
     }
-    seen(worker);
-    const task = tasks.find(ready);
-    if (!task) return null;
+    return entry;
+  }
+
+  // The step goes back in the queue with its checkpoint, for the next node that asks.
+  function release(task: Task, at: number): void {
+    const run = currentRun(task);
+    run.end = run.heardAt;
+    run.outcome = "lost";
+    task.lostBy.push(task.worker!);
+    task.status = "queued";
+    task.worker = null;
+    log(at, `${task.id} back in the queue at ${percent(task.progress)}`);
+  }
+
+  function addJob(name: string, steps: string[], then: string | undefined, at: number): Job {
+    const job: Job = { id: `J-${data.nextJob++}`, name, queuedAt: at, doneAt: null, nodes: null };
+    const add = (input: string, after: string[] = []) => {
+      const task: Task = { id: `T-${data.nextTask++}`, input, status: "queued", worker: null, lostBy: [], job: job.id, after, progress: 0, runs: [] };
+      data.tasks.push(task);
+      return task;
+    };
+    const fetches = steps.map((step) => add(step));
+    if (then) add(then, fetches.map((task) => task.id));
+    data.jobs.push(job);
+    if (data.jobs.length > KEEP_JOBS) data.jobs.splice(data.jobs.findIndex((old) => old.doneAt !== null), 1);
+    log(at, `${job.id} ${name} queued as ${steps.length + (then ? 1 : 0)} steps`);
+    return job;
+  }
+
+  function claim(worker: string, at: number): ClaimResult {
+    const entry = join(worker, at);
+    // A node only asks for work when it is idle, so anything it still holds
+    // was dropped by an earlier run of it that died.
+    for (const task of held(worker)) release(task, at);
+    if (entry.leaving) {
+      data.workers.splice(data.workers.indexOf(entry), 1);
+      log(at, `${worker} finished its work and left`);
+      return { task: null, leave: true };
+    }
+    const task = data.tasks.find(ready);
+    if (!task) return { task: null };
     task.status = "claimed";
     task.worker = worker;
+    task.runs.push({ worker, start: at, heardAt: at, end: null, from: task.progress, to: task.progress, outcome: "running" });
     const from = task.lostBy.at(-1);
-    log(from ? `${worker} took over ${task.id} (${task.input}) from ${from}` : `${worker} claimed ${task.id} (${task.input})`);
-    return task;
+    log(at, from ? `${worker} resumed ${task.id} (${task.input}) at ${percent(task.progress)}, lost by ${from}` : `${worker} claimed ${task.id} (${task.input})`);
+    return { task };
+  }
+
+  // A busy node reports how far it got. Returns false if the step is no longer its own.
+  function progress(worker: string, id: string, value: number, at: number): boolean {
+    const task = data.tasks.find((candidate) => candidate.id === id);
+    if (!task || task.status !== "claimed" || task.worker !== worker) return false;
+    task.progress = Math.min(Math.max(task.progress, value), 0.99);
+    const run = currentRun(task);
+    run.to = task.progress;
+    run.heardAt = at;
+    return true;
   }
 
   // Only the worker holding the claim can finish the task. A worker that lost
   // its lease and comes back late gets null here, so it cannot overwrite the new owner.
-  function complete(id: string, worker: string, result: string): Task | null {
-    const task = tasks.find((candidate) => candidate.id === id);
+  function complete(worker: string, id: string, at: number): Task | null {
+    const task = data.tasks.find((candidate) => candidate.id === id);
     if (!task || task.status !== "claimed" || task.worker !== worker) return null;
     task.status = "done";
-    task.result = result;
-    doneBy.set(worker, (doneBy.get(worker) ?? 0) + 1);
-    log(`${worker} completed ${task.id}`);
-    const finished = tasks.filter((candidate) => candidate.status === "done");
-    if (finished.length > KEEP_DONE) tasks.splice(tasks.indexOf(finished[0]), 1);
+    task.progress = 1;
+    Object.assign(currentRun(task), { end: at, heardAt: at, to: 1, outcome: "done" });
+    const entry = workerById(worker);
+    if (entry) entry.done += 1;
+    log(at, `${worker} completed ${task.id}`);
+
+    const job = data.jobs.find((candidate) => candidate.id === task.job);
+    const steps = data.tasks.filter((candidate) => candidate.job === task.job);
+    if (job && steps.every((step) => step.status === "done")) {
+      job.doneAt = at;
+      job.nodes = new Set(steps.flatMap((step) => step.runs.filter((run) => run.outcome === "done").map((run) => run.worker))).size;
+      log(at, `${job.id} done in ${((at - job.queuedAt) / 1000).toFixed(1)} s on ${job.nodes} nodes`);
+    }
+
+    const finished = data.tasks.filter((candidate) => candidate.status === "done");
+    if (finished.length > KEEP_DONE) data.tasks.splice(data.tasks.indexOf(finished[0]), 1);
     return task;
   }
 
-  function state() {
-    requeueExpired();
-    const workers = [...lastSeen].map(([id, seenAt]) => {
-      const current = tasks.find((task) => task.worker === id && task.status === "claimed");
-      return {
-        id,
-        lastSeen: new Date(seenAt).toISOString(),
-        alive: !gone.has(id),
-        current: current?.id ?? null,
-        // The worker this one picked the current task up from, if it was handed over.
-        takenFrom: current?.lostBy.at(-1) ?? null,
-        done: doneBy.get(id) ?? 0,
-      };
-    });
-    // Newest first, the way the Console shows them.
-    return { tasks, workers, events: [...events].reverse() };
+  // The orchestrator decided this node has been quiet too long. Its steps go back in the queue.
+  function expire(worker: string, at: number): void {
+    const entry = workerById(worker);
+    if (!entry?.alive) return;
+    entry.alive = false;
+    log(at, `${worker} stopped responding`);
+    for (const task of held(worker)) release(task, at);
+    // It was already on its way out, so it is not coming back.
+    if (entry.leaving) data.workers.splice(data.workers.indexOf(entry), 1);
   }
 
-  return { add, claim, heartbeat, complete, state, log, pending };
+  // Remove: a working node finishes its step first; a dead one is dropped now.
+  function leave(worker: string, at: number): void {
+    const entry = workerById(worker);
+    if (!entry) return;
+    if (!entry.alive) {
+      data.workers.splice(data.workers.indexOf(entry), 1);
+      log(at, `${worker} removed`);
+      return;
+    }
+    entry.leaving = true;
+    log(at, `${worker} will leave after its current step`);
+  }
+
+  function apply(command: Command): unknown {
+    const at = command.at as number;
+    const worker = command.worker as string;
+    switch (command.type) {
+      case "noop":
+        log(at, `${command.orchestrator} elected orchestrator for term ${command.term}`);
+        return null;
+      case "config":
+        log(at, `Members are now ${(command.members as string[]).join(", ") || "none"}`);
+        return null;
+      case "job":
+        return addJob(command.name as string, command.steps as string[], command.then as string | undefined, at);
+      case "claim":
+        return claim(worker, at);
+      case "progress":
+        return progress(worker, command.task as string, command.progress as number, at);
+      case "complete":
+        return complete(worker, command.task as string, at);
+      case "expire":
+        return expire(worker, at);
+      case "leave":
+        return leave(worker, at);
+      default:
+        return null;
+    }
+  }
+
+  // Whether a claim from this worker would change anything. An idle node asks
+  // twice a second, and most of those asks do not need to go through the log.
+  function claimChangesState(worker: string): boolean {
+    const entry = workerById(worker);
+    return !entry || !entry.alive || entry.leaving || held(worker).length > 0 || data.tasks.some(ready);
+  }
+
+  function state() {
+    const workers = data.workers.map((worker) => {
+      const current = held(worker.id)[0];
+      return { ...worker, current: current?.id ?? null, takenFrom: current?.lostBy.at(-1) ?? null };
+    });
+    // Newest first, the way the Console shows them.
+    return { tasks: data.tasks, jobs: data.jobs, workers, events: [...data.events].reverse() };
+  }
+
+  return {
+    apply,
+    claimChangesState,
+    state,
+    save: () => structuredClone(data),
+    load: (saved: unknown) => {
+      data = structuredClone(saved as Data);
+    },
+  };
 }
+
+export type Queue = ReturnType<typeof createQueue>;
