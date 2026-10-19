@@ -126,3 +126,61 @@ test("a worker asking for work again gives up the task it was holding", () => {
   const held = queue.state().tasks.filter((task) => task.status === "claimed");
   assert.deepEqual(held.map((task) => task.id), ["T-1"]);
 });
+
+test("a step queued after others waits until they are all done", () => {
+  const queue = createQueue();
+  const job = { id: "J-1", name: "Morning refresh" };
+  const fetches = [queue.add("Fetch Jira", job), queue.add("Fetch Slack", job)];
+  queue.add("Rank", job, fetches.map((task) => task.id));
+
+  assert.equal(queue.claim("Q-01")?.id, "T-1");
+  assert.equal(queue.claim("Q-02")?.id, "T-2");
+  assert.equal(queue.claim("Q-03"), null);
+  queue.complete("T-1", "Q-01", "ok");
+  assert.equal(queue.claim("Q-03"), null);
+  queue.complete("T-2", "Q-02", "ok");
+  assert.equal(queue.claim("Q-03")?.id, "T-3");
+});
+
+test("events tell what happened, newest first", () => {
+  const clock = fakeClock();
+  const queue = createQueue({ leaseMs: 2000, now: clock.now });
+  queue.add("a");
+  queue.claim("Q-01");
+  queue.claim("Q-02");
+  clock.advance(2001);
+  queue.heartbeat("Q-02");
+  queue.claim("Q-02");
+  queue.complete("T-1", "Q-02", "ok");
+
+  assert.deepEqual(queue.state().events.map((event) => event.text).reverse(), [
+    "Q-01 joined",
+    "Q-01 claimed T-1 (a)",
+    "Q-02 joined",
+    "Q-01 stopped responding",
+    "Q-02 stopped responding",
+    "T-1 back in the queue",
+    "Q-02 joined",
+    "Q-02 took over T-1 (a) from Q-01",
+    "Q-02 completed T-1",
+  ]);
+  assert.deepEqual(queue.state().workers.map(({ id, alive }) => ({ id, alive })), [
+    { id: "Q-01", alive: false },
+    { id: "Q-02", alive: true },
+  ]);
+});
+
+test("old done tasks and events are dropped, done counts are kept", () => {
+  const queue = createQueue();
+  for (let n = 1; n <= 60; n++) {
+    queue.add(`task ${n}`);
+    queue.complete(queue.claim("Q-01")!.id, "Q-01", "ok");
+  }
+
+  const { tasks, workers, events } = queue.state();
+  assert.equal(tasks.length, 50);
+  assert.equal(tasks[0].id, "T-11");
+  assert.equal(workers[0].done, 60);
+  assert.equal(events.length, 40);
+  assert.equal(events[0].text, "Q-01 completed T-60");
+});

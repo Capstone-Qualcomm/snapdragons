@@ -100,3 +100,45 @@ test("a worker killed mid-task has its task finished by another worker", async (
     server.close();
   }
 });
+
+test("nodes started from the queue server split a job, and a killed one's step is finished by another", async () => {
+  const { server } = createClusterServer({ workMs: 1500 });
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const url = `http://localhost:${(server.address() as AddressInfo).port}`;
+  type Live = State & { workers: Array<{ id: string; alive: boolean }>; tasks: Array<{ input: string }> };
+
+  async function until(check: (current: Live) => boolean): Promise<Live> {
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const current = (await (await fetch(`${url}/api/cluster/state`)).json()) as Live;
+      if (check(current)) return current;
+      await sleep(100);
+    }
+    throw new Error("Timed out waiting for the cluster.");
+  }
+
+  function post(path: string, body: unknown = {}): Promise<Response> {
+    return fetch(url + path, { method: "POST", body: JSON.stringify(body) });
+  }
+
+  try {
+    for (const name of names) assert.equal((await (await post("/api/cluster/nodes")).json()).id, name);
+    await until((current) => current.workers.length === names.length);
+
+    await post("/api/cluster/jobs", { name: "Morning refresh", steps: ["Fetch Jira", "Fetch Slack", "Fetch GitHub"], then: "Rank" });
+    const busy = await until((current) => current.tasks.some((task) => task.worker === "Q-02" && task.status === "claimed"));
+    const victim = busy.tasks.find((task) => task.worker === "Q-02" && task.status === "claimed")!;
+    assert.equal((await post("/api/cluster/nodes/Q-02/kill")).status, 200);
+
+    const done = await until((current) => current.tasks.every((task) => task.status === "done"));
+    const handedOver = done.tasks.find((task) => task.id === victim.id)!;
+    assert.deepEqual(handedOver.lostBy, ["Q-02"]);
+    assert.notEqual(handedOver.worker, "Q-02");
+    assert.equal(done.tasks.at(-1)!.input, "Rank");
+    assert.equal(done.workers.find((worker) => worker.id === "Q-02")!.alive, false);
+
+    assert.equal((await post("/api/cluster/nodes/Q-02/start")).status, 200);
+    await until((current) => current.workers.some((worker) => worker.id === "Q-02" && worker.alive));
+  } finally {
+    server.close();
+  }
+});

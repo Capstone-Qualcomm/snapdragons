@@ -19,16 +19,11 @@ stop_cluster() {
 trap stop_cluster INT TERM EXIT
 
 cd "$CLUSTER_DIR"
-node server.ts &
+# The queue starts the three workers itself, so the Console can kill and restart them.
+CLUSTER_NODES=3 node server.ts &
 PIDS+=($!)
 
 until curl -sf "$URL/api/cluster/state" >/dev/null; do sleep 0.2; done
-
-for id in Q-01 Q-02 Q-03; do
-  # The name goes on the command line so ./scripts/kill-worker.sh can find the process.
-  WORKER_ID="$id" node worker.ts "$id" &
-  PIDS+=($!)
-done
 
 for n in $(seq 1 "$TASKS"); do
   curl -sf -X POST "$URL/api/cluster/tasks" -d "{\"input\":\"task $n\"}" >/dev/null

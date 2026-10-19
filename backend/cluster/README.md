@@ -3,8 +3,8 @@
 A fake cluster for a laptop: one task queue and worker processes that claim tasks from it. The workers only talk to the queue over HTTP, so the same worker can run on an Uno Q board later by pointing `CLUSTER_URL` at the machine running the queue.
 
 - `queue.ts` holds the tasks in memory and hands each one to a single worker
-- `server.ts` puts the queue behind HTTP on port 3003
-- `worker.ts` is one worker process. It claims a task, waits `WORK_MS` to stand in for real work, then reports the result
+- `server.ts` puts the queue behind HTTP on port 3003. It can also start and kill worker processes for the Console page
+- `worker.ts` is one worker process. It claims a task, waits about `WORK_MS` to stand in for real work, then reports the result
 
 ## Run it
 
@@ -14,7 +14,7 @@ From the repo root (run `npm install` in `backend/cluster` first if you want the
 ./scripts/start-cluster.sh
 ```
 
-That starts the queue and three workers named Q-01, Q-02 and Q-03, queues 9 tasks and prints how many each worker finished. Pass a number to queue a different amount.
+That starts the queue, which starts three workers named Q-01, Q-02 and Q-03 (`CLUSTER_NODES=3`), queues 9 tasks and prints how many each worker finished. Pass a number to queue a different amount.
 
 To run the pieces by hand, each in its own terminal:
 
@@ -47,6 +47,14 @@ The task starts over on the new worker. Picking up from a checkpoint, as the con
 | POST | `/api/cluster/claim` | A worker asks for work: `{ "worker": "Q-01" }`. `task` is null when the queue is empty |
 | POST | `/api/cluster/heartbeat` | A busy worker says it is still alive: `{ "worker": "Q-01" }` |
 | POST | `/api/cluster/complete` | A worker reports a result: `{ "id", "worker", "result" }`. 409 if that worker does not hold the task |
+| POST | `/api/cluster/jobs` | Queue a job as steps that run at the same time: `{ "name", "steps": [...], "then": "..." }`. `then` is optional and waits for every other step |
+| POST | `/api/cluster/nodes` | Start the next unused node, up to six |
+| POST | `/api/cluster/nodes/:id/start` | Start or restart one node that is not running |
+| POST | `/api/cluster/nodes/:id/kill` | SIGKILL a node the server started, like a board losing power |
+
+## Limits
+
+The Console is public, so the server keeps things small: only Q-01 to Q-06 can claim work or be started, at most 30 tasks can be waiting or running (429 past that), a job has at most 8 steps, names and inputs are at most 80 characters and bodies at most 4 KB. Only the last 50 done tasks and 40 events are kept. Workers the server starts take `WORK_MS` (default 4000) per step, so there is time to kill one mid-step.
 
 ## Tests
 

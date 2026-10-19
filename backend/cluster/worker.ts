@@ -41,8 +41,9 @@ export async function runWorker({ id, url, workMs = 1000, pollMs = 500, heartbea
         post("/api/cluster/heartbeat", { worker: id }).catch(() => {});
       }, heartbeatMs);
       try {
-        // Stand-in for real work (an LLM call, an API request). It just takes time.
-        await sleep(workMs, undefined, { signal });
+        // Stand-in for real work (an LLM call, an API request). It just takes time,
+        // somewhere between 75% and 125% of workMs so nodes finish at different times.
+        await sleep(workMs * (0.75 + Math.random() / 2), undefined, { signal });
         await post("/api/cluster/complete", { id: task.id, worker: id, result: `${task.input} (handled by ${id})` });
       } finally {
         clearInterval(beat);
