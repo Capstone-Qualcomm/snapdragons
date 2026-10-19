@@ -9,10 +9,10 @@ import { createSlackServer } from "./server.ts";
 // Save connected sessions in a temp folder instead of the repo's .data.
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-slack-"));
 
-// Send the session cookie back like a browser, so one test is one browser.
+// Send the session cookie and the app's Origin like a browser, so one test is one browser.
 let cookie = "";
 async function fetch(input: string | URL | Request, init: RequestInit = {}) {
-  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  const response = await globalThis.fetch(input, { ...init, headers: { Origin: "http://localhost:5173", ...init.headers, cookie } });
   cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
   return response;
 }
@@ -109,6 +109,14 @@ test("records a Slack upstream failure without exposing the error in activity", 
   assert.equal(activity.events[0].status, 502);
   assert.equal(activity.events[0].count, null);
   assert.equal(JSON.stringify(activity).includes("private upstream detail"), false);
+});
+
+test("rejects a POST from another site", async () => {
+  const base = await startServer(connectingSlack);
+  await connectSlack(base);
+  const response = await fetch(base + "/api/slack/connection/disconnect", { method: "POST", headers: { Origin: "https://attacker.example" } });
+  assert.equal(response.status, 403);
+  assert.equal((await (await fetch(base + "/api/slack/connection")).json()).slack.connected, true);
 });
 
 test("gives each browser its own Slack connection", async () => {
