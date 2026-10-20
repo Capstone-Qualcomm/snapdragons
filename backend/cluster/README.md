@@ -16,7 +16,7 @@ Every node runs a Raft peer, its copy of the task queue, and a worker. The Raft 
 ./scripts/start-cluster.sh
 ```
 
-That starts the gateway and nodes Q-01 to Q-03 (`CLUSTER_NODES=3`) with auto refresh on (`CLUSTER_AUTO=1`). Each node saves its Raft term, vote and log to `CLUSTER_DATA` (a folder in the system temp dir by default), so restarting the cluster picks up where it was. Delete that folder to start empty.
+That starts the gateway and nodes Q-01 to Q-03 (`CLUSTER_NODES=3`) with auto refresh on (`CLUSTER_AUTO=1`). Each node saves its Raft term, vote and log to `CLUSTER_DATA` (a folder in the system temp dir by default), so restarting the cluster picks up where it was, with every node it had then. Delete that folder to start empty.
 
 Kill a node from a terminal the way a board loses power:
 

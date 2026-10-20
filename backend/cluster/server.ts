@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileStorage } from "./node.ts";
 
 // The gateway between the Console and the cluster. It holds no queue of its
 // own: it starts and stops the node processes, asks each node for its Raft
@@ -78,6 +79,36 @@ export function createClusterServer(options: ServerOptions = {}) {
     child.on("exit", () => {
       if (children.get(id) === child) children.delete(id);
     });
+  }
+
+  // The members in the most up-to-date log saved here, or none for a cluster that has never run.
+  // Not every log's members: a node removed while running may have stopped before hearing so.
+  function savedMembers(): string[] {
+    let newest: { term: number; index: number; members: string[] } | null = null;
+    for (const id of NODE_IDS) {
+      const saved = fileStorage(join(dataDir, `${id}.json`)).load();
+      if (!saved) continue;
+      const term = saved.log.at(-1)?.term ?? saved.snapshot.term;
+      const index = saved.snapshot.index + saved.log.length;
+      const config = [...saved.log].reverse().find((entry) => entry.command.type === "config");
+      if (!newest || term > newest.term || (term === newest.term && index > newest.index)) {
+        newest = { term, index, members: (config?.command.members as string[] | undefined) ?? saved.snapshot.members };
+      }
+    }
+    return newest?.members ?? [];
+  }
+
+  // Starts the members the saved logs name, each picking up where it was. Only a
+  // cluster with nothing saved starts new, as the first `size` nodes.
+  function startCluster(size: number): string[] {
+    const saved = savedMembers();
+    if (saved.length) {
+      for (const id of saved) if (!children.has(id)) startNode(id);
+      return saved;
+    }
+    const first = NODE_IDS.slice(0, size);
+    for (const id of first) startNode(id, { bootstrap: first });
+    return first;
   }
 
   function stopNodes(): void {
@@ -256,19 +287,18 @@ export function createClusterServer(options: ServerOptions = {}) {
     stopNodes();
   });
 
-  return { server, port, startNode, stopNodes, clusterState };
+  return { server, port, startNode, startCluster, stopNodes, clusterState };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const { server, port, startNode, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" });
+  const { server, port, startCluster, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" });
   // The gateway can kill nodes and has no login, so it stays on loopback. Set HOST to listen somewhere else.
   const host = process.env.HOST ?? "127.0.0.1";
   server.listen(port, host, () => {
     console.log(`Cluster gateway listening on http://${host}:${port}`);
-    // CLUSTER_NODES=3 starts Q-01 to Q-03 as one cluster. Nodes that saved a log
-    // before pick up where they were; the bootstrap list only counts for a node starting empty.
-    const first = NODE_IDS.slice(0, Number(process.env.CLUSTER_NODES ?? 0));
-    for (const id of first) startNode(id, { bootstrap: first });
+    // CLUSTER_NODES=3 starts Q-01 to Q-03 as a new cluster. A cluster that saved
+    // its logs before comes back with the members it had, however many that is.
+    startCluster(Number(process.env.CLUSTER_NODES ?? 0));
   });
   // Take the node processes down with the gateway.
   for (const signal of ["SIGINT", "SIGTERM"] as const) {

@@ -18,17 +18,16 @@ type State = {
   jobs: Array<{ id: string; doneAt: number | null; nodes: number | null }>;
 };
 
-async function startCluster(nodePort: number, size = 3) {
-  const { server, startNode } = createClusterServer({
+async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"))) {
+  const { server, startCluster: startNodes, stopNodes } = createClusterServer({
     port: 0,
     nodePort,
-    dataDir: mkdtempSync(join(tmpdir(), "cluster-test-")),
+    dataDir,
     nodeEnv: { WORK_MS: "1500", LEASE_MS: "1000", RAFT_HEARTBEAT_MS: "100", RAFT_ELECTION_MIN_MS: "500", RAFT_ELECTION_MAX_MS: "1000" },
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${(server.address() as AddressInfo).port}`;
-  const ids = ["Q-01", "Q-02", "Q-03"].slice(0, size);
-  for (const id of ids) startNode(id, { bootstrap: ids });
+  startNodes(size);
 
   const state = async () => (await (await fetch(`${base}/api/cluster/state`)).json()) as State;
   async function until(check: (current: State) => boolean, what: string): Promise<State> {
@@ -43,8 +42,17 @@ async function startCluster(nodePort: number, size = 3) {
   const refresh = async () => ((await (await post("/api/cluster/refresh")).json()) as { job: { id: string } }).job.id;
   const jobDone = (job: string) => (current: State) => current.jobs.some((entry) => entry.id === job && entry.doneAt !== null);
 
-  await until((current) => current.orchestrator !== null && current.nodes.filter((node) => node.up).length === size, "an orchestrator is elected");
-  return { state, until, post, refresh, jobDone, close: () => server.close() };
+  const close = () => {
+    server.close();
+    stopNodes();
+  };
+  try {
+    await until((current) => current.orchestrator !== null && current.nodes.filter((node) => node.up).length >= size, "an orchestrator is elected");
+  } catch (cause) {
+    close();
+    throw cause;
+  }
+  return { state, until, post, refresh, jobDone, close };
 }
 
 test("three nodes elect an orchestrator and split a refresh, each step done once", async () => {
@@ -119,5 +127,29 @@ test("a node is added, then removed after it finishes its step", async () => {
     await cluster.until(cluster.jobDone(job), "the refresh is done");
   } finally {
     cluster.close();
+  }
+});
+
+test("a cluster grown to six nodes comes back as six when the gateway starts again", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"));
+  const first = await startCluster(4641, 3, dataDir);
+  try {
+    for (const id of ["Q-04", "Q-05", "Q-06"]) {
+      assert.deepEqual(await (await first.post("/api/cluster/nodes")).json(), { id });
+      await first.until((current) => current.members.includes(id) && current.nodes.some((node) => node.id === id && node.up), `${id} joins`);
+    }
+  } finally {
+    first.close();
+  }
+  await sleep(500);
+
+  // The same command as before: three nodes, but the saved logs say there are six.
+  const again = await startCluster(4641, 3, dataDir);
+  try {
+    const back = await again.state();
+    assert.equal(back.members.length, 6);
+    assert.equal(back.nodes.filter((node) => node.up).length, 6);
+  } finally {
+    again.close();
   }
 });

@@ -32,7 +32,7 @@ class HttpError extends Error {
   }
 }
 
-function fileStorage(file: string) {
+export function fileStorage(file: string) {
   return {
     // Only a missing file means a new node. A damaged one stops the node instead of being replaced by an empty log.
     load: (): Persisted | null => {
