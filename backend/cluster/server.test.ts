@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { networkInterfaces, tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { createClusterServer } from "./server.ts";
+
+// This machine's address on a network, if it has one.
+const lan = Object.values(networkInterfaces()).flat().find((address) => address?.family === "IPv4" && !address.internal)?.address;
 
 // These run the gateway with no nodes behind it. tests/integration starts real ones.
 const servers = new Set<Server>();
@@ -48,4 +57,17 @@ test("auto mode turns on and off", async () => {
 test("bad JSON gets a 400", async () => {
   const base = await startGateway();
   assert.equal((await fetch(base + "/api/cluster/auto", { method: "POST", body: "{nope" })).status, 400);
+});
+
+test("the gateway only listens on loopback", { skip: !lan && "no network address to try" }, async () => {
+  const gateway = spawn(process.execPath, [fileURLToPath(new URL("./server.ts", import.meta.url))], {
+    env: { ...process.env, CLUSTER_PORT: "4961", CLUSTER_NODE_PORT: "4971", CLUSTER_DATA: mkdtempSync(join(tmpdir(), "server-test-")) },
+  });
+  try {
+    await once(gateway.stdout, "data");
+    assert.equal((await fetch("http://127.0.0.1:4961/api/cluster/state")).status, 200);
+    await assert.rejects(fetch(`http://${lan}:4961/api/cluster/state`, { signal: AbortSignal.timeout(1000) }));
+  } finally {
+    gateway.kill();
+  }
 });

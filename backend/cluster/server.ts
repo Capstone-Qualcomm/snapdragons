@@ -56,7 +56,7 @@ export function createClusterServer(options: ServerOptions = {}) {
   const nodePort = Number(options.nodePort ?? process.env.CLUSTER_NODE_PORT ?? 4101);
   const dataDir = options.dataDir ?? process.env.CLUSTER_DATA ?? join(tmpdir(), "continuum-cluster");
   const nodeFile = fileURLToPath(new URL("./node.ts", import.meta.url));
-  const address = (id: string) => `http://localhost:${nodePort + NODE_IDS.indexOf(id)}`;
+  const address = (id: string) => `http://127.0.0.1:${nodePort + NODE_IDS.indexOf(id)}`;
   const peers = NODE_IDS.map((id) => `${id}=${address(id)}`).join(",");
   // Node processes this gateway started, so it can kill them.
   const children = new Map<string, ChildProcess>();
@@ -261,8 +261,10 @@ export function createClusterServer(options: ServerOptions = {}) {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const { server, port, startNode, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" });
-  server.listen(port, () => {
-    console.log(`Cluster gateway listening on http://localhost:${port}`);
+  // The gateway can kill nodes and has no login, so it stays on loopback. Set HOST to listen somewhere else.
+  const host = process.env.HOST ?? "127.0.0.1";
+  server.listen(port, host, () => {
+    console.log(`Cluster gateway listening on http://${host}:${port}`);
     // CLUSTER_NODES=3 starts Q-01 to Q-03 as one cluster. Nodes that saved a log
     // before pick up where they were; the bootstrap list only counts for a node starting empty.
     const first = NODE_IDS.slice(0, Number(process.env.CLUSTER_NODES ?? 0));

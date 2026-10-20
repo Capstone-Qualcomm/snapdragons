@@ -134,7 +134,8 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
       send(res, status, { error: cause instanceof Error ? cause.message : "Node error." });
     }
   });
-  server.listen(port);
+  // Peers and the gateway reach a node over loopback, and /client changes the members, so nothing else should. Set HOST to listen somewhere else.
+  server.listen(port, process.env.HOST ?? "127.0.0.1");
 
   const timers = [setInterval(raft.tick, 50), setInterval(checkLeases, 250)];
   const controller = new AbortController();
@@ -167,7 +168,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const env = process.env;
   const id = env.NODE_ID ?? process.argv[2];
   if (!id || !env.CLUSTER_PEERS) {
-    console.error("Usage: NODE_ID=Q-01 CLUSTER_PEERS=Q-01=http://localhost:4101,... node node.ts");
+    console.error("Usage: NODE_ID=Q-01 CLUSTER_PEERS=Q-01=http://127.0.0.1:4101,... node node.ts");
     process.exit(1);
   }
   const ms = (name: string, fallback: number) => Number(env[name] ?? fallback);
