@@ -1,0 +1,21 @@
+name: Tests
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install
+        run: for dir in frontend backend/jira backend/slack backend/github backend/cluster; do npm ci --prefix "$dir"; done
+      - name: Tests
+        run: bash tests/local_tests.sh
+      - name: Typecheck
+        run: for dir in frontend backend/jira backend/slack backend/github backend/cluster; do npm run typecheck --prefix "$dir"; done
+      - name: Build
+        run: npm run build --prefix frontend
