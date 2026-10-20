@@ -37,7 +37,11 @@ export function ConsolePage() {
           </button>
         </div>
       </header>
-      {(error || (failed && !cluster)) && <div className="error-banner" role="alert"><p>{error ?? "The cluster is not reachable."}</p></div>}
+      {(error || failed) && (
+        <div className="error-banner" role="alert">
+          <p>{error ?? (cluster ? "The cluster is not reachable. Showing the last received state." : "The cluster is not reachable.")}</p>
+        </div>
+      )}
       {cluster && (
         <>
           <Nodes cluster={cluster} serverNow={serverNow} act={(path, body) => void act(path, body)} />

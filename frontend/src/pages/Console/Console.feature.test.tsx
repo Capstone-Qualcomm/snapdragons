@@ -125,6 +125,16 @@ describe("Console controls", () => {
     expect((await screen.findByRole("alert")).textContent).toBe("The cluster is not reachable.");
     expect(screen.queryByText("Queue")).toBeNull();
   });
+
+  it("warns when the cluster stops answering, and keeps the last state it got", async () => {
+    mockCluster(cluster());
+    render(<ConsolePage />);
+    await screen.findByRole("group", { name: "Q-01" });
+
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))));
+    expect((await screen.findByRole("alert")).textContent).toBe("The cluster is not reachable. Showing the last received state.");
+    expect(row("Q-01")).toBeTruthy();
+  });
 });
 
 describe("Console refreshes", () => {
