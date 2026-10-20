@@ -92,7 +92,9 @@ export function createQueue() {
     const fetches = steps.map((step) => add(step));
     if (then) add(then, fetches.map((task) => task.id));
     data.jobs.push(job);
-    if (data.jobs.length > KEEP_JOBS) data.jobs.splice(data.jobs.findIndex((old) => old.doneAt !== null), 1);
+    // Only finished jobs are dropped, so a long queue of unfinished ones keeps every record.
+    const oldestDone = data.jobs.findIndex((old) => old.doneAt !== null);
+    if (data.jobs.length > KEEP_JOBS && oldestDone !== -1) data.jobs.splice(oldestDone, 1);
     log(at, `${job.id} ${name} queued as ${steps.length + (then ? 1 : 0)} steps`);
     return job;
   }

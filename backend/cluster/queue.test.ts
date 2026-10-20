@@ -131,6 +131,13 @@ test("old done tasks and events are dropped, done counts are kept", () => {
   assert.match(events[0].text, /^J-100 done/);
 });
 
+test("unfinished jobs are kept however many are queued", () => {
+  const q = testQueue();
+  for (let n = 1; n <= 35; n++) q.job([`step ${n}`]);
+
+  assert.deepEqual(q.queue.state().jobs.map((job) => job.id), Array.from({ length: 35 }, (_, n) => `J-${n + 1}`));
+});
+
 test("a saved copy loads into another queue unchanged", () => {
   const q = testQueue();
   q.job(["a", "b"]);
