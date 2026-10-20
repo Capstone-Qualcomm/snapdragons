@@ -59,4 +59,20 @@ describe("Settings connections", () => {
     expect(await screen.findByText("The Jira sign-in expired or could not be verified. Connect again.")).toBeTruthy();
     expect(window.location.search).toBe("");
   });
+
+  it("offers Retry when the first check fails", async () => {
+    mockBackends();
+    const working = vi.mocked(fetch).getMockImplementation()!;
+    let jiraDown = true;
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (jiraDown && String(url).includes("/api/jira/")) throw new TypeError("Failed to fetch");
+      return working(url, init);
+    });
+    render(<SettingsPage />);
+    await within(card("Jira")).findByText("Not checked");
+    jiraDown = false;
+    fireEvent.click(within(card("Jira")).getByRole("button", { name: "Retry" }));
+    expect(await within(card("Jira")).findByText("Not connected")).toBeTruthy();
+    expect(within(card("Jira")).queryByRole("alert")).toBeNull();
+  });
 });

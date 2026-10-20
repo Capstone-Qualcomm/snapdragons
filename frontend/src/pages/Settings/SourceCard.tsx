@@ -31,12 +31,16 @@ function callbackMessage(name: string, outcome: string): string | undefined {
 export function SourceCard({ source, name }: SourceCardProps) {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [busy, setBusy] = useState(false);
+  // The first check failed, so there is no state to show until Retry.
+  const [failed, setFailed] = useState(false);
   const [message, setMessage] = useState({ text: "", isError: false });
 
   const load = useCallback(async () => {
+    setFailed(false);
     try {
       setConnection((await api<Record<string, Connection>>(`/api/${source}/connection`))[source]);
     } catch (cause) {
+      setFailed(true);
       setMessage({ text: (cause as Error).message, isError: true });
     }
   }, [source]);
@@ -66,7 +70,7 @@ export function SourceCard({ source, name }: SourceCardProps) {
 
   const connected = connection?.connected ?? false;
   const account = connection?.team ?? connection?.user ?? connection?.sites?.find((site) => site.id === connection.cloudId)?.name;
-  const [tone, state]: [Tone, string] = !connection ? ["busy", "Checking"]
+  const [tone, state]: [Tone, string] = !connection ? (failed ? ["bad", "Not checked"] : ["busy", "Checking"])
     : connected ? (connection.enabled ? ["ok", "Connected"] : ["warn", "Turned off"])
     : connection.configured ? ["off", "Not connected"] : ["off", "Not set up"];
 
@@ -94,6 +98,8 @@ export function SourceCard({ source, name }: SourceCardProps) {
             <a className="button small" href={appPath(`auth/${source}/start`)}>Reconnect</a>
             <button className="button small" type="button" disabled={busy} onClick={() => void post("disconnect")}>Disconnect</button>
           </>
+        ) : failed ? (
+          <button className="button small" type="button" onClick={() => { setMessage({ text: "", isError: false }); void load(); }}>Retry</button>
         ) : connection?.configured && (
           <a className="button small primary" href={appPath(`auth/${source}/start`)}>Connect {name}</a>
         )}
