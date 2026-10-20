@@ -149,7 +149,7 @@ export function JiraReport({ source }: { source: Source<JiraIssue> }) {
   return (
     <Panel title="Jira" icon={<SourceLogo name="jira" />} count={source.status === "ready" ? source.items.length : null} id="report-jira">
       <SourceState source={source} empty="No Jira issues are assigned to you." />
-      {source.status === "ready" && source.items.length > 0 && (
+      {source.items.length > 0 && (
         <ul className="rows">
           {source.items.map((issue) => <JiraRow key={issue.key} issue={issue} onSaved={source.reload} />)}
         </ul>

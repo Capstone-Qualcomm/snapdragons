@@ -99,4 +99,14 @@ describe("Report panels", () => {
     expect(posts[0].body).toEqual({ description: "New description" });
   });
 
+  it("keeps the list and an open edit when a sync fails", async () => {
+    mockBackends({ jira: on, slack: on, github: on });
+    render(<ReportPage />);
+    await editDescription("New description");
+
+    jiraIssues = () => Response.json({ error: "Jira is down." }, { status: 502 });
+    fireEvent.click(screen.getByRole("button", { name: "Sync all" }));
+    expect(await screen.findByText("Jira is down.")).toBeTruthy();
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("New description");
+  });
 });

@@ -8,7 +8,8 @@ export type Source<T> = {
   name: SourceName;
   title: string;
   status: SourceStatus;
-  // True while a sync runs; the last list stays on screen until it finishes.
+  // True while a sync runs; the last list stays on screen until it finishes,
+  // and after it if the sync fails.
   syncing: boolean;
   items: T[];
   error: string;
@@ -28,7 +29,7 @@ export function useSource<T>(name: SourceName, items: string): Source<T> {
 
   const reload = useCallback(async () => {
     setState((current) => ({ ...current, syncing: true }));
-    const settle = (status: SourceStatus, error = "") => setState({ status, syncing: false, items: [], error, loadedAt: null });
+    const settle = (status: SourceStatus) => setState({ status, syncing: false, items: [], error: "", loadedAt: null });
     try {
       const connection = (await api<Record<SourceName, Connection>>(`/api/${name}/connection`))[name];
       if (!connection.configured && !connection.connected) return settle("unconfigured");
@@ -37,7 +38,8 @@ export function useSource<T>(name: SourceName, items: string): Source<T> {
       const result = await api<Record<string, T[]>>(`/api/${name}/${items}`);
       setState({ status: "ready", syncing: false, items: result[items], error: "", loadedAt: Date.now() });
     } catch (cause) {
-      settle("error", (cause as Error).message);
+      // A failed sync keeps the last list, and any edits open in it, beside the error.
+      setState((current) => ({ ...current, status: "error", syncing: false, error: (cause as Error).message }));
     }
   }, [name, items]);
 

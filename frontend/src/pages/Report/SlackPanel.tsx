@@ -46,7 +46,7 @@ export function SlackPanel({ source }: { source: Source<SlackMessage> }) {
   return (
     <Panel title="Slack" icon={<SourceLogo name="slack" />} count={source.status === "ready" ? source.items.length : null} id="report-slack">
       <SourceState source={source} empty="Nobody is waiting on you in Slack." />
-      {source.status === "ready" && groups.map((group) => group.items.length > 0 && (
+      {groups.map((group) => group.items.length > 0 && (
         <div key={group.title}>
           <h3 className="group-label">{group.title}</h3>
           <ul className="rows">

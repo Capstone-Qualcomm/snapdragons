@@ -23,7 +23,7 @@ export function GitHubPanel({ source }: { source: Source<GitHubIssue> }) {
   return (
     <Panel title="GitHub" icon={<SourceLogo name="github" />} count={source.status === "ready" ? source.items.length : null} id="report-github">
       <SourceState source={source} empty="No open issues or pull requests are assigned to you." />
-      {source.status === "ready" && source.items.length > 0 && (
+      {source.items.length > 0 && (
         <ul className="rows">
           {source.items.map((issue) => <GitHubRow key={issue.id} issue={issue} />)}
         </ul>
