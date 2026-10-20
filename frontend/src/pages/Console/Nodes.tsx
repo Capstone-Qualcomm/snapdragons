@@ -133,7 +133,7 @@ function NodeRow({ node, cluster, act }: { node: RaftNode; cluster: ClusterState
         {node.up ? <RoleCell node={node} isOrchestrator={isOrchestrator} leaving={state === "leaving"} waiting={!cluster.orchestrator} /> : state === "dead" ? <span className="is-dead-text">Dead</span> : <span className="node-state">Left</span>}
       </div>
       <div className="node-step">
-        {task ? <StepProgress task={task} /> : <span className="node-state">{stateLabel[state]}</span>}
+        {task ? <StepProgress key={task.id} task={task} /> : <span className="node-state">{stateLabel[state]}</span>}
       </div>
       <div className="node-log">
         {node.up && (
