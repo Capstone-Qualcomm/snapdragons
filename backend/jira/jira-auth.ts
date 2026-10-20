@@ -27,11 +27,11 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
   const pendingStates = createPendingStates();
   let refreshInFlight: Promise<string> | null = null;
   const configured = Boolean(clientId && clientSecret);
-  const settingsUrl = (outcome: string) => `${appUrl}/settings?jira=${encodeURIComponent(outcome)}`;
+  const returnUrl = (outcome: string) => `${appUrl}/today?jira=${encodeURIComponent(outcome)}`;
 
   function start(res: ServerResponse): void {
     if (!configured) {
-      redirect(res, settingsUrl("unconfigured"));
+      redirect(res, returnUrl("unconfigured"));
       return;
     }
 
@@ -56,11 +56,11 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
 
   async function handleCallback(url: URL, res: ServerResponse): Promise<void> {
     if (!pendingStates.take(url.searchParams.get("state") ?? "")) {
-      redirect(res, settingsUrl("invalid_state"));
+      redirect(res, returnUrl("invalid_state"));
       return;
     }
     if (url.searchParams.has("error")) {
-      redirect(res, settingsUrl(url.searchParams.get("error") === "access_denied" ? "denied" : "error"));
+      redirect(res, returnUrl(url.searchParams.get("error") === "access_denied" ? "denied" : "error"));
       return;
     }
 
@@ -92,17 +92,17 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
         token: null,
       });
       saveToken(token);
-      redirect(res, settingsUrl("connected"));
+      redirect(res, returnUrl("connected"));
     } catch (error) {
       console.error("Jira OAuth callback failed:", error instanceof Error ? error.message : "unknown error");
-      redirect(res, settingsUrl("error"));
+      redirect(res, returnUrl("error"));
     }
   }
 
   async function refreshAccessToken(): Promise<string> {
     const refreshToken = jiraConnection.token?.refresh_token;
     if (!refreshToken) {
-      throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+      throw new Error("Jira authorization expired. Reconnect Jira.");
     }
     if (!refreshInFlight) {
       refreshInFlight = (async () => {
@@ -116,14 +116,14 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
             refresh_token: refreshToken,
           }),
         });
-        if (!response.ok) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+        if (!response.ok) throw new Error("Jira authorization expired. Reconnect Jira.");
         const token = await response.json() as JiraToken;
         saveToken(token);
         return token.access_token;
       })();
     }
     try {
-      if (!refreshInFlight) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+      if (!refreshInFlight) throw new Error("Jira authorization expired. Reconnect Jira.");
       return await refreshInFlight;
     } finally {
       refreshInFlight = null;
@@ -133,7 +133,7 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
   async function getAccessToken(forceRefresh = false): Promise<string> {
     const accessToken = jiraConnection.token?.access_token;
     if (!accessToken) {
-      throw new Error("Jira is not connected. Connect Jira in Settings.");
+      throw new Error("Jira is not connected. Connect Jira.");
     }
     if (forceRefresh || Date.now() >= (jiraConnection.tokenExpiresAt ?? 0)) return refreshAccessToken();
     return accessToken;

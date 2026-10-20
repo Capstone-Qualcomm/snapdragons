@@ -46,11 +46,11 @@ export function createGitHubAuth({
 }: GitHubAuthOptions) {
   const pendingStates = createPendingStates<{ codeVerifier: string }>();
   const configured = Boolean(clientId && clientSecret);
-  const settingsUrl = (outcome: string) => `${appUrl}/settings?github=${encodeURIComponent(outcome)}`;
+  const returnUrl = (outcome: string) => `${appUrl}/today?github=${encodeURIComponent(outcome)}`;
 
   function startAuthorization(res: ServerResponse) {
     if (!configured) {
-      redirect(res, settingsUrl("unconfigured"));
+      redirect(res, returnUrl("unconfigured"));
       return;
     }
 
@@ -74,11 +74,11 @@ export function createGitHubAuth({
     const code = url.searchParams.get("code");
 
     if (!pending) {
-      redirect(res, settingsUrl("invalid_state"));
+      redirect(res, returnUrl("invalid_state"));
       return;
     }
     if (error || !code) {
-      redirect(res, settingsUrl(error === "access_denied" ? "denied" : "error"));
+      redirect(res, returnUrl(error === "access_denied" ? "denied" : "error"));
       return;
     }
 
@@ -97,24 +97,24 @@ export function createGitHubAuth({
       githubConnection.connectedAt = new Date().toISOString();
       githubConnection.user = profile;
       githubConnection.token = token;
-      redirect(res, settingsUrl("connected"));
+      redirect(res, returnUrl("connected"));
     } catch (cause) {
       console.error("GitHub OAuth callback failed:", cause instanceof Error ? cause.message : "Unknown error");
-      redirect(res, settingsUrl("error"));
+      redirect(res, returnUrl("error"));
     }
   }
 
   async function getAccessToken(): Promise<string> {
     const token = githubConnection.token;
     if (!githubConnection.connected || !token) {
-      throw new Error("GitHub is not connected. Connect GitHub in Settings.");
+      throw new Error("GitHub is not connected. Connect GitHub.");
     }
     if (!token.accessTokenExpiresAt || token.accessTokenExpiresAt > Date.now() + refreshBeforeExpiryMs) {
       return token.accessToken;
     }
     if (!token.refreshToken || (token.refreshTokenExpiresAt && token.refreshTokenExpiresAt <= Date.now())) {
       reset();
-      throw new Error("GitHub authorization expired. Reconnect GitHub in Settings.");
+      throw new Error("GitHub authorization expired. Reconnect GitHub.");
     }
 
     try {
@@ -139,7 +139,7 @@ export function createGitHubAuth({
         throw new Error("GitHub connection changed during token refresh. Please retry.");
       }
       reset();
-      throw new Error("GitHub authorization expired. Reconnect GitHub in Settings.");
+      throw new Error("GitHub authorization expired. Reconnect GitHub.");
     }
   }
 

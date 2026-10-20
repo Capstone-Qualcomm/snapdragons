@@ -14,7 +14,7 @@ This backend connects to Jira Cloud using Atlassian OAuth 2.0 (3LO). The client 
    - `write:jira-work` — update issue descriptions, story points, and status.
    - `offline_access` — receive refresh tokens so the connection can renew access without asking you to log in each time.
 
-   Save the permission changes. Existing grants may need to be renewed after scopes change; reconnect Jira from the app's Settings page.
+   Save the permission changes. Existing grants may need to be renewed after scopes change; reconnect Jira from the Jira menu in Today.
 
 5. Open **Authorization**. Configure **OAuth 2.0 (3LO)** and add this callback URL exactly:
 
@@ -59,4 +59,4 @@ From the repository root, run:
 ./scripts/start-dev.sh
 ```
 
-Open the frontend URL printed by Vite (usually `http://localhost:5173`), then go to Settings and choose **Connect Jira**. Sign in to Atlassian and grant access. Press **Ctrl+C** in the terminal to stop the backend and frontend.
+Open the frontend URL printed by Vite (usually `http://localhost:5173`), then choose **Connect Jira** in Today. Sign in to Atlassian and grant access. Press **Ctrl+C** in the terminal to stop the backend and frontend.

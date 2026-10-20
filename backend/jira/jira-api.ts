@@ -95,7 +95,7 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }: Jir
 
   async function getAssignedIssues(): Promise<IssueSummary[]> {
     if (!jiraConnection.connected || !jiraConnection.cloudId) {
-      throw new Error("Jira is not connected. Connect Jira in Settings.");
+      throw new Error("Jira is not connected. Connect Jira.");
     }
     const customFields = await getCustomFieldIds();
     const fieldNames = ["summary", "status", "issuetype", "updated", "description", "labels", "reporter"];
@@ -114,7 +114,7 @@ export function createJiraApi({ jiraConnection, fetchImpl, getAccessToken }: Jir
         }),
       });
       if (!response.ok) {
-        if (response.status === 401) throw new Error("Jira authorization expired. Reconnect Jira in Settings.");
+        if (response.status === 401) throw new Error("Jira authorization expired. Reconnect Jira.");
         if (response.status === 403) throw new Error("Jira denied access to assigned issues. Check the app's Jira scopes and your Jira permissions.");
         if (response.status === 429) throw new Error("Jira is busy. Wait a moment and refresh the report.");
         throw new Error("Jira could not load assigned issues. Please try again.");

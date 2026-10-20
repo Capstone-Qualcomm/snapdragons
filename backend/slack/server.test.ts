@@ -51,7 +51,7 @@ async function connectSlack(base: string) {
 test("turns Slack on when it connects", async () => {
   const base = await startServer(connectingSlack);
   const callback = await connectSlack(base);
-  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/settings?slack=connected");
+  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/today?slack=connected");
   const { slack } = await (await fetch(base + "/api/slack/connection")).json();
   assert.equal(slack.enabled, true);
 });
@@ -59,7 +59,7 @@ test("turns Slack on when it connects", async () => {
 test("sends a sign-in with an unknown state back as invalid_state", async () => {
   const base = await startServer(connectingSlack);
   const callback = await fetch(base + "/auth/slack/callback?state=unknown&code=test", { redirect: "manual" });
-  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/settings?slack=invalid_state");
+  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/today?slack=invalid_state");
 });
 
 test("records a disconnected Slack fetch as a failed sync", async () => {

@@ -138,12 +138,12 @@ test("reports Jira as unconfigured when OAuth credentials are missing", async ()
   assert.equal(body.jira.configured, false);
 });
 
-test("redirects to Settings when OAuth is not configured", async () => {
+test("redirects to Today when OAuth is not configured", async () => {
   const baseUrl = await startServer({ configured: false });
   const response = await fetch(`${baseUrl}/auth/jira/start`, { redirect: "manual" });
 
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get("location"), "http://frontend.test/settings?jira=unconfigured");
+  assert.equal(response.headers.get("location"), "http://frontend.test/today?jira=unconfigured");
 });
 
 test("rejects issue requests before Jira is connected", async () => {
@@ -219,7 +219,7 @@ test("rejects an OAuth callback with an unknown state", async () => {
   const response = await fetch(`${baseUrl}/auth/jira/callback?state=unknown&code=test-code`, { redirect: "manual" });
 
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get("location"), "http://frontend.test/settings?jira=invalid_state");
+  assert.equal(response.headers.get("location"), "http://frontend.test/today?jira=invalid_state");
 });
 
 test("connects the first accessible Jira site after OAuth", async () => {
@@ -227,7 +227,7 @@ test("connects the first accessible Jira site after OAuth", async () => {
   const callback = await connectJira(baseUrl);
   const { body } = await request(baseUrl, "/api/jira/connection");
 
-  assert.equal(callback.headers.get("location"), "http://frontend.test/settings?jira=connected");
+  assert.equal(callback.headers.get("location"), "http://frontend.test/today?jira=connected");
   assert.equal(body.jira.connected, true);
   assert.equal(body.jira.cloudId, "cloud-1");
   assert.equal(body.jira.sites[0].url, "https://example.atlassian.net");
