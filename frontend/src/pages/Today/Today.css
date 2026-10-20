@@ -329,7 +329,8 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
   .today-refresh { margin-left: 0; width: 100%; }
   .refresh-button { flex: 1; }
   .strip-queue { width: 100%; max-width: none; }
-  .mini .step-title { font-size: 0; }
+  .mini .step-title,
+  .mini-last { font-size: 0; }
   .mini .step-title .logo { flex: none; }
 
   .today-row {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { SourceLogo, StatusDot } from "../../components/ui";
 import { appPath } from "../../lib/urls";
 import type { Source } from "./sources";
@@ -17,6 +18,15 @@ export function signInError(title: string, outcome: string): string | undefined 
 // connected, how many items it brought, with its other controls in a menu.
 export function Connection({ source, count }: { source: Source<unknown>; count: number }) {
   const { name, title, status } = source;
+  const menu = useRef<HTMLDetailsElement>(null);
+  // The menu closes on a click anywhere else.
+  useEffect(() => {
+    function close(event: PointerEvent) {
+      if (menu.current?.open && !menu.current.contains(event.target as Node)) menu.current.open = false;
+    }
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
   const start = appPath(`auth/${name}/start`);
   const logo = <SourceLogo name={name} />;
 
@@ -32,7 +42,7 @@ export function Connection({ source, count }: { source: Source<unknown>; count: 
     case "error":
     case "ready":
       return (
-        <details className="source-menu">
+        <details className="source-menu" ref={menu}>
           <summary className={`source-pill is-${status}`} aria-label={`${title} menu`}>
             {logo}
             {title}
