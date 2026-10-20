@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 // Each browser gets a random "sid" cookie and its own connection state. The
 // Jira, Slack and GitHub backends all read the same cookie because cookies
 // ignore ports. Connected sessions are saved to disk so a restart keeps them.
+// Only the most recent MAX_IDLE browsers that never connected stay in memory,
+// so requests without a cookie can't grow the map forever.
+const MAX_IDLE = 1000;
+
 export function createSessions<T, Saved extends { connected: boolean }>(
   name: string,
   create: (saved?: Saved) => T,
@@ -43,10 +47,31 @@ export function createSessions<T, Saved extends { connected: boolean }>(
       sid = randomBytes(32).toString("hex");
       res.setHeader("Set-Cookie", `sid=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000${secure}`);
     }
-    if (!sessions.has(sid)) sessions.set(sid, create());
-    res.on("finish", save);
-    return sessions.get(sid)!;
+    const existing = sessions.get(sid);
+    const state = existing ?? create();
+    // Re-insert so the map runs from least to most recently used.
+    sessions.delete(sid);
+    sessions.set(sid, state);
+    if (!existing) evictIdle();
+    // Write to disk only when this request changed what gets saved.
+    const before = JSON.stringify(toSaved(state));
+    res.on("finish", () => {
+      if (JSON.stringify(toSaved(state)) !== before) save();
+    });
+    return state;
   }
 
-  return { get };
+  function evictIdle() {
+    let idle = 0;
+    for (const state of sessions.values()) if (!toSaved(state).connected) idle++;
+    for (const [sid, state] of sessions) {
+      if (idle <= MAX_IDLE) break;
+      if (!toSaved(state).connected) {
+        sessions.delete(sid);
+        idle--;
+      }
+    }
+  }
+
+  return { get, size: () => sessions.size };
 }
