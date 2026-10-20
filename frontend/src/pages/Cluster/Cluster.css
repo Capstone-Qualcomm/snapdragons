@@ -122,18 +122,20 @@
 
 /* While there is no orchestrator: a worker's timeout running down, or a candidate's votes. */
 .countdown {
-  height: 4px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--wash);
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  transform: rotate(-90deg);
 }
 
-.countdown i {
-  display: block;
-  height: 100%;
-  background: var(--waiting);
-  transition: width 0.5s linear;
+.countdown circle {
+  fill: none;
+  stroke: var(--waiting);
+  stroke-width: 3;
+  transition: stroke-dasharray 0.5s linear;
 }
+
+.countdown + .role { margin-left: 0; }
 
 .votes {
   display: flex;

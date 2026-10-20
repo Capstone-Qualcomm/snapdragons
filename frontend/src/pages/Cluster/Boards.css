@@ -159,6 +159,32 @@
 .mini .step-progress,
 .mini .board-idle { grid-column: 1 / -1; }
 
+.mini-last {
+  display: flex;
+  min-width: 0;
+  height: 26px;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mini-last .logo { width: 14px; height: 14px; opacity: 0.75; }
+
+.check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-left: auto;
+  fill: none;
+  stroke: var(--live);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
 /* An idle board's empty socket, the size of a step. */
 .board-idle {
   height: 30px;

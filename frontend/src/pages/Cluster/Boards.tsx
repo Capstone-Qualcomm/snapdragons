@@ -53,6 +53,7 @@ function Board({ node, cluster, act }: { node: RaftNode; cluster: ClusterState; 
         <span className={`dot ${led[state]}`} aria-hidden="true" />
         <strong>{node.id}</strong>
         {isOrchestrator && <Crown />}
+        {electing && node.role === "worker" && <Countdown ms={node.electionIn ?? 0} />}
         <span className={`role is-${role.toLowerCase()}`}>{role}</span>
       </header>
 
@@ -69,11 +70,6 @@ function Board({ node, cluster, act }: { node: RaftNode; cluster: ClusterState; 
           </>
         )}
       </div>
-      {electing && node.role === "worker" && (
-        <span className="countdown" aria-label={`election in ${((node.electionIn ?? 0) / 1000).toFixed(1)} s`}>
-          <i style={{ width: `${Math.min((node.electionIn ?? 0) / 3000, 1) * 100}%` }} />
-        </span>
-      )}
       {node.role === "candidate" && node.up && (
         <span className="votes" aria-label={`${node.votes?.length ?? 0} of ${needed} votes`}>
           {Array.from({ length: needed }, (_, index) => <i key={index} className={index < (node.votes?.length ?? 0) ? "is-in" : ""} />)}
@@ -89,23 +85,44 @@ function Board({ node, cluster, act }: { node: RaftNode; cluster: ClusterState; 
   );
 }
 
-// The same boards in one line, for Today: who holds which step right now.
+// The same boards in one line, for Today: who holds which step right now,
+// and between refreshes, the step each one finished last.
 export function BoardStrip({ cluster }: { cluster: ClusterState }) {
   return (
     <ul className="strip-boards">
       {cluster.nodes.map((node) => {
         const { task, state, isOrchestrator } = boardOf(node, cluster);
+        const last = task || !node.up ? undefined : lastDone(node.id, cluster);
         return (
           <li key={node.id} className={`mini is-${state}`} role="group" aria-label={node.id}>
             <span className={`dot ${led[state]}`} aria-hidden="true" />
             <strong>{node.id}</strong>
             {isOrchestrator && <Crown />}
-            {task ? <StepProgress key={task.id} task={task} compact /> : <span className="board-idle" aria-hidden="true" />}
+            {task ? (
+              <StepProgress key={task.id} task={task} compact />
+            ) : last ? (
+              <span className="mini-last" title={last.input}>
+                <SourceIcon step={last.input} />
+                {shortName(last.input)}
+                <svg className="check" viewBox="0 0 16 16" aria-label="Done" role="img"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
+              </span>
+            ) : (
+              <span className="board-idle" aria-hidden="true" />
+            )}
           </li>
         );
       })}
     </ul>
   );
+}
+
+function lastDone(id: string, cluster: ClusterState): Task | undefined {
+  let last: Task | undefined;
+  for (const task of cluster.tasks) {
+    const run = task.runs.at(-1);
+    if (task.status === "done" && run?.worker === id && (!last || (run.end ?? 0) > (last.runs.at(-1)!.end ?? 0))) last = task;
+  }
+  return last;
 }
 
 // Steps waiting for a node. A step put back by a dead node keeps its checkpoint.
@@ -148,6 +165,16 @@ export function SourceIcon({ step }: { step: string }) {
   return source ? <img className={`logo logo-${source}`} src={appPath(`${source}-logo.png`)} alt="" /> : (
     <svg className="logo logo-rank" viewBox="0 0 16 16" aria-hidden="true">
       <path d="M2.5 4h11M2.5 8h7.5M2.5 12h4" />
+    </svg>
+  );
+}
+
+// A ring that empties as the worker's election timeout runs out (3 s at most).
+function Countdown({ ms }: { ms: number }) {
+  const left = Math.min(ms / 3000, 1);
+  return (
+    <svg className="countdown" viewBox="0 0 16 16" role="img" aria-label={`election in ${(ms / 1000).toFixed(1)} s`}>
+      <circle cx="8" cy="8" r="6" pathLength="1" strokeDasharray={`${left} 1`} />
     </svg>
   );
 }
