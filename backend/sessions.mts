@@ -39,12 +39,12 @@ export function createSessions<T, Saved extends { connected: boolean }>(
 
   function save() {
     const connected: Record<string, Saved> = {};
-    onDisk.clear();
+    const next = new Map<string, string>();
     for (const [sid, state] of sessions) {
       const key = saveKey(state);
       if (key) {
         connected[sid] = toSaved(state);
-        onDisk.set(sid, key);
+        next.set(sid, key);
       }
     }
     try {
@@ -52,6 +52,9 @@ export function createSessions<T, Saved extends { connected: boolean }>(
       // Write a temp file and rename it, so a crash mid-write can't leave half a file.
       writeFileSync(`${file}.tmp`, JSON.stringify(connected), { mode: 0o600 });
       renameSync(`${file}.tmp`, file);
+      // Only a write that landed counts, so a failed one is retried next request.
+      onDisk.clear();
+      for (const [sid, key] of next) onDisk.set(sid, key);
     } catch (error) {
       console.error(`Could not save ${name} sessions:`, error);
     }

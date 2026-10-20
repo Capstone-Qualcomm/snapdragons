@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
@@ -74,4 +74,24 @@ test("overlapping requests leave the file matching memory", () => {
   state.enabled = false;
   a.finish();
   assert.deepEqual(JSON.parse(readFileSync(file, "utf8"))[sid], { connected: true, enabled: false });
+});
+
+test("a failed write is retried on the next request", () => {
+  const file = join(process.env.DATA_DIR!, "retry-sessions.json");
+  const sessions = createSessions<State, State>("retry", (saved) => saved ?? { connected: false }, (s) => s);
+  // A folder where the file should be makes the rename fail.
+  mkdirSync(file);
+  const sid = "d".repeat(64);
+  const error = console.error;
+  console.error = () => {};
+  let r = request(sid);
+  sessions.get(r.req, r.res).connected = true;
+  r.finish();
+  console.error = error;
+
+  rmdirSync(file);
+  r = request(sid);
+  sessions.get(r.req, r.res);
+  r.finish();
+  assert.deepEqual(JSON.parse(readFileSync(file, "utf8"))[sid], { connected: true });
 });
