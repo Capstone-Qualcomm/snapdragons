@@ -33,15 +33,19 @@ function JiraRow({ issue, onSaved }: { issue: JiraIssue; onSaved: () => Promise<
   const [open, setOpen] = useState(false);
   // A draft exists only while editing; reading the details can't change anything.
   const [draft, setDraft] = useState<Draft | null>(null);
+  // The values when Edit was clicked, so a sync while editing doesn't turn
+  // Jira's newer values into changes.
+  const [base, setBase] = useState<Draft | null>(null);
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: "", isError: false });
 
-  const changes = draft ? changesBetween(draftOf(issue), draft) : {};
+  const changes = draft && base ? changesBetween(base, draft) : {};
   const changeCount = Object.keys(changes).length;
   const points = issue.storyPointEstimate == null ? "" : String(issue.storyPointEstimate);
 
   async function startEditing() {
+    setBase(draftOf(issue));
     setDraft(draftOf(issue));
     setMessage({ text: "", isError: false });
     try {
