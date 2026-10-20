@@ -26,15 +26,17 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
       // Stand-in for real work (an API request, an LLM call): it just takes time,
       // somewhere between 75% and 125% of workMs so nodes finish at different times.
       // A step handed over from a node that died starts from that node's last checkpoint.
+      // The checkpoint is read once: on the orchestrator, task is the queue's own copy and each heartbeat moves it.
+      const from = task.progress;
       const total = workMs * (0.75 + Math.random() / 2);
       const startedAt = Date.now();
-      const done = () => Math.min(0.99, task.progress + (Date.now() - startedAt) / total);
+      const done = () => Math.min(0.99, from + (Date.now() - startedAt) / total);
       // Each heartbeat carries a checkpoint, so the queue knows how far this node got.
       const beat = setInterval(() => {
         call({ type: "progress", worker: id, task: task.id, progress: done() }).catch(() => {});
       }, heartbeatMs);
       try {
-        await sleep(total * (1 - task.progress), undefined, { signal });
+        await sleep(total * (1 - from), undefined, { signal });
       } finally {
         clearInterval(beat);
       }
