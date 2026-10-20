@@ -4,33 +4,24 @@ import { ReportPage } from "./Report";
 
 const sources = vi.hoisted(() => ({
   slackReload: vi.fn(),
+  jiraReload: vi.fn(),
   githubReload: vi.fn(),
   slackStatus: "ready",
 }));
 
 vi.mock("./useSlackSource", () => ({
-  useSlackSource: () => ({ status: sources.slackStatus, reload: sources.slackReload }),
+  useSlackSource: () => ({ status: sources.slackStatus, syncing: false, loadedAt: null, reload: sources.slackReload }),
+}));
+vi.mock("./jira/jiraService", () => ({
+  useJiraSource: () => ({ status: "ready", syncing: false, loadedAt: null, reload: sources.jiraReload }),
 }));
 vi.mock("./useGitHubSource", () => ({
-  useGitHubSource: () => ({ status: "ready", reload: sources.githubReload }),
+  useGitHubSource: () => ({ status: "ready", syncing: false, loadedAt: null, reload: sources.githubReload }),
 }));
 vi.mock("./Pipeline", () => ({ Pipeline: () => null }));
 vi.mock("./SlackPanel", () => ({ SlackPanel: () => null }));
 vi.mock("./GitHubPanel", () => ({ GitHubPanel: () => null }));
-vi.mock("./jira/jiraReport", async () => {
-  const { useEffect } = await import("react");
-  return {
-    JiraReport: ({ refreshKey, onSourceChange }: {
-      refreshKey: number;
-      onSourceChange: (source: unknown) => void;
-    }) => {
-      useEffect(() => {
-        onSourceChange({ name: "jira", status: "ready" });
-      }, [onSourceChange]);
-      return <output data-testid="jira-refresh-key">{refreshKey}</output>;
-    },
-  };
-});
+vi.mock("./jira/jiraReport", () => ({ JiraReport: () => null }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -45,12 +36,12 @@ afterEach(() => {
 
 async function openReport() {
   render(<ReportPage />);
-  await act(async () => {}); // Jira reports that it is ready after mounting.
+  await act(async () => {});
 }
 
 function expectAllRefreshed() {
-  expect(screen.getByTestId("jira-refresh-key").textContent).toBe("1");
   expect(sources.slackReload).toHaveBeenCalledOnce();
+  expect(sources.jiraReload).toHaveBeenCalledOnce();
   expect(sources.githubReload).toHaveBeenCalledOnce();
 }
 
