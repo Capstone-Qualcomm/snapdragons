@@ -223,6 +223,21 @@ test("a node is added and removed through the log, one change at a time", async 
   assert.equal(next.status().members.length, 3);
 });
 
+test("the last member cannot be removed, and the cluster keeps working", async () => {
+  const cluster = testCluster(["Q-01"]);
+  const orchestrator = await cluster.elect();
+  await cluster.run(300);
+
+  // Raced against the clock, so a removal that hangs fails the test instead of the run.
+  const removal = orchestrator.changeMembers({ remove: "Q-01" }).then(() => "removed", (cause: Error) => cause.message);
+  assert.match(await Promise.race([removal, cluster.run(300).then(() => "still waiting")]), /last node/);
+  assert.deepEqual(orchestrator.status().members, ["Q-01"]);
+  const queued = orchestrator.submit(job("after"));
+  await cluster.run(100);
+  await queued;
+  assert.deepEqual(jobNames(cluster.nodes.get("Q-01")!.queue), ["after"]);
+});
+
 test("a node too far behind gets a snapshot instead of the whole log", async () => {
   const cluster = testCluster(["Q-01", "Q-02", "Q-03"], { snapshotEvery: 5 });
   const orchestrator = await cluster.elect();

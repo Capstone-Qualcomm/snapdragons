@@ -213,16 +213,20 @@ export function createClusterServer(options: ServerOptions = {}) {
     return [201, { id }];
   }
 
-  async function removeNode(id: string): Promise<void> {
+  async function removeNode(id: string): Promise<[number, unknown]> {
+    // The orchestrator refuses this too, but only after the node has left the queue.
+    const members = orchestratorOf(await statuses())?.members ?? [];
+    if (members.length === 1 && members[0] === id) return [409, { error: "The last node cannot be removed." }];
     if (children.has(id)) {
       // The node finishes its current step, leaves the queue, then takes itself out of the members.
       await clusterRequest({ type: "leave", worker: id });
-      return;
+      return [200, { id }];
     }
     // A dead node is taken out right away.
     await clusterRequest({ members: { remove: id } });
     await clusterRequest({ type: "leave", worker: id });
     rmSync(join(dataDir, `${id}.json`), { force: true });
+    return [200, { id }];
   }
 
   // Every node goes down at once, then comes back from what it saved to disk.
@@ -268,7 +272,8 @@ export function createClusterServer(options: ServerOptions = {}) {
           child.kill("SIGKILL");
           children.delete(id);
         } else {
-          await removeNode(id);
+          const [status, data] = await removeNode(id);
+          return send(res, status, data);
         }
         return send(res, 200, { id });
       }

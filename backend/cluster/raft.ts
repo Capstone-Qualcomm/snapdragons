@@ -339,6 +339,8 @@ export function createRaft(options: RaftOptions) {
     const current = members();
     const next = change.add ? [...new Set([...current, change.add])].sort() : current.filter((member) => member !== change.remove);
     if (next.length === current.length) return Promise.resolve(null);
+    // With no members left nothing could ever commit, this change included.
+    if (!next.length) return Promise.reject(new Error("The last node cannot be removed."));
     return submit({ type: "config", members: next, at: now() });
   }
 

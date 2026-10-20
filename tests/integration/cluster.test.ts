@@ -130,6 +130,20 @@ test("a node is added, then removed after it finishes its step", async () => {
   }
 });
 
+test("the last node cannot be removed, and it keeps working", async () => {
+  const cluster = await startCluster(4661, 1);
+  try {
+    const refused = await cluster.post("/api/cluster/nodes/Q-01/remove");
+    assert.equal(refused.status, 409);
+    assert.match((await refused.json()).error, /last node/);
+    const job = await cluster.refresh();
+    const done = await cluster.until(cluster.jobDone(job), "the refresh is done");
+    assert.deepEqual(done.members, ["Q-01"]);
+  } finally {
+    cluster.close();
+  }
+});
+
 test("a cluster grown to six nodes comes back as six when the gateway starts again", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"));
   const first = await startCluster(4641, 3, dataDir);
