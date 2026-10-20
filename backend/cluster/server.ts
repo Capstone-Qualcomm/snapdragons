@@ -46,10 +46,10 @@ type NodeStatus = {
   members: string[];
   commitIndex: number;
   lastIndex: number;
-  connected: boolean;
 };
 
-type QueueState = { tasks: unknown[]; jobs: Array<{ doneAt: number | null }>; workers: unknown[]; events: unknown[] };
+type QueueState = { tasks: unknown[]; jobs: Array<{ doneAt: number | null }>; workers: unknown[]; terms: unknown[]; events: unknown[] };
+const EMPTY_QUEUE: QueueState = { tasks: [], jobs: [], workers: [], terms: [], events: [] };
 
 export function createClusterServer(options: ServerOptions = {}) {
   const port = Number(options.port ?? process.env.CLUSTER_PORT ?? 3003);
@@ -62,6 +62,9 @@ export function createClusterServer(options: ServerOptions = {}) {
   const children = new Map<string, ChildProcess>();
   let auto = options.auto ?? false;
   let submitting = false;
+  // The last members and queue seen, so a cluster with every node down still shows who is missing and what they were doing.
+  let lastMembers: string[] = [];
+  let lastQueue = EMPTY_QUEUE;
 
   // fresh wipes the node's saved log, for a node joining as new. A restart keeps it.
   function startNode(id: string, { fresh = false, bootstrap }: { fresh?: boolean; bootstrap?: string[] } = {}): void {
@@ -109,7 +112,7 @@ export function createClusterServer(options: ServerOptions = {}) {
     while (Date.now() < deadline) {
       const nodes = await statuses();
       const orchestrator = orchestratorOf(nodes);
-      for (const node of orchestrator ? [orchestrator] : nodes.filter((candidate) => candidate.connected)) {
+      for (const node of orchestrator ? [orchestrator] : nodes) {
         try {
           return (await nodeJson<{ result: unknown }>(node.id, "/client", body, 5000)).result;
         } catch (cause) {
@@ -126,8 +129,10 @@ export function createClusterServer(options: ServerOptions = {}) {
     const orchestrator = orchestratorOf(nodes);
     // Without an orchestrator, show the copy that has the most committed entries.
     const source = orchestrator ?? [...nodes].sort((a, b) => b.commitIndex - a.commitIndex)[0];
-    const queue: QueueState = source ? await nodeJson<QueueState>(source.id, "/state").catch(() => ({ tasks: [], jobs: [], workers: [], events: [] })) : { tasks: [], jobs: [], workers: [], events: [] };
-    const members = orchestrator?.members ?? source?.members ?? [];
+    if (source) lastQueue = await nodeJson<QueueState>(source.id, "/state").catch(() => lastQueue);
+    if (source) lastMembers = orchestrator?.members ?? source.members;
+    const queue = lastQueue;
+    const members = lastMembers;
     const raft = NODE_IDS.filter((id) => members.includes(id) || nodes.some((node) => node.id === id) || children.has(id)).map((id) => {
       const status = nodes.find((node) => node.id === id);
       return status ? { ...status, up: true, member: members.includes(id) } : { id, up: false, member: members.includes(id) };
@@ -219,7 +224,7 @@ export function createClusterServer(options: ServerOptions = {}) {
         return send(res, 200, { ok: true });
       }
 
-      const nodePath = url.pathname.match(/^\/api\/cluster\/nodes\/([^/]+)\/(start|kill|remove|disconnect)$/);
+      const nodePath = url.pathname.match(/^\/api\/cluster\/nodes\/([^/]+)\/(start|kill|remove)$/);
       if (post && nodePath) {
         const [, id, action] = nodePath;
         if (!NODE_IDS.includes(id)) return send(res, 404, { error: "No such node." });
@@ -232,10 +237,8 @@ export function createClusterServer(options: ServerOptions = {}) {
           // SIGKILL, like a board losing power: no cleanup, no goodbye to the cluster.
           child.kill("SIGKILL");
           children.delete(id);
-        } else if (action === "remove") {
-          await removeNode(id);
         } else {
-          await nodeJson(id, "/disconnect", { on: (await readBody(req)).on });
+          await removeNode(id);
         }
         return send(res, 200, { id });
       }

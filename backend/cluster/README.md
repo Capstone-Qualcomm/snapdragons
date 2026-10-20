@@ -43,7 +43,6 @@ Kill a node from a terminal the way a board loses power:
 | POST | `/api/cluster/nodes/:id/start` | Restart a dead node from what it saved |
 | POST | `/api/cluster/nodes/:id/kill` | SIGKILL a node, like a board losing power |
 | POST | `/api/cluster/nodes/:id/remove` | Remove a node after its current step |
-| POST | `/api/cluster/nodes/:id/disconnect` | `{ "on": true }` cuts a node off from the others without stopping it |
 | POST | `/api/cluster/restart` | Kill every node, then start them all again |
 
 Timings, all in milliseconds: `WORK_MS` (3000 per step), `LEASE_MS` (2000), `RAFT_HEARTBEAT_MS` (300), `RAFT_ELECTION_MIN_MS` and `RAFT_ELECTION_MAX_MS` (1500 and 3000).

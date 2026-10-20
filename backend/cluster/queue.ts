@@ -27,9 +27,11 @@ export type Task = {
 export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null };
 export type Worker = { id: string; alive: boolean; leaving: boolean; done: number };
 export type ClusterEvent = { at: number; text: string };
+// When each orchestrator took over, from the empty entry it commits first.
+export type Term = { term: number; orchestrator: string; at: number };
 export type ClaimResult = { task: Task | null; leave?: boolean };
 
-type Data = { nextTask: number; nextJob: number; tasks: Task[]; jobs: Job[]; workers: Worker[]; events: ClusterEvent[] };
+type Data = { nextTask: number; nextJob: number; tasks: Task[]; jobs: Job[]; workers: Worker[]; events: ClusterEvent[]; terms: Term[] };
 
 // Old finished work is dropped past these, so an always-on cluster does not grow forever.
 const KEEP_DONE = 80;
@@ -39,7 +41,7 @@ const KEEP_EVENTS = 40;
 const percent = (progress: number) => `${Math.round(progress * 100)}%`;
 
 export function createQueue() {
-  let data: Data = { nextTask: 1, nextJob: 1, tasks: [], jobs: [], workers: [], events: [] };
+  let data: Data = { nextTask: 1, nextJob: 1, tasks: [], jobs: [], workers: [], events: [], terms: [] };
 
   function log(at: number, text: string): void {
     data.events.push({ at, text });
@@ -180,6 +182,8 @@ export function createQueue() {
     const worker = command.worker as string;
     switch (command.type) {
       case "noop":
+        data.terms.push({ term: command.term as number, orchestrator: command.orchestrator as string, at });
+        if (data.terms.length > KEEP_EVENTS) data.terms.shift();
         log(at, `${command.orchestrator} elected orchestrator for term ${command.term}`);
         return null;
       case "config":
@@ -215,7 +219,7 @@ export function createQueue() {
       return { ...worker, current: current?.id ?? null, takenFrom: current?.lostBy.at(-1) ?? null };
     });
     // Newest first, the way the Console shows them.
-    return { tasks: data.tasks, jobs: data.jobs, workers, events: [...data.events].reverse() };
+    return { tasks: data.tasks, jobs: data.jobs, workers, terms: data.terms, events: [...data.events].reverse() };
   }
 
   return {

@@ -343,7 +343,21 @@ export function createRaft(options: RaftOptions) {
   }
 
   function status() {
-    return { id, role, term, orchestrator, votedFor, votes: [...votes], members: members(), commitIndex, lastIndex: lastIndex(), snapshotIndex: snapshot.index };
+    return {
+      id,
+      role,
+      term,
+      orchestrator,
+      votedFor,
+      votes: [...votes],
+      members: members(),
+      commitIndex,
+      lastIndex: lastIndex(),
+      snapshotIndex: snapshot.index,
+      // How long until this node gives up waiting and asks for votes, and how long since it last heard from an orchestrator.
+      electionIn: Math.max(0, Math.round(electionAt - now())),
+      quietFor: Number.isFinite(heardFromOrchestratorAt) ? Math.round(now() - heardFromOrchestratorAt) : null,
+    };
   }
 
   return { tick, handleVote, handleAppend, submit, changeMembers, status, isOrchestrator: () => role === "orchestrator" };

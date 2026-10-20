@@ -53,11 +53,8 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
   const port = Number(new URL(peers[id]).port);
   mkdirSync(dataDir, { recursive: true });
   const queue = createQueue();
-  // Turned off by the Console's Disconnect button: the node keeps running but no other node can reach it, or it them.
-  let connected = true;
 
   async function post<T>(url: string, body: unknown, timeoutMs: number): Promise<T> {
-    if (!connected) throw new Error("Disconnected.");
     const response = await fetch(url, { method: "POST", body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
     const data = await response.json();
     if (!response.ok) throw new HttpError(response.status, data.error ?? `${url} returned ${response.status}`);
@@ -125,14 +122,9 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
   const server = createServer(async (req, res) => {
     try {
       const path = new URL(req.url ?? "/", "http://localhost").pathname;
-      // The Console reads these to draw the cluster, even from a disconnected node.
-      if (path === "/status") return send(res, 200, { ...raft.status(), connected });
+      // The gateway reads these to draw the cluster.
+      if (path === "/status") return send(res, 200, raft.status());
       if (path === "/state") return send(res, 200, queue.state());
-      if (path === "/disconnect") {
-        connected = !(await readBody(req)).on;
-        return send(res, 200, { connected });
-      }
-      if (!connected) return send(res, 503, { error: `${id} is disconnected.` });
       if (path === "/raft/vote") return send(res, 200, raft.handleVote((await readBody(req)) as never));
       if (path === "/raft/append") return send(res, 200, raft.handleAppend((await readBody(req)) as never));
       if (path === "/client") return send(res, 200, { result: await request(await readBody(req)) });
