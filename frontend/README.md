@@ -41,6 +41,8 @@ Pushing to GitHub shares the source code; it does **not** deploy the UI to an Ar
 ## Other commands
 
 ```bash
+npm test           # Run the page tests (Vitest)
+npm run typecheck  # Check types
 npm run lint       # Check the frontend source with ESLint
 npm run preview    # Preview the production build locally (run build first)
 ```

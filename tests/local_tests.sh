@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-JIRA_BACKEND_DIR="$SCRIPT_DIR/../backend/jira"
-GITHUB_BACKEND_DIR="$SCRIPT_DIR/../backend/github"
-SLACK_BACKEND_DIR="$SCRIPT_DIR/../backend/slack"
-(cd "$SCRIPT_DIR/../backend" && node --test source-activity.test.mts)
-(cd "$JIRA_BACKEND_DIR" && node --test server.test.ts)
-(cd "$SLACK_BACKEND_DIR" && node --test server.test.ts)
-(cd "$GITHUB_BACKEND_DIR" && node --test)
-(cd "$SCRIPT_DIR/../backend/cluster" && node --test)
-(cd "$SCRIPT_DIR/.." && node --test tests/integration/cluster.test.ts tests/integration/slack.test.ts)
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+(cd "$ROOT/backend" && node --test source-activity.test.mts sessions.test.mts)
+for dir in jira slack github cluster; do
+  (cd "$ROOT/backend/$dir" && npm test --silent)
+done
+(cd "$ROOT" && node --test tests/integration/cluster.test.ts tests/integration/slack.test.ts)
+(cd "$ROOT/frontend" && npm test --silent)

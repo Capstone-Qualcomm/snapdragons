@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { ServerResponse } from "node:http";
+import { createPendingStates, redirect } from "../source-server.mts";
 
 export type GitHubConnection = {
   connected: boolean;
@@ -13,8 +14,6 @@ export type GitHubConnection = {
     refreshTokenExpiresAt: number | null;
   } | null;
 };
-
-type PendingAuthorization = { expiresAt: number; codeVerifier: string };
 
 type TokenResponse = {
   access_token?: string;
@@ -35,7 +34,6 @@ type GitHubAuthOptions = {
 };
 
 const apiVersion = "2026-03-10";
-const authorizationLifetimeMs = 10 * 60 * 1000;
 const refreshBeforeExpiryMs = 60 * 1000;
 
 export function createGitHubAuth({
@@ -46,7 +44,7 @@ export function createGitHubAuth({
   fetchImpl = globalThis.fetch,
   githubConnection,
 }: GitHubAuthOptions) {
-  const pendingStates = new Map<string, PendingAuthorization>();
+  const pendingStates = createPendingStates<{ codeVerifier: string }>();
   const configured = Boolean(clientId && clientSecret);
   const settingsUrl = (outcome: string) => `${appUrl}/settings?github=${encodeURIComponent(outcome)}`;
 
@@ -56,10 +54,9 @@ export function createGitHubAuth({
       return;
     }
 
-    const state = randomBytes(32).toString("hex");
     const codeVerifier = randomBytes(32).toString("base64url");
     const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-    pendingStates.set(state, { expiresAt: Date.now() + authorizationLifetimeMs, codeVerifier });
+    const state = pendingStates.add({ codeVerifier });
 
     const url = new URL("https://github.com/login/oauth/authorize");
     url.searchParams.set("client_id", clientId!);
@@ -72,14 +69,16 @@ export function createGitHubAuth({
   }
 
   async function handleCallback(url: URL, res: ServerResponse) {
-    const state = url.searchParams.get("state") ?? "";
-    const pending = pendingStates.get(state);
-    pendingStates.delete(state);
+    const pending = pendingStates.take(url.searchParams.get("state") ?? "");
     const error = url.searchParams.get("error");
     const code = url.searchParams.get("code");
 
-    if (error || !code || !pending || pending.expiresAt < Date.now()) {
-      redirect(res, settingsUrl(error ? "denied" : pending ? "invalid_state" : "error"));
+    if (!pending) {
+      redirect(res, settingsUrl("invalid_state"));
+      return;
+    }
+    if (error || !code) {
+      redirect(res, settingsUrl(error === "access_denied" ? "denied" : "error"));
       return;
     }
 
@@ -94,6 +93,7 @@ export function createGitHubAuth({
       const profile = await getProfile(token.accessToken);
 
       githubConnection.connected = true;
+      githubConnection.enabled = true;
       githubConnection.connectedAt = new Date().toISOString();
       githubConnection.user = profile;
       githubConnection.token = token;
@@ -191,18 +191,5 @@ export function createGitHubAuth({
     githubConnection.token = null;
   }
 
-  const cleaner = setInterval(() => {
-    const now = Date.now();
-    for (const [state, pending] of pendingStates) {
-      if (pending.expiresAt < now) pendingStates.delete(state);
-    }
-  }, 60_000);
-  if (cleaner.unref) cleaner.unref();
-
   return { configured, startAuthorization, handleCallback, getAccessToken, reset };
-}
-
-function redirect(res: ServerResponse, location: string) {
-  res.writeHead(302, { Location: location, "Cache-Control": "no-store" });
-  res.end();
 }

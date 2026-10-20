@@ -1,5 +1,5 @@
-import { randomBytes } from "node:crypto";
 import type { ServerResponse } from "node:http";
+import { createPendingStates, redirect } from "../source-server.mts";
 
 export type JiraSite = { id: string; name?: string; url?: string };
 export type JiraToken = { access_token: string; refresh_token?: string; expires_in?: number };
@@ -24,15 +24,10 @@ type JiraAuthOptions = {
 };
 
 export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, scopes, fetchImpl, jiraConnection }: JiraAuthOptions) {
-  const pendingStates = new Map();
+  const pendingStates = createPendingStates();
   let refreshInFlight: Promise<string> | null = null;
   const configured = Boolean(clientId && clientSecret);
   const settingsUrl = (outcome: string) => `${appUrl}/settings?jira=${encodeURIComponent(outcome)}`;
-
-  function redirect(res: ServerResponse, url: string) {
-    res.writeHead(302, { Location: url, "Cache-Control": "no-store" });
-    res.end();
-  }
 
   function start(res: ServerResponse): void {
     if (!configured) {
@@ -40,8 +35,7 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
       return;
     }
 
-    const state = randomBytes(32).toString("hex");
-    pendingStates.set(state, Date.now() + 10 * 60 * 1000);
+    const state = pendingStates.add({});
     const authorizeUrl = new URL("https://auth.atlassian.com/authorize");
     authorizeUrl.search = new URLSearchParams({
       audience: "api.atlassian.com",
@@ -61,10 +55,7 @@ export function createJiraAuth({ clientId, clientSecret, redirectUri, appUrl, sc
   }
 
   async function handleCallback(url: URL, res: ServerResponse): Promise<void> {
-    const state = url.searchParams.get("state") ?? "";
-    const expiresAt = pendingStates.get(state);
-    pendingStates.delete(state);
-    if (!expiresAt || expiresAt < Date.now()) {
+    if (!pendingStates.take(url.searchParams.get("state") ?? "")) {
       redirect(res, settingsUrl("invalid_state"));
       return;
     }
