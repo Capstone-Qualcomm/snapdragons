@@ -124,6 +124,13 @@ test("reports Jira as configured before connecting", async () => {
   assert.equal(body.jira.connected, false);
 });
 
+test("logs each connection check on the Logs page", async () => {
+  const baseUrl = await startServer();
+  await fetch(`${baseUrl}/api/jira/connection`);
+  const { logs } = await (await fetch(`${baseUrl}/api/jira/logs`)).json();
+  assert.equal(logs[0].path, "/api/jira/connection");
+});
+
 test("reports Jira as unconfigured when OAuth credentials are missing", async () => {
   const baseUrl = await startServer({ configured: false });
   const { body } = await request(baseUrl, "/api/jira/connection");

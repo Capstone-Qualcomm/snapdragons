@@ -29,12 +29,16 @@ export function createSessions<T, Saved extends { connected: boolean }>(
   const onDisk = new Map<string, string>();
   const saveKey = (state: T) => (toSaved(state).connected ? JSON.stringify(toSaved(state)) : undefined);
 
-  if (existsSync(file)) {
-    const saved = JSON.parse(readFileSync(file, "utf8")) as Record<string, Saved>;
+  // A damaged file loses the saved connections, not the backend.
+  try {
+    const saved = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, Saved>) : {};
     for (const [sid, connection] of Object.entries(saved)) {
+      if (!/^[0-9a-f]{64}$/.test(sid) || connection?.connected !== true) continue;
       sessions.set(sid, create(connection));
       onDisk.set(sid, JSON.stringify(connection));
     }
+  } catch (error) {
+    console.error(`Could not read saved ${name} sessions, starting with none:`, error);
   }
 
   function save() {

@@ -50,6 +50,7 @@ export function createJiraServer(options: ServerOptions = {}) {
       cloudId: connection.cloudId,
       sites: connection.sites,
     }),
+    onConnection: ({ jiraLogs }, result) => jiraLogs.add("GET", "/api/jira/connection", result),
     items: "issues",
     async loadItems({ jiraApi, jiraLogs }) {
       const issues = await jiraApi.getAssignedIssues();

@@ -63,12 +63,14 @@ type SourceServerOptions<S extends Session> = {
   loadItems: (session: S) => Promise<unknown[]>;
   // Sign-in and anything else the source needs. Returns false when it has no such route.
   routes: (req: IncomingMessage, res: ServerResponse, url: URL, session: S) => Promise<boolean>;
+  // Called with each connection check, for sources that keep their own request log.
+  onConnection?: (session: S, result: Record<string, unknown>) => void;
 };
 
 // What the Jira, Slack and GitHub backends have in common: connection status,
 // turning a source on or off, disconnecting, the items list with its activity
 // log, and only taking POSTs from the app's own pages.
-export function createSourceServer<S extends Session>({ name, title, port, appUrl, session, status, items, loadItems, routes }: SourceServerOptions<S>) {
+export function createSourceServer<S extends Session>({ name, title, port, appUrl, session, status, items, loadItems, routes, onConnection }: SourceServerOptions<S>) {
   const appOrigin = new URL(appUrl).origin;
 
   const server = createServer(async (req, res) => {
@@ -84,7 +86,9 @@ export function createSourceServer<S extends Session>({ name, title, port, appUr
       }
 
       if (route === `GET /api/${name}/connection`) {
-        send(res, 200, { [name]: status(current) });
+        const result = { [name]: status(current) };
+        onConnection?.(current, result);
+        send(res, 200, result);
         return;
       }
 
