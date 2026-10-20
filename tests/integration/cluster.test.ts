@@ -153,3 +153,19 @@ test("a cluster grown to six nodes comes back as six when the gateway starts aga
     again.close();
   }
 });
+
+test("Add with every node dead brings the saved members back instead of starting a new cluster", async () => {
+  const cluster = await startCluster(4651);
+  try {
+    const job = await cluster.refresh();
+    await cluster.until(cluster.jobDone(job), "the refresh is done");
+    for (const id of ["Q-01", "Q-02", "Q-03"]) assert.equal((await cluster.post(`/api/cluster/nodes/${id}/kill`)).status, 200);
+    await cluster.until((current) => current.nodes.every((node) => !node.up), "every node is down");
+
+    assert.equal((await cluster.post("/api/cluster/nodes")).status, 201);
+    const back = await cluster.until((current) => current.orchestrator !== null && cluster.jobDone(job)(current), "the saved cluster is back");
+    assert.deepEqual(back.members, ["Q-01", "Q-02", "Q-03"]);
+  } finally {
+    cluster.close();
+  }
+});

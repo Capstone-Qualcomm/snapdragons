@@ -106,8 +106,9 @@ export function createClusterServer(options: ServerOptions = {}) {
       for (const id of saved) if (!children.has(id)) startNode(id);
       return saved;
     }
+    // No saved log names any members, so nothing is lost by starting each one empty.
     const first = NODE_IDS.slice(0, size);
-    for (const id of first) startNode(id, { bootstrap: first });
+    for (const id of first) startNode(id, { fresh: true, bootstrap: first });
     return first;
   }
 
@@ -199,15 +200,13 @@ export function createClusterServer(options: ServerOptions = {}) {
 
   async function addNode(): Promise<[number, unknown]> {
     const nodes = await statuses();
+    // With nothing running at all, the saved members come back as they were. Only
+    // with nothing saved does the new node start a cluster of one.
+    if (!nodes.length && !children.size) return [201, { started: startCluster(1) }];
     const orchestrator = orchestratorOf(nodes);
     const members = orchestrator?.members ?? [];
     const id = NODE_IDS.find((candidate) => !members.includes(candidate) && !children.has(candidate) && !nodes.some((node) => node.id === candidate));
     if (!id) return [409, { error: `All ${NODE_IDS.length} nodes are in use.` }];
-    // With nothing running at all, the new node starts a cluster of one.
-    if (!nodes.length && !children.size) {
-      startNode(id, { fresh: true, bootstrap: [id] });
-      return [201, { id }];
-    }
     if (!orchestrator) return [409, { error: "There is no orchestrator to add a node to. Restart a dead node first." }];
     startNode(id, { fresh: true });
     await clusterRequest({ members: { add: id } });

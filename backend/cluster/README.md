@@ -39,7 +39,7 @@ Kill a node from a terminal the way a board loses power:
 | GET | `/api/cluster/state` | The queue, recent jobs and events, and each node's Raft status |
 | POST | `/api/cluster/refresh` | Queue one morning refresh: six fetches, then a ranking step that waits for them |
 | POST | `/api/cluster/auto` | `{ "on": true }` starts the next refresh shortly after each one finishes |
-| POST | `/api/cluster/nodes` | Add the next unused node, up to six |
+| POST | `/api/cluster/nodes` | Add the next unused node, up to six. With every node down, start the saved members again |
 | POST | `/api/cluster/nodes/:id/start` | Restart a dead node from what it saved |
 | POST | `/api/cluster/nodes/:id/kill` | SIGKILL a node, like a board losing power |
 | POST | `/api/cluster/nodes/:id/remove` | Remove a node after its current step |
