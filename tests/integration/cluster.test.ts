@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { createClusterServer } from "../../backend/cluster/server.ts";
 
 // Real node processes behind the gateway, with fast timings so each test takes seconds.
@@ -27,7 +27,6 @@ async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(jo
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${(server.address() as AddressInfo).port}`;
-  startNodes(size);
 
   const state = async () => (await (await fetch(`${base}/api/cluster/state`)).json()) as State;
   async function until(check: (current: State) => boolean, what: string): Promise<State> {
@@ -47,6 +46,7 @@ async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(jo
     stopNodes();
   };
   try {
+    startNodes(size);
     await until((current) => current.orchestrator !== null && current.nodes.filter((node) => node.up).length >= size, "an orchestrator is elected");
   } catch (cause) {
     close();
@@ -182,4 +182,34 @@ test("Add with every node dead brings the saved members back instead of starting
   } finally {
     cluster.close();
   }
+});
+
+test("one damaged saved log is reported and left alone while the other nodes come back", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"));
+  const first = await startCluster(4671, 3, dataDir);
+  let job: string;
+  try {
+    job = await first.refresh();
+    await first.until(first.jobDone(job), "the refresh is done");
+  } finally {
+    first.close();
+  }
+  await sleep(500);
+  writeFileSync(join(dataDir, "Q-01.json"), "{damaged");
+
+  const errors = mock.method(console, "error", () => {});
+  try {
+    // Q-02 and Q-03 are a majority of the three, so they carry on without Q-01.
+    const again = await startCluster(4671, 2, dataDir);
+    try {
+      const back = await again.until((current) => current.orchestrator !== null && again.jobDone(job)(current), "the queue is back");
+      assert.ok(["Q-02", "Q-03"].includes(back.orchestrator!));
+    } finally {
+      again.close();
+    }
+    assert.ok(errors.mock.calls.some((call) => /Q-01\.json/.test(String(call.arguments[0]))), "the gateway names the damaged file");
+  } finally {
+    errors.mock.restore();
+  }
+  assert.equal(readFileSync(join(dataDir, "Q-01.json"), "utf8"), "{damaged");
 });

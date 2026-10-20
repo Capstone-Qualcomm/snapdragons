@@ -86,7 +86,14 @@ export function createClusterServer(options: ServerOptions = {}) {
   function savedMembers(): string[] {
     let newest: { term: number; index: number; members: string[] } | null = null;
     for (const id of NODE_IDS) {
-      const saved = fileStorage(join(dataDir, `${id}.json`)).load();
+      let saved;
+      try {
+        saved = fileStorage(join(dataDir, `${id}.json`)).load();
+      } catch (cause) {
+        // Left as it is. If that node is a member it refuses to start and says the same.
+        console.error(`${(cause as Error).message}. Recovering from the other logs.`);
+        continue;
+      }
       if (!saved) continue;
       const term = saved.log.at(-1)?.term ?? saved.snapshot.term;
       const index = saved.snapshot.index + saved.log.length;
