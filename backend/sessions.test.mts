@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
@@ -94,4 +94,13 @@ test("a failed write is retried on the next request", () => {
   sessions.get(r.req, r.res);
   r.finish();
   assert.deepEqual(JSON.parse(readFileSync(file, "utf8"))[sid], { connected: true });
+});
+
+test("a damaged sessions file starts the backend with none", () => {
+  writeFileSync(join(process.env.DATA_DIR!, "broken-sessions.json"), "{not json");
+  const error = console.error;
+  console.error = () => {};
+  const sessions = createSessions<State, State>("broken", (saved) => saved ?? { connected: false }, (s) => s);
+  console.error = error;
+  assert.equal(sessions.size(), 0);
 });

@@ -1,5 +1,5 @@
-import { randomBytes } from "node:crypto";
 import type { ServerResponse } from "node:http";
+import { createPendingStates, redirect } from "../source-server.mts";
 
 export type SlackConnection = {
   connected: boolean;
@@ -22,7 +22,7 @@ type SlackAuthOptions = {
 const userScopes = "search:read,im:read,im:history,users:read";
 
 export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection }: SlackAuthOptions) {
-  const pendingStates = new Map<string, { expiresAt: number }>();
+  const pendingStates = createPendingStates();
   const configured = Boolean(clientId && clientSecret);
   const settingsUrl = (outcome: string) => `${appUrl}/settings?slack=${encodeURIComponent(outcome)}`;
 
@@ -31,13 +31,7 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
       redirect(res, settingsUrl("unconfigured"));
       return;
     }
-    // Clean up expired pending states before adding a new one
-    const now = Date.now();
-    for (const [key, { expiresAt }] of pendingStates) {
-      if (expiresAt < now) pendingStates.delete(key);
-    }
-    const state = randomBytes(32).toString("hex");
-    pendingStates.set(state, { expiresAt: Date.now() + 10 * 60 * 1000 });
+    const state = pendingStates.add({});
     const url = new URL("https://slack.com/oauth/v2/authorize");
     url.searchParams.set("client_id", clientId!);
     url.searchParams.set("user_scope", userScopes);
@@ -46,11 +40,15 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
     redirect(res, url.toString());
   }
 
-  async function handleCallback(state: string, code: string | null, error: string | null, res: ServerResponse) {
-    const pending = pendingStates.get(state);
-    pendingStates.delete(state);
-    if (error || !code || !pending || pending.expiresAt < Date.now()) {
-      redirect(res, settingsUrl(error ? "denied" : pending ? "invalid_state" : "error"));
+  async function handleCallback(url: URL, res: ServerResponse) {
+    const code = url.searchParams.get("code");
+    const error = url.searchParams.get("error");
+    if (!pendingStates.take(url.searchParams.get("state") ?? "")) {
+      redirect(res, settingsUrl("invalid_state"));
+      return;
+    }
+    if (error || !code) {
+      redirect(res, settingsUrl(error === "access_denied" ? "denied" : "error"));
       return;
     }
     try {
@@ -71,6 +69,7 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
       const authedUser = result.authed_user as Record<string, unknown>;
       const team = result.team as Record<string, unknown> | undefined;
       slackConnection.connected = true;
+      slackConnection.enabled = true;
       slackConnection.connectedAt = new Date().toISOString();
       slackConnection.userId = String(authedUser.id ?? "");
       slackConnection.team = team ? { id: String(team.id ?? ""), name: String(team.name ?? "") } : null;
@@ -92,9 +91,4 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
   }
 
   return { configured, startAuthorization, handleCallback, reset };
-}
-
-function redirect(res: ServerResponse, location: string) {
-  res.writeHead(302, { Location: location, "Cache-Control": "no-store" });
-  res.end();
 }

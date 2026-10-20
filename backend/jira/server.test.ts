@@ -9,10 +9,10 @@ import { createJiraServer } from "./server.ts";
 // Save connected sessions in a temp folder instead of the repo's .data.
 process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-jira-"));
 
-// Send the session cookie back like a browser, so one test is one browser.
+// Send the session cookie and the app's Origin like a browser, so one test is one browser.
 let cookie = "";
 async function fetch(input: string | URL | Request, init: RequestInit = {}) {
-  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  const response = await globalThis.fetch(input, { ...init, headers: { Origin: "http://frontend.test", ...init.headers, cookie } });
   cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
   return response;
 }
@@ -122,6 +122,13 @@ test("reports Jira as configured before connecting", async () => {
 
   assert.equal(body.jira.configured, true);
   assert.equal(body.jira.connected, false);
+});
+
+test("logs each connection check on the Logs page", async () => {
+  const baseUrl = await startServer();
+  await fetch(`${baseUrl}/api/jira/connection`);
+  const { logs } = await (await fetch(`${baseUrl}/api/jira/logs`)).json();
+  assert.equal(logs[0].path, "/api/jira/connection");
 });
 
 test("reports Jira as unconfigured when OAuth credentials are missing", async () => {
@@ -341,6 +348,29 @@ test("records Jira API requests in the Q-01 activity log", async () => {
   const transitionLog = body.logs.find((log: { path: string }) => log.path === "/api/jira/issues/SD-7/transitions");
   assert.equal(transitionLog.node, "Q-01");
   assert.equal(transitionLog.method, "GET");
+});
+
+test("rejects an issue edit from another site", async () => {
+  let issueWasUpdated = false;
+  const baseUrl = await startServer({ fetch: createJiraFetch({
+    onRequest: ({ url, init }) => {
+      if (url.pathname.includes("/rest/api/3/issue/") && init.method === "PUT") issueWasUpdated = true;
+    },
+  }) });
+  await connectJira(baseUrl);
+  const { response } = await request(baseUrl, "/api/jira/issues/SD-7", {
+    method: "POST",
+    headers: { Origin: "https://attacker.example", "Content-Type": "application/json" },
+    body: JSON.stringify({ description: "Changed" }),
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(issueWasUpdated, false);
+});
+
+test("listens on loopback only", async () => {
+  await startServer();
+  assert.equal(([...servers][0].address() as { address: string }).address, "127.0.0.1");
 });
 
 test("keeps a Jira connection after the server restarts", async () => {

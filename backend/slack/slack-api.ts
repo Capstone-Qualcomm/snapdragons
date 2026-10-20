@@ -62,7 +62,7 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
     };
   }
 
-  async function loadMentions(token: string, me: string, since: number) {
+  async function loadMentions(me: string, since: number) {
     const result = await slackRequest("search.messages", { query: `<@${me}>`, sort: "timestamp", sort_dir: "desc", count: "50" });
     const matches = (result.messages as { matches?: Array<Record<string, unknown>> })?.matches ?? [];
     return matches
@@ -80,7 +80,7 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
       }));
   }
 
-  async function loadUnansweredDms(token: string, me: string, since: number) {
+  async function loadUnansweredDms(me: string, since: number) {
     const { channels } = await slackRequest("conversations.list", { types: "im", exclude_archived: "true", limit: "200" }) as { channels?: Array<Record<string, unknown>> };
     const ims = channels ?? [];
     const latest = await Promise.all(ims.map(async (im) => {
@@ -109,18 +109,11 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
   }
 
   async function getMessages(): Promise<SlackMessage[]> {
-    if (!slackConnection.connected || !slackConnection.token) {
-      throw new Error("Slack is not connected. Connect Slack in Settings.");
-    }
-    if (!slackConnection.enabled) {
-      throw new Error("Slack is connected but disabled. Enable it in Settings to load messages.");
-    }
-    const token = slackConnection.token.accessToken;
     const me = slackConnection.userId ?? "";
     const since = Date.now() / 1000 - lookback;
     const [mentions, dms] = await Promise.all([
-      loadMentions(token, me, since),
-      loadUnansweredDms(token, me, since),
+      loadMentions(me, since),
+      loadUnansweredDms(me, since),
     ]);
 
     const byId = new Map<string, SlackMessage>();
