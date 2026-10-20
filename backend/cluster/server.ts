@@ -8,10 +8,10 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fileStorage } from "./node.ts";
 
-// The gateway between the Console and the cluster. It holds no queue of its
+// The gateway between the app and the cluster. It holds no queue of its
 // own: it starts and stops the node processes, asks each node for its Raft
 // status, reads the queue from whichever node is orchestrator, and passes the
-// Console's requests on to the cluster.
+// app's requests on to the cluster.
 
 // Six Uno Q boards, so six node names.
 export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];

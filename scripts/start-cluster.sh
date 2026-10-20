@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # The cluster on one laptop: the gateway on port 3003 and three node processes,
-# each a Raft peer plus a worker, with auto refresh on. Open the Console page to watch it.
+# each a Raft peer plus a worker, with auto refresh on. Open the Cluster view to watch it.
 # Usage: ./scripts/start-cluster.sh [number of nodes, default 3]
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

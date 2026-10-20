@@ -220,7 +220,7 @@ export function createQueue() {
       const current = held(worker.id)[0];
       return { ...worker, current: current?.id ?? null, takenFrom: current?.lostBy.at(-1) ?? null };
     });
-    // Newest first, the way the Console shows them.
+    // Newest first, the way the Cluster view shows them.
     return { tasks: data.tasks, jobs: data.jobs, workers, terms: data.terms, events: [...data.events].reverse() };
   }
 

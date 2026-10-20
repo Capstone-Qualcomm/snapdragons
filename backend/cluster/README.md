@@ -8,7 +8,7 @@ Every node runs a Raft peer, its copy of the task queue, and a worker. The Raft 
 - `queue.ts` the queue Raft replicates: steps, claims, checkpoints, completions and job times
 - `worker.ts` the work loop: claim a step, report progress in each heartbeat, finish it
 - `node.ts` one node process: the three above, plus the HTTP routes the other nodes call
-- `server.ts` the gateway on port 3003 for the Console. It starts and stops node processes, reads each node's Raft status and the orchestrator's queue, and passes requests on. It holds no queue itself
+- `server.ts` the gateway on port 3003 for the Cluster view and Today. It starts and stops node processes, reads each node's Raft status and the orchestrator's queue, and passes requests on. It holds no queue itself
 
 ## Run it
 
