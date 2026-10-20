@@ -1,148 +1,133 @@
-import { useEffect, useState } from "react";
-import { apiPath } from "../../lib/urls";
+import { useCallback, useEffect, useState } from "react";
+import { EmptyState, ErrorBanner, PageHeader, SkeletonRows, SourceLogo, StatusDot } from "../../components/ui";
+import { api } from "../../lib/api";
 import "./logs.css";
 
-const nodes = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
-type NodeLog = { id: string; timestamp: string; node: string; method: string; path: string; values: unknown };
-type SourceName = "Jira" | "Slack" | "GitHub";
+type JiraRequest = { id: string; timestamp: string; method: string; path: string; values: unknown };
+type SourceName = "jira" | "slack" | "github";
 type SyncEvent = { id: number; timestamp: string; status: number; count: number | null; source: SourceName };
-const sources = ["Jira", "Slack", "GitHub"] as const;
+const sources: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub" };
 
 function eventText(event: SyncEvent) {
-  if (event.status === 200) return `Loaded ${event.count} items`;
+  if (event.status === 200) return `Loaded ${event.count} ${event.count === 1 ? "item" : "items"}`;
   if (event.status === 401) return "Sign-in required";
   if (event.status === 403) return "Source turned off";
   return `Fetch failed (HTTP ${event.status})`;
 }
 
-export function LogsPage() {
-  const [logs, setLogs] = useState<NodeLog[]>([]);
-  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(() => new Set());
-  const [logsUnavailable, setLogsUnavailable] = useState(false);
-  const [activity, setActivity] = useState<SyncEvent[]>([]);
-  const [unavailableSources, setUnavailableSources] = useState<SourceName[]>([]);
-
+// Calls load now and every 3 seconds, skipping a tick while the last call is still out.
+function usePoll(load: () => Promise<void>) {
   useEffect(() => {
-    let active = true;
     let loading = false;
-    async function loadActivity() {
+    async function tick() {
       if (loading) return;
       loading = true;
-      try {
-        const results = await Promise.all(sources.map(async (source) => {
-          try {
-            const response = await fetch(apiPath(`/api/${source.toLowerCase()}/activity`), { cache: "no-store" });
-            const result = await response.json() as { events?: Omit<SyncEvent, "source">[] };
-            if (!response.ok || !Array.isArray(result.events) || !result.events.every((event) =>
-              typeof event.id === "number" && typeof event.timestamp === "string" && typeof event.status === "number" &&
-              (event.count === null || typeof event.count === "number"))) throw new Error("Activity unavailable");
-            return { source, events: result.events.map((event) => ({ ...event, source })), available: true };
-          } catch {
-            return { source, events: [] as SyncEvent[], available: false };
-          }
-        }));
-        if (!active) return;
-        setActivity(results.flatMap((result) => result.events).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 15));
-        setUnavailableSources(results.filter((result) => !result.available).map((result) => result.source));
-      } finally {
-        loading = false;
-      }
+      await load().finally(() => { loading = false; });
     }
-    void loadActivity();
-    const interval = window.setInterval(() => void loadActivity(), 3000);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, []);
+    void tick();
+    const interval = window.setInterval(() => void tick(), 3000);
+    return () => window.clearInterval(interval);
+  }, [load]);
+}
 
-  useEffect(() => {
-    let active = true;
-    async function loadLogs() {
-      try {
-        const response = await fetch(apiPath("/api/jira/logs"), { cache: "no-store" });
-        const result = await response.json() as { logs?: NodeLog[] };
-        if (!response.ok || !Array.isArray(result.logs)) throw new Error("Logs unavailable");
-        if (active) {
-          setLogs(result.logs);
-          setLogsUnavailable(false);
-        }
-      } catch {
-        if (active) setLogsUnavailable(true);
-      }
+async function loadActivity() {
+  const results = await Promise.all((Object.keys(sources) as SourceName[]).map(async (source) => {
+    try {
+      const { events } = await api<{ events: Omit<SyncEvent, "source">[] }>(`/api/${source}/activity`);
+      return { source, events: events.map((event) => ({ ...event, source })) };
+    } catch {
+      return { source, events: null };
     }
-    void loadLogs();
-    const interval = window.setInterval(() => void loadLogs(), 3000);
-    return () => {
-      active = false;
-      window.clearInterval(interval);
-    };
-  }, []);
+  }));
+  return {
+    events: results.flatMap((result) => result.events ?? []).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 40),
+    unavailable: results.filter((result) => !result.events).map((result) => sources[result.source]),
+  };
+}
+
+export function LogsPage() {
+  const [activity, setActivity] = useState<{ events: SyncEvent[]; unavailable: string[] } | null>(null);
+  // undefined until the first answer, null when the Jira backend can't be reached.
+  const [requests, setRequests] = useState<JiraRequest[] | null>();
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+
+  usePoll(useCallback(async () => setActivity(await loadActivity()), []));
+  usePoll(useCallback(async () => {
+    try {
+      setRequests((await api<{ logs: JiraRequest[] }>("/api/jira/logs")).logs);
+    } catch {
+      setRequests(null);
+    }
+  }, []));
+
+  function toggle(id: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  const allUnavailable = activity?.unavailable.length === Object.keys(sources).length;
 
   return (
-    <section className="logs-view" aria-label="Logs">
-      <details className="sync-activity" open>
-        <summary>
-          <strong>Source sync activity</strong>
-          <span className="sync-activity-description">Recent Report fetches</span>
-          <span className="sync-activity-chevron" aria-hidden="true">▾</span>
-        </summary>
-        {unavailableSources.length > 0 && <p className="sync-unavailable" role="status">Activity unavailable: {unavailableSources.join(", ")}</p>}
-        {activity.length === 0 ? <p className="sync-empty">{unavailableSources.length === sources.length
-          ? "Start the source backends to view sync activity."
-          : "No sync attempts recorded yet. Open Report to fetch your sources."}</p> : (
-          <ol className="sync-events" aria-live="polite">
-            {activity.map((event) => (
-              <li key={`${event.source}-${event.id}`}>
-                <strong>{event.source}</strong>
-                <span className={event.status === 200 ? "sync-success" : "sync-error"}>{eventText(event)}</span>
-                <time dateTime={event.timestamp}>{new Date(event.timestamp).toLocaleTimeString()}</time>
-              </li>
-            ))}
-          </ol>
-        )}
-      </details>
-      <div className="logs-grid">
-        {nodes.map((node) => (
-          <article className="log-card" key={node}>
-            <header>
-              <span className="node-mark" />
-              <h2>{node}</h2>
-            </header>
-            {node === "Q-01" ? (
-              logsUnavailable ? <p>No connection to the log service</p> : logs.length === 0 ? <p>No logs available</p> : (
-                <ol className="log-entries" aria-live="polite">
-                  {logs.map((log) => (
-                    <li className="log-entry" key={log.id}>
-                      <button
-                        className="log-entry-toggle"
-                        type="button"
-                        aria-expanded={expandedLogs.has(log.id)}
-                        onClick={() => setExpandedLogs((current) => {
-                          const next = new Set(current);
-                          if (next.has(log.id)) next.delete(log.id);
-                          else next.add(log.id);
-                          return next;
-                        })}
-                      >
-                        <span className={`log-entry-carrot ${expandedLogs.has(log.id) ? "is-expanded" : ""}`} aria-hidden="true">
-                          <svg viewBox="0 0 16 16"><path d="m5 6 3 3 3-3" /></svg>
-                        </span>
-                        <span className="log-entry-heading">
-                        <span className={`log-method log-method-${log.method.toLowerCase()}`}>{log.method}</span>
-                        <code>{log.path}</code>
-                        <time dateTime={log.timestamp}>{new Date(log.timestamp).toLocaleTimeString()}</time>
-                        </span>
-                      </button>
-                      {expandedLogs.has(log.id) && <pre>{JSON.stringify(log.values, null, 2)}</pre>}
-                    </li>
-                  ))}
-                </ol>
-              )
-            ) : <p>No logs available</p>}
-          </article>
-        ))}
+    <>
+      <PageHeader title="Logs" />
+      <div className="block logs-columns">
+        <details className="panel sync-activity" open>
+          <summary className="panel-head">
+            <h2>Source sync activity</h2>
+            {activity && <span className="count">{activity.events.length}</span>}
+            <svg className="sync-activity-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4.5 6 3.5 3.5L11.5 6" /></svg>
+          </summary>
+          {activity && activity.unavailable.length > 0 && !allUnavailable && (
+            <ErrorBanner message={`Activity unavailable: ${activity.unavailable.join(", ")}`} />
+          )}
+          {!activity ? <SkeletonRows /> : allUnavailable ? (
+            <ErrorBanner message="Could not reach the source backends." />
+          ) : activity.events.length === 0 ? (
+            <EmptyState>No syncs yet.</EmptyState>
+          ) : (
+            <ol className="rows sync-events" aria-live="polite">
+              {activity.events.map((event) => (
+                <li key={`${event.source}-${event.id}`}>
+                  <time dateTime={event.timestamp}>{new Date(event.timestamp).toLocaleTimeString()}</time>
+                  <SourceLogo name={event.source} />
+                  <strong>{sources[event.source]}</strong>
+                  <StatusDot tone={event.status === 200 ? "ok" : event.status === 403 || event.status === 401 ? "warn" : "bad"} />
+                  <span>{eventText(event)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </details>
+
+        <section className="panel" aria-labelledby="jira-requests-title">
+          <header className="panel-head">
+            <SourceLogo name="jira" />
+            <h2 id="jira-requests-title">Jira requests</h2>
+            {requests && <span className="count">{requests.length}</span>}
+          </header>
+          {requests === undefined ? <SkeletonRows /> : requests === null ? (
+            <ErrorBanner message="Could not reach the Jira backend." />
+          ) : requests.length === 0 ? (
+            <EmptyState>No Jira requests yet.</EmptyState>
+          ) : (
+            <ol className="rows jira-requests" aria-live="polite">
+              {requests.map((request) => (
+                <li key={request.id}>
+                  <button className="jira-request" type="button" aria-expanded={expanded.has(request.id)} onClick={() => toggle(request.id)}>
+                    <time dateTime={request.timestamp}>{new Date(request.timestamp).toLocaleTimeString()}</time>
+                    <span className={`method method-${request.method.toLowerCase()}`}>{request.method}</span>
+                    <code>{request.path}</code>
+                  </button>
+                  {expanded.has(request.id) && <pre>{JSON.stringify(request.values, null, 2)}</pre>}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
-    </section>
+    </>
   );
 }

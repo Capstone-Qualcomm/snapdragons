@@ -332,15 +332,15 @@ test("rejects an update when no changes are provided", async () => {
   assert.match(body.error, /No changes/);
 });
 
-test("records Jira API requests in the Q-01 activity log", async () => {
+test("records Jira API requests in the request log", async () => {
   const baseUrl = await startServer();
   await connectJira(baseUrl);
   await request(baseUrl, "/api/jira/issues/SD-7/transitions");
   const { body } = await request(baseUrl, "/api/jira/logs");
 
   const transitionLog = body.logs.find((log: { path: string }) => log.path === "/api/jira/issues/SD-7/transitions");
-  assert.equal(transitionLog.node, "Q-01");
   assert.equal(transitionLog.method, "GET");
+  assert.equal("node" in transitionLog, false);
 });
 
 test("rejects an issue edit from another site", async () => {
