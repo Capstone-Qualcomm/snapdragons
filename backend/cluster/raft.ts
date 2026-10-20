@@ -134,7 +134,8 @@ export function createRaft(options: RaftOptions) {
     term += 1;
     votedFor = id;
     orchestrator = null;
-    votes = new Set([id]);
+    // A node its own log takes out of the members still asks for votes, since the change may need it to commit, but does not vote for itself.
+    votes = new Set(members().includes(id) ? [id] : []);
     electionAt = now() + electionTimeout();
     persist();
     if (votes.size >= majority()) return becomeOrchestrator();
@@ -247,7 +248,7 @@ export function createRaft(options: RaftOptions) {
     if (removed) return;
     if (role === "orchestrator") {
       if (now() >= heartbeatAt) replicateAll();
-    } else if (now() >= electionAt && members().includes(id)) {
+    } else if (now() >= electionAt && members().length) {
       campaign();
     }
   }

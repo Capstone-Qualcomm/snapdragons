@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fileStorage } from "./node.ts";
+import type { Persisted } from "./raft.ts";
 
 // The gateway between the Console and the cluster. It holds no queue of its
 // own: it starts and stops the node processes, asks each node for its Raft
@@ -84,25 +85,33 @@ export function createClusterServer(options: ServerOptions = {}) {
   // The members in the most up-to-date log saved here, or none for a cluster that has never run.
   // Not every log's members: a node removed while running may have stopped before hearing so.
   function savedMembers(): string[] {
-    let newest: { term: number; index: number; members: string[] } | null = null;
+    const logs = new Map<string, Persisted>();
     for (const id of NODE_IDS) {
-      let saved;
       try {
-        saved = fileStorage(join(dataDir, `${id}.json`)).load();
+        const saved = fileStorage(join(dataDir, `${id}.json`)).load();
+        if (saved) logs.set(id, saved);
       } catch (cause) {
         // Left as it is. If that node is a member it refuses to start and says the same.
         console.error(`${(cause as Error).message}. Recovering from the other logs.`);
-        continue;
-      }
-      if (!saved) continue;
-      const term = saved.log.at(-1)?.term ?? saved.snapshot.term;
-      const index = saved.snapshot.index + saved.log.length;
-      const config = [...saved.log].reverse().find((entry) => entry.command.type === "config");
-      if (!newest || term > newest.term || (term === newest.term && index > newest.index)) {
-        newest = { term, index, members: (config?.command.members as string[] | undefined) ?? saved.snapshot.members };
       }
     }
-    return newest?.members ?? [];
+    const lastTerm = (saved: Persisted) => saved.log.at(-1)?.term ?? saved.snapshot.term;
+    const lastIndex = (saved: Persisted) => saved.snapshot.index + saved.log.length;
+    let newest: Persisted | undefined;
+    for (const saved of logs.values()) {
+      if (!newest || lastTerm(saved) > lastTerm(newest) || (lastTerm(saved) === lastTerm(newest) && lastIndex(saved) > lastIndex(newest))) newest = saved;
+    }
+    if (!newest) return [];
+    const { snapshot } = newest;
+    const configs = newest.log.flatMap((entry, offset) => (entry.command.type === "config" ? [{ index: snapshot.index + offset + 1, term: entry.term, members: entry.command.members as string[] }] : []));
+    const latest = configs.at(-1);
+    if (!latest) return snapshot.members;
+    // A committed change is on a majority of its own members' logs. One that may not be
+    // also starts the members from before it, since finishing or undoing it can need them.
+    const has = (saved: Persisted | undefined) => !!saved && (latest.index <= saved.snapshot.index || saved.log[latest.index - saved.snapshot.index - 1]?.term === latest.term);
+    if (latest.members.filter((id) => has(logs.get(id))).length > latest.members.length / 2) return latest.members;
+    const before = configs.at(-2)?.members ?? snapshot.members;
+    return NODE_IDS.filter((id) => latest.members.includes(id) || before.includes(id));
   }
 
   // Starts the members the saved logs name, each picking up where it was. Only a

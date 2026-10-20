@@ -111,8 +111,9 @@ test("every node restarts at once and the queue comes back from disk", async () 
   }
 });
 
-test("a node is added, then removed after it finishes its step", async () => {
-  const cluster = await startCluster(4631, 2);
+test("a node is added, then removed after it finishes its step, and stays out when the gateway starts again", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"));
+  const cluster = await startCluster(4631, 2, dataDir);
   try {
     assert.deepEqual(await (await cluster.post("/api/cluster/nodes")).json(), { id: "Q-03" });
     await cluster.until((current) => current.members.includes("Q-03") && current.nodes.some((node) => node.id === "Q-03" && node.up), "Q-03 joins");
@@ -127,6 +128,16 @@ test("a node is added, then removed after it finishes its step", async () => {
     await cluster.until(cluster.jobDone(job), "the refresh is done");
   } finally {
     cluster.close();
+  }
+  await sleep(500);
+
+  // Q-03's saved log still names it, but its removal committed, so it does not come back.
+  const again = await startCluster(4631, 2, dataDir);
+  try {
+    await sleep(500);
+    assert.deepEqual((await again.state()).nodes.map((node) => node.id), ["Q-01", "Q-02"]);
+  } finally {
+    again.close();
   }
 });
 
@@ -212,4 +223,31 @@ test("one damaged saved log is reported and left alone while the other nodes com
     errors.mock.restore();
   }
   assert.equal(readFileSync(join(dataDir, "Q-01.json"), "utf8"), "{damaged");
+});
+
+test("a removal cut off halfway, saved only by the orchestrator it removes, still finishes when the gateway starts again", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"));
+  const first = await startCluster(4681, 2, dataDir);
+  let removed: string;
+  try {
+    removed = (await first.state()).orchestrator!;
+  } finally {
+    first.close();
+  }
+  await sleep(500);
+  // As if the orchestrator saved the entry taking itself out, then the gateway stopped before the other node got it.
+  const file = join(dataDir, `${removed}.json`);
+  const saved = JSON.parse(readFileSync(file, "utf8"));
+  const remaining = ["Q-01", "Q-02"].filter((id) => id !== removed);
+  saved.log.push({ term: saved.log.at(-1).term, command: { type: "config", members: remaining, at: Date.now() } });
+  writeFileSync(file, JSON.stringify(saved));
+
+  // The other node still counts two members, so it cannot win an election alone.
+  const again = await startCluster(4681, 1, dataDir);
+  try {
+    const back = await again.until((current) => current.orchestrator === remaining[0], `${remaining[0]} is the orchestrator`);
+    assert.deepEqual(back.members, remaining);
+  } finally {
+    again.close();
+  }
 });
