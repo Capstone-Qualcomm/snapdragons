@@ -7,9 +7,13 @@ import { fileURLToPath } from "node:url";
 // Each browser gets a random "sid" cookie and its own connection state. The
 // Jira, Slack and GitHub backends all read the same cookie because cookies
 // ignore ports. Connected sessions are saved to disk so a restart keeps them.
-// Only the most recent MAX_IDLE browsers that never connected stay in memory,
-// so requests without a cookie can't grow the map forever.
+// Browsers that never connected are dropped, oldest first, once there are more
+// than MAX_IDLE, so requests without a cookie can't grow the map forever. One
+// seen in the last SIGN_IN_MS may be on a provider's login page, so it stays.
 const MAX_IDLE = 1000;
+const SIGN_IN_MS = 10 * 60_000;
+// ponytail: past MAX_SESSIONS even recent browsers go, so a flood can still cut off sign-ins in progress
+const MAX_SESSIONS = 20_000;
 
 export function createSessions<T, Saved extends { connected: boolean }>(
   name: string,
@@ -20,16 +24,28 @@ export function createSessions<T, Saved extends { connected: boolean }>(
   const file = join(dataDir, `${name}-sessions.json`);
   const secure = process.env.APP_URL?.startsWith("https") ? "; Secure" : "";
   const sessions = new Map<string, T>();
+  const lastSeen = new Map<string, number>();
+  // What the file holds for each connected browser, to tell when it is out of date.
+  const onDisk = new Map<string, string>();
+  const saveKey = (state: T) => (toSaved(state).connected ? JSON.stringify(toSaved(state)) : undefined);
 
   if (existsSync(file)) {
     const saved = JSON.parse(readFileSync(file, "utf8")) as Record<string, Saved>;
-    for (const [sid, connection] of Object.entries(saved)) sessions.set(sid, create(connection));
+    for (const [sid, connection] of Object.entries(saved)) {
+      sessions.set(sid, create(connection));
+      onDisk.set(sid, JSON.stringify(connection));
+    }
   }
 
   function save() {
     const connected: Record<string, Saved> = {};
+    onDisk.clear();
     for (const [sid, state] of sessions) {
-      if (toSaved(state).connected) connected[sid] = toSaved(state);
+      const key = saveKey(state);
+      if (key) {
+        connected[sid] = toSaved(state);
+        onDisk.set(sid, key);
+      }
     }
     try {
       mkdirSync(dataDir, { recursive: true });
@@ -52,11 +68,12 @@ export function createSessions<T, Saved extends { connected: boolean }>(
     // Re-insert so the map runs from least to most recently used.
     sessions.delete(sid);
     sessions.set(sid, state);
+    lastSeen.set(sid, Date.now());
     if (!existing) evictIdle();
-    // Write to disk only when this request changed what gets saved.
-    const before = JSON.stringify(toSaved(state));
+    // Write to disk only when this browser's connection differs from the file.
+    const id = sid;
     res.on("finish", () => {
-      if (JSON.stringify(toSaved(state)) !== before) save();
+      if (saveKey(state) !== onDisk.get(id)) save();
     });
     return state;
   }
@@ -64,10 +81,14 @@ export function createSessions<T, Saved extends { connected: boolean }>(
   function evictIdle() {
     let idle = 0;
     for (const state of sessions.values()) if (!toSaved(state).connected) idle++;
+    const recent = Date.now() - SIGN_IN_MS;
     for (const [sid, state] of sessions) {
       if (idle <= MAX_IDLE) break;
+      // The map runs oldest first, so every browser from here on was seen recently.
+      if ((lastSeen.get(sid) ?? 0) > recent && sessions.size <= MAX_SESSIONS) break;
       if (!toSaved(state).connected) {
         sessions.delete(sid);
+        lastSeen.delete(sid);
         idle--;
       }
     }

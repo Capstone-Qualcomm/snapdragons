@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { EventEmitter } from "node:events";
 import { createSessions } from "./sessions.mts";
@@ -18,14 +18,21 @@ function request(sid?: string) {
   return { req, res, finish: () => res.emit("finish") };
 }
 
-test("browsers without a cookie don't pile up", () => {
+test("browsers without a cookie don't pile up, but ones signing in stay", () => {
+  mock.timers.enable({ apis: ["Date"] });
   const sessions = createSessions<State, State>("idle", (saved) => saved ?? { connected: false }, (s) => s);
   const connected = "a".repeat(64);
   sessions.get(request(connected).req, request().res).connected = true;
   for (let i = 0; i < 1500; i++) sessions.get(request().req, request().res);
+  // All 1500 were seen in the last 10 minutes, so any could be signing in.
+  assert.equal(sessions.size(), 1501);
+
+  mock.timers.tick(11 * 60_000);
+  sessions.get(request().req, request().res);
   assert.equal(sessions.size(), 1001);
   // The connected browser is never evicted.
   assert.equal(sessions.get(request(connected).req, request().res).connected, true);
+  mock.timers.reset();
 });
 
 test("only a change in connection writes to disk", () => {
@@ -47,4 +54,24 @@ test("only a change in connection writes to disk", () => {
   sessions.get(r.req, r.res);
   r.finish();
   assert.equal(statSync(file).mtimeMs, written);
+});
+
+test("overlapping requests leave the file matching memory", () => {
+  const file = join(process.env.DATA_DIR!, "race-sessions.json");
+  const sessions = createSessions<{ connected: boolean; enabled: boolean }, { connected: boolean; enabled: boolean }>(
+    "race",
+    (saved) => saved ?? { connected: true, enabled: false },
+    (s) => ({ ...s }),
+  );
+  const sid = "c".repeat(64);
+  const a = request(sid);
+  const b = request(sid);
+  const state = sessions.get(a.req, a.res);
+  sessions.get(b.req, b.res);
+  state.enabled = true;
+  b.finish();
+  // A started before B and puts enabled back to what it was when A began.
+  state.enabled = false;
+  a.finish();
+  assert.deepEqual(JSON.parse(readFileSync(file, "utf8"))[sid], { connected: true, enabled: false });
 });
