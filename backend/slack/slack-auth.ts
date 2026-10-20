@@ -31,6 +31,11 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
       redirect(res, settingsUrl("unconfigured"));
       return;
     }
+    // Clean up expired pending states before adding a new one
+    const now = Date.now();
+    for (const [key, { expiresAt }] of pendingStates) {
+      if (expiresAt < now) pendingStates.delete(key);
+    }
     const state = randomBytes(32).toString("hex");
     pendingStates.set(state, { expiresAt: Date.now() + 10 * 60 * 1000 });
     const url = new URL("https://slack.com/oauth/v2/authorize");
@@ -85,15 +90,6 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
     slackConnection.team = null;
     slackConnection.token = null;
   }
-
-  // Clean up expired pending states every 60s
-  const cleaner = setInterval(() => {
-    const now = Date.now();
-    for (const [key, { expiresAt }] of pendingStates) {
-      if (expiresAt < now) pendingStates.delete(key);
-    }
-  }, 60_000);
-  if (cleaner.unref) cleaner.unref();
 
   return { configured, startAuthorization, handleCallback, reset };
 }

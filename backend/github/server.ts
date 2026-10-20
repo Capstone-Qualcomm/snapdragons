@@ -3,7 +3,9 @@ import type { ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createGitHubApi } from "./github-api.ts";
 import { createGitHubAuth } from "./github-auth.ts";
+import type { GitHubConnection } from "./github-auth.ts";
 import { createSourceActivity } from "../source-activity.mts";
+import { createSessions } from "../sessions.mts";
 
 type ServerOptions = {
   port?: number;
@@ -23,41 +25,33 @@ export function createGitHubServer(options: ServerOptions = {}) {
   const appOrigin = new URL(appUrl).origin;
   const fetchImpl = options.fetch ?? globalThis.fetch;
 
-  const githubConnection = {
-    connected: false,
-    enabled: false,
-    connectedAt: null as string | null,
-    user: null as { id: number; login: string } | null,
-    token: null as {
-      accessToken: string;
-      refreshToken: string | null;
-      accessTokenExpiresAt: number | null;
-      refreshTokenExpiresAt: number | null;
-    } | null,
-  };
-
-  const auth = createGitHubAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, githubConnection });
+  const sessions = createSessions("github", (saved?: GitHubConnection) => {
+    const githubConnection: GitHubConnection = saved ?? { connected: false, enabled: false, connectedAt: null, user: null, token: null };
+    const auth = createGitHubAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, githubConnection });
+    const activity = createSourceActivity();
+    return { githubConnection, auth, activity };
+  }, (session) => session.githubConnection);
   const githubApi = createGitHubApi({ fetchImpl });
-  const activity = createSourceActivity();
 
   function send(res: ServerResponse, status: number, data: unknown): void {
     res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
     res.end(JSON.stringify(data));
   }
 
-  function connectionStatus() {
-    return {
-      configured: auth.configured,
-      connected: githubConnection.connected,
-      enabled: githubConnection.enabled,
-      connectedAt: githubConnection.connectedAt,
-      user: githubConnection.user?.login ?? null,
-    };
-  }
-
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+      const { githubConnection, auth, activity } = sessions.get(req, res);
+
+      function connectionStatus() {
+        return {
+          configured: auth.configured,
+          connected: githubConnection.connected,
+          enabled: githubConnection.enabled,
+          connectedAt: githubConnection.connectedAt,
+          user: githubConnection.user?.login ?? null,
+        };
+      }
 
       if (req.method === "GET" && url.pathname === "/auth/github/start") {
         auth.startAuthorization(res);

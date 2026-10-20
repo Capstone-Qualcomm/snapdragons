@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 JIRA_BACKEND_DIR="$SCRIPT_DIR/../backend/jira"
 GITHUB_BACKEND_DIR="$SCRIPT_DIR/../backend/github"
 SLACK_BACKEND_DIR="$SCRIPT_DIR/../backend/slack"
-(cd "$SCRIPT_DIR/../backend" && node --test source-activity.test.mts)
+(cd "$SCRIPT_DIR/../backend" && node --test source-activity.test.mts sessions.test.mts)
 (cd "$JIRA_BACKEND_DIR" && node --test server.test.ts)
 (cd "$SLACK_BACKEND_DIR" && node --test server.test.ts)
 (cd "$GITHUB_BACKEND_DIR" && node --test)

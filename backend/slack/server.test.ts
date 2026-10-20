@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { createSlackServer } from "./server.ts";
+
+// Save connected sessions in a temp folder instead of the repo's .data.
+process.env.DATA_DIR = mkdtempSync(join(tmpdir(), "snapdragons-slack-"));
+
+// Send the session cookie back like a browser, so one test is one browser.
+let cookie = "";
+async function fetch(input: string | URL | Request, init: RequestInit = {}) {
+  const response = await globalThis.fetch(input, { ...init, headers: { ...init.headers, cookie } });
+  cookie = response.headers.get("set-cookie")?.split(";")[0] ?? cookie;
+  return response;
+}
 
 const servers = new Set<Server>();
 
@@ -23,6 +37,7 @@ async function startServer(fetchImpl?: typeof fetch) {
 afterEach(async () => {
   await Promise.all([...servers].map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
   servers.clear();
+  cookie = "";
 });
 
 async function connectSlack(base: string) {
@@ -79,4 +94,35 @@ test("records a Slack upstream failure without exposing the error in activity", 
   assert.equal(activity.events[0].status, 502);
   assert.equal(activity.events[0].count, null);
   assert.equal(JSON.stringify(activity).includes("private upstream detail"), false);
+});
+
+const connectingSlack: typeof fetch = async () => Response.json({ ok: true, authed_user: { id: "U1", access_token: "private-token" } });
+
+test("gives each browser its own Slack connection", async () => {
+  const base = await startServer(connectingSlack);
+  await connectSlack(base);
+  const otherBrowser = { headers: { cookie: `sid=${"b".repeat(64)}` } };
+
+  assert.equal((await (await fetch(base + "/api/slack/connection")).json()).slack.connected, true);
+  assert.equal((await (await globalThis.fetch(base + "/api/slack/connection", otherBrowser)).json()).slack.connected, false);
+  assert.equal((await globalThis.fetch(base + "/api/slack/messages", otherBrowser)).status, 401);
+});
+
+test("keeps a Slack connection after the server restarts", async () => {
+  await connectSlack(await startServer(connectingSlack));
+  const restarted = await startServer(connectingSlack);
+
+  const { slack } = await (await fetch(restarted + "/api/slack/connection")).json();
+  assert.equal(slack.connected, true);
+  assert.equal(slack.enabled, true);
+});
+
+test("accepts a session cookie the server has not seen and only sets one when missing", async () => {
+  const base = await startServer();
+  const unseen = await globalThis.fetch(base + "/api/slack/connection", { headers: { cookie: `sid=${"a".repeat(64)}` } });
+  const fresh = await globalThis.fetch(base + "/api/slack/connection");
+
+  assert.equal(unseen.status, 200);
+  assert.equal(unseen.headers.get("set-cookie"), null);
+  assert.match(fresh.headers.get("set-cookie") ?? "", /^sid=[0-9a-f]{64}; Path=\/; HttpOnly; SameSite=Lax; Max-Age=31536000$/);
 });
