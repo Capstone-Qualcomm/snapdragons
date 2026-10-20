@@ -1,39 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fake cluster on one laptop: one queue server and three worker processes.
-# Usage: ./scripts/start-cluster.sh [number of tasks to queue, default 9]
+# The cluster on one laptop: the gateway on port 3003 and three node processes,
+# each a Raft peer plus a worker, with auto refresh on. Open the Console page to watch it.
+# Usage: ./scripts/start-cluster.sh [number of nodes, default 3]
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-CLUSTER_DIR="$ROOT/backend/cluster"
 export CLUSTER_PORT="${CLUSTER_PORT:-3003}"
-URL="http://localhost:$CLUSTER_PORT"
-TASKS="${1:-9}"
-PIDS=()
+export CLUSTER_NODES="${1:-3}"
+export CLUSTER_AUTO="${CLUSTER_AUTO:-1}"
 
-stop_cluster() {
-  trap - INT TERM EXIT
-  kill "${PIDS[@]}" 2>/dev/null || true
-  wait "${PIDS[@]}" 2>/dev/null || true
-}
-trap stop_cluster INT TERM EXIT
-
-cd "$CLUSTER_DIR"
-# The queue starts the three workers itself, so the Console can kill and restart them.
-CLUSTER_NODES=3 node server.ts &
-PIDS+=($!)
-
-until curl -sf "$URL/api/cluster/state" >/dev/null; do sleep 0.2; done
-
-for n in $(seq 1 "$TASKS"); do
-  curl -sf -X POST "$URL/api/cluster/tasks" -d "{\"input\":\"task $n\"}" >/dev/null
-done
-echo "Queued $TASKS tasks for Q-01, Q-02 and Q-03. State: $URL/api/cluster/state"
-
-until curl -sf "$URL/api/cluster/state" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.exit(JSON.parse(s).tasks.every(t=>t.status==="done")?0:1))'; do sleep 0.5; done
-
-echo
-curl -sf "$URL/api/cluster/state" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const w of JSON.parse(s).workers)console.log(`${w.id} finished ${w.done} tasks`)})'
-echo "All tasks done. The cluster is still running, so you can queue more. Press Ctrl+C to stop it."
-
-wait
+cd "$ROOT/backend/cluster"
+# exec, so Ctrl+C reaches the gateway and it takes the nodes down with it.
+exec node server.ts

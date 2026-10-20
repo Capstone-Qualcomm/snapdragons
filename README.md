@@ -6,14 +6,14 @@ CS 620 capstone, Qualcomm Team 1. Persistent agent runtime that scales out acros
 
 - `frontend/` the dashboard (React and Vite)
 - `backend/jira/` and `backend/slack/` sign-in and data for each source
-- `backend/cluster/` task queue and worker processes, a fake cluster for one laptop
+- `backend/cluster/` the cluster on one laptop: node processes that share a Raft-replicated task queue
 - `hardware/` Uno Q sketches
 - `mvp/` concept landing page (static, run with `python3 -m http.server 8080` inside it)
 
 ## Running it
 
 - `./scripts/start-dev.sh` starts the Jira and Slack backends and the dashboard. It needs `backend/.env`, see `backend/.env.example`.
-- `./scripts/start-cluster.sh` starts the queue and three workers. Leave it running and the Console page shows what each node is doing.
+- `./scripts/start-cluster.sh` starts three nodes and refreshes on a loop. Leave it running and the Console page shows what each node is doing.
 - `bash tests/local_tests.sh` runs the backend tests.
 
 ## First-time setup
