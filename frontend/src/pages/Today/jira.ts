@@ -1,5 +1,4 @@
-import { api } from "../../../lib/api";
-import { useSource } from "../useSource";
+import { api } from "../../lib/api";
 
 export type JiraIssue = {
   key: string;
@@ -17,8 +16,6 @@ export type JiraIssue = {
 
 export type JiraTransition = { id: string; name: string; status: string };
 export type JiraChanges = { description?: string; storyPointEstimate?: number | null; transitionId?: string };
-
-export const useJiraSource = () => useSource<JiraIssue>("jira", "issues");
 
 export async function getJiraTransitions(issueKey: string): Promise<JiraTransition[]> {
   const result = await api<{ transitions?: JiraTransition[] }>(`/api/jira/issues/${encodeURIComponent(issueKey)}/transitions`);

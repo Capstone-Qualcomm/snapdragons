@@ -1,47 +1,6 @@
 /* Shared components. Hairlines separate things; a box (card) is only for
    something that sits apart from a list. */
 
-.block {
-  border-block: 1px solid var(--rule);
-  background: var(--paper);
-}
-
-.card,
-.node-card {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-}
-
-.node-card-header {
-  display: flex;
-  min-height: 44px;
-  align-items: center;
-  gap: var(--s2);
-  padding: 0 var(--s3);
-  border-bottom: 1px solid var(--rule);
-}
-
-.panel {
-  min-width: 0;
-}
-
-.panel-head {
-  display: flex;
-  min-height: 48px;
-  align-items: center;
-  gap: var(--s2);
-  padding: var(--s2) var(--gutter);
-}
-
-.panel-head h2 {
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .count {
   min-width: 22px;
   padding: 0 6px;
@@ -52,21 +11,6 @@
   line-height: 18px;
   text-align: center;
 }
-
-.panel-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  margin-left: auto;
-}
-
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.rows > li { border-top: 1px solid var(--rule); }
 
 .logo {
   width: 16px;
@@ -112,8 +56,7 @@
 }
 
 /* A status dot. Busy ones pulse a ring. */
-.dot,
-.node-mark {
+.dot {
   --tone: var(--ink-faint);
   position: relative;
   width: 7px;
@@ -258,15 +201,6 @@
 
 .error-banner p { flex: 1; }
 
-.empty {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2) var(--s3);
-  padding: var(--s4) var(--gutter) var(--s5);
-  color: var(--ink-soft);
-}
-
 .skeleton-row {
   display: grid;
   gap: 6px;
@@ -287,15 +221,6 @@
 @keyframes shimmer { 50% { opacity: 0.45; } }
 
 time { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
-
-kbd {
-  padding: 0 4px;
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  background: var(--paper);
-  font-family: var(--mono);
-  font-size: 10px;
-}
 
 select,
 textarea {

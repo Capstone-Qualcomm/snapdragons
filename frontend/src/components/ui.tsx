@@ -1,5 +1,4 @@
-import { useEffect, useId, useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { appPath } from "../lib/urls";
 
 // The shared pieces every page is built from. Styles live in styles/panels.css.
@@ -14,43 +13,6 @@ export function StatusDot({ tone }: { tone: Tone }) {
 
 export function SourceLogo({ name }: { name: "jira" | "slack" | "github" | "outlook" }) {
   return <img className={`logo logo-${name}`} src={appPath(`${name}-logo.png`)} alt="" />;
-}
-
-export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <header className="page-head">
-      <h1>{title}</h1>
-      {children && <div className="page-actions">{children}</div>}
-    </header>
-  );
-}
-
-type PanelProps = {
-  title: string;
-  icon?: ReactNode;
-  // null shows a dash, for a source that has no list to count yet.
-  count?: number | null;
-  // Controls on the right of the header.
-  actions?: ReactNode;
-  id?: string;
-  className?: string;
-  children?: ReactNode;
-};
-
-// A titled section. Panels sit side by side inside a .block, split by hairlines.
-export function Panel({ title, icon, count, actions, id, className, children }: PanelProps) {
-  const titleId = useId();
-  return (
-    <section className={className ? `panel ${className}` : "panel"} id={id} aria-labelledby={titleId}>
-      <header className="panel-head">
-        {icon}
-        <h2 id={titleId}>{title}</h2>
-        {count !== undefined && <span className="count">{count ?? "–"}</span>}
-        {actions && <div className="panel-actions">{actions}</div>}
-      </header>
-      {children}
-    </section>
-  );
 }
 
 // Equal segments on a quiet track; the selected one sits raised.
@@ -77,15 +39,6 @@ export function SubTabs<T extends string>({ items, value, onChange, label, nav }
         </button>
       ))}
     </nav>
-  );
-}
-
-export function EmptyState({ children, action }: { children: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="empty" role="status">
-      <p>{children}</p>
-      {action}
-    </div>
   );
 }
 

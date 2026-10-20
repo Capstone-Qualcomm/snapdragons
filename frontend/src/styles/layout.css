@@ -59,8 +59,7 @@
 
 .view-content { padding-bottom: var(--s5); }
 
-/* Console still lays out its own padding. */
-#console { padding: var(--s4) var(--gutter); }
+#cluster { padding-top: var(--s2); }
 
 @media (max-width: 640px) {
   .topbar { flex-wrap: wrap; }

@@ -32,15 +32,6 @@
   --gutter: 20px;
   --snappy: 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* Older names that Console.css still uses. Drop once it moves to the names above. */
-  --text: var(--ink);
-  --muted: var(--ink-soft);
-  --dim: var(--ink-faint);
-  --line: var(--rule);
-  --panel: var(--paper);
-  --green: var(--live);
-  --amber: var(--waiting);
-  --danger: var(--fail);
 }
 
 :root[data-theme="dark"] {

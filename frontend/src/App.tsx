@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react";
-import { ConsolePage } from "./pages/Console/Console";
-import { LogsPage } from "./pages/logs/logs";
-import { ReportPage } from "./pages/Report/Report";
+import { ClusterPage } from "./pages/Cluster/ClusterPage";
+import { TodayPage } from "./pages/Today/Today";
 import { About } from "./components/About/About";
-import { SettingsPage } from "./pages/Settings/Settings";
 import { appPath } from "./lib/urls";
 import { SubTabs } from "./components/ui";
 
-type View = "Console" | "Report" | "Logs" | "Settings";
+type View = "Today" | "Cluster";
 
-const views: View[] = ["Console", "Report", "Logs", "Settings"];
+const views: View[] = ["Today", "Cluster"];
 
 function viewFromPath(path: string): View {
   const pathView = path.split("/").filter(Boolean).at(-1)?.toLowerCase();
-  return views.find((view) => view.toLowerCase() === pathView) ?? "Console";
+  return views.find((view) => view.toLowerCase() === pathView) ?? "Today";
 }
 
 function App() {
@@ -52,11 +50,11 @@ function App() {
       <header className="topbar">
         <a
           className="brand"
-          href={appPath("console")}
-          aria-label="Continuum console"
+          href={appPath("today")}
+          aria-label="Continuum"
           onClick={(event) => {
             event.preventDefault();
-            navigateTo("Console");
+            navigateTo("Today");
           }}
         >
           <span className="brand-mark" aria-hidden="true" />
@@ -76,12 +74,15 @@ function App() {
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
 
-      <main className="view-content" id={view.toLowerCase()}>
-        {view === "Console" && <ConsolePage />}
-        {view === "Report" && <ReportPage />}
-        {view === "Logs" && <LogsPage />}
-        {view === "Settings" && <SettingsPage />}
+      {/* Today stays mounted behind Cluster, so its list, edits and refresh carry on. */}
+      <main className="view-content" id="today" hidden={view !== "Today"}>
+        <TodayPage active={view === "Today"} onOpenCluster={() => navigateTo("Cluster")} />
       </main>
+      {view === "Cluster" && (
+        <main className="view-content" id="cluster">
+          <ClusterPage />
+        </main>
+      )}
     </div>
   );
 }
