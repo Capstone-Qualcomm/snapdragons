@@ -34,11 +34,13 @@ class HttpError extends Error {
 
 function fileStorage(file: string) {
   return {
+    // Only a missing file means a new node. A damaged one stops the node instead of being replaced by an empty log.
     load: (): Persisted | null => {
       try {
         return JSON.parse(readFileSync(file, "utf8")) as Persisted;
-      } catch {
-        return null;
+      } catch (cause) {
+        if ((cause as NodeJS.ErrnoException).code === "ENOENT") return null;
+        throw new Error(`Cannot read the saved log ${file}: ${(cause as Error).message}`);
       }
     },
     // Written to a temporary file and renamed, so a node killed mid-write keeps the old copy.

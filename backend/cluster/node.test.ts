@@ -28,3 +28,21 @@ test("a node only listens on loopback", { skip: !lan && "no network address to t
     node.kill();
   }
 });
+
+test("a node with a damaged log stops and names the file, leaving it as it was", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "node-test-"));
+  writeFileSync(join(dataDir, "Q-01.json"), "{damaged");
+  const node = runNode(4982, dataDir);
+  let stderr = "";
+  node.stderr.on("data", (chunk) => (stderr += chunk));
+  const exited = once(node, "exit");
+  try {
+    const [code] = await Promise.race([exited, sleep(3000).then(() => [null])]);
+    assert.notEqual(code, null, "the node kept running");
+    assert.notEqual(code, 0);
+    assert.match(stderr, /Q-01\.json/);
+  } finally {
+    node.kill();
+  }
+  assert.equal(readFileSync(join(dataDir, "Q-01.json"), "utf8"), "{damaged");
+});
