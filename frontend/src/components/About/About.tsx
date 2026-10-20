@@ -19,12 +19,7 @@ export function About({ onClose }: AboutProps) {
         aria-modal="true"
         aria-label="About SnapDragons"
       >
-        <button
-          className="about-close"
-          type="button"
-          aria-label="Close about dialog"
-          onClick={onClose}
-        >
+        <button className="header-button" type="button" aria-label="Close" onClick={onClose}>
           ×
         </button>
         <div className="about-logos">
@@ -41,7 +36,7 @@ export function About({ onClose }: AboutProps) {
           alt="Qualcomm"
         />
         <p>
-          Continuum is developed by SnapDragons, a team of students at the University of Wisconsin–Madison. 
+          Continuum is developed by SnapDragons, a team of students at the University of Wisconsin–Madison.
           This project is made possible by the sponsorship of Qualcomm.
         </p>
       </section>

@@ -5,14 +5,15 @@ import { ReportPage } from "./pages/Report/Report";
 import { About } from "./components/About/About";
 import { SettingsPage } from "./pages/Settings/Settings";
 import { appPath } from "./lib/urls";
+import { SubTabs } from "./components/ui";
 
 type View = "Console" | "Report" | "Logs" | "Settings";
 
-const navViews: View[] = ["Console", "Report", "Logs"];
+const views: View[] = ["Console", "Report", "Logs", "Settings"];
 
 function viewFromPath(path: string): View {
   const pathView = path.split("/").filter(Boolean).at(-1)?.toLowerCase();
-  return [...navViews, "Settings" as const].find((view) => view.toLowerCase() === pathView) ?? "Console";
+  return views.find((view) => view.toLowerCase() === pathView) ?? "Console";
 }
 
 function App() {
@@ -47,7 +48,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <div className="app-shell">
       <header className="topbar">
         <a
           className="brand"
@@ -58,40 +59,30 @@ function App() {
             navigateTo("Console");
           }}
         >
-          <span className="brand-mark" aria-hidden="true">
-            <i />
-          </span>
-          <span>CONTINUUM</span>
+          <span className="brand-mark" aria-hidden="true" />
+          Continuum
         </a>
-        <nav className="nav-links" aria-label="Main navigation">
-          {navViews.map((item) => (
-            <button
-              className={view === item ? "nav-link active" : "nav-link"}
-              key={item}
-              onClick={() => navigateTo(item)}
-              aria-current={view === item ? "page" : undefined}
-            >
-              {item}
-            </button>
-          ))}
-        </nav>
-        <button className={`about-button settings-nav-button ${view === "Settings" ? "active" : ""}`} type="button" aria-label="Settings" title="Settings" onClick={() => navigateTo("Settings")}>
-          ⚙
-        </button>
-        <button className="about-button" type="button" aria-label="About" title="About" onClick={() => setAboutOpen(true)}>
+        <SubTabs
+          label="Main navigation"
+          nav
+          items={views.map((item) => ({ value: item, label: item }))}
+          value={view}
+          onChange={navigateTo}
+        />
+        <button className="header-button" type="button" aria-label="About Continuum" title="About" onClick={() => setAboutOpen(true)}>
           ?
         </button>
       </header>
 
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
 
-      <section className="view-content" id={view.toLowerCase()}>
+      <main className="view-content" id={view.toLowerCase()}>
         {view === "Console" && <ConsolePage />}
         {view === "Report" && <ReportPage />}
         {view === "Logs" && <LogsPage />}
         {view === "Settings" && <SettingsPage />}
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }
 
