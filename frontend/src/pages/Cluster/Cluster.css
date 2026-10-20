@@ -1,0 +1,505 @@
+.cluster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding-bottom: var(--s5);
+}
+
+.cluster .error-banner { margin-bottom: 0; }
+
+/* Steps waiting for a node, on the left of the header. */
+.queue {
+  display: flex;
+  min-width: 0;
+  min-height: 28px;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+}
+
+.queue-name {
+  margin-right: var(--s1);
+  font-weight: 600;
+}
+
+/* The rack: six slots, one per board. */
+.rack {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--s3);
+  margin: 0 var(--gutter);
+  padding: 0;
+  list-style: none;
+}
+
+.board,
+.slot {
+  min-height: 184px;
+  border-radius: 10px;
+}
+
+.board {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: var(--s3);
+  padding: 18px 14px 12px;
+  border: 1px solid var(--rule);
+  background: var(--raised);
+  box-shadow: 0 1px 0 var(--rule);
+  transition: border-color var(--snappy), background var(--snappy);
+}
+
+/* A row of header pins along the top edge, as on the real board. */
+.board::before {
+  position: absolute;
+  top: 7px;
+  right: 14px;
+  left: 14px;
+  height: 4px;
+  background: radial-gradient(circle, var(--rule) 1.4px, transparent 1.8px) 0 0 / 8px 4px repeat-x;
+  content: "";
+}
+
+.board.is-orchestrator {
+  border-color: color-mix(in srgb, var(--signal) 55%, var(--rule));
+  box-shadow: inset 0 3px var(--signal);
+}
+
+.board.is-orchestrator::before { background-image: radial-gradient(circle, color-mix(in srgb, var(--signal) 45%, var(--rule)) 1.4px, transparent 1.8px); }
+
+.board.is-dead {
+  border-color: color-mix(in srgb, var(--fail) 40%, var(--rule));
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--fail) 6%, var(--paper)) 0 8px, var(--paper) 8px 16px);
+  box-shadow: none;
+}
+
+.board.is-left,
+.board.is-joining { opacity: 0.7; }
+
+.board-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.board-head strong {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.board.is-dead .board-head strong { color: var(--ink-faint); text-decoration: line-through; }
+
+.role {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.role.is-orchestrator { color: var(--signal); }
+.role.is-candidate,
+.role.is-leaving,
+.role.is-joining { color: var(--waiting); }
+.role.is-dead { color: var(--fail); }
+
+.board-work {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.board-raft {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s2);
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* While there is no orchestrator: a worker's timeout running down, or a candidate's votes. */
+.countdown {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--wash);
+}
+
+.countdown i {
+  display: block;
+  height: 100%;
+  background: var(--waiting);
+  transition: width 0.5s linear;
+}
+
+.votes {
+  display: flex;
+  gap: 4px;
+}
+
+.votes i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--waiting);
+}
+
+.votes i.is-in { background: var(--waiting); }
+
+.board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.board-actions .button.is-kill {
+  margin-left: auto;
+  border-color: color-mix(in srgb, var(--fail) 45%, var(--paper));
+  color: var(--fail);
+}
+
+.slot { border: 1.5px dashed var(--rule); }
+
+.slot-add {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-weight: 600;
+  transition: background var(--snappy), color var(--snappy);
+}
+
+.slot-add span {
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.slot-add:hover { background: var(--paper); color: var(--ink); }
+
+/* Timeline */
+
+.timeline {
+  --row: 40px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-rows: calc(var(--rows) * var(--row)) 24px;
+  margin: 0 var(--gutter);
+  padding-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.lane-names {
+  display: grid;
+  grid-auto-rows: var(--row);
+  align-items: center;
+  padding-left: var(--s3);
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.lanes {
+  position: relative;
+  display: grid;
+  grid-auto-rows: var(--row);
+  margin-right: var(--s3);
+}
+
+.lane {
+  position: relative;
+  border-top: 1px solid var(--rule);
+}
+
+.lane:last-child { border-bottom: 1px solid var(--rule); }
+
+.run {
+  position: absolute;
+  top: 7px;
+  display: flex;
+  height: 26px;
+  align-items: center;
+  padding: 0 5px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--job) 55%, var(--paper));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--job) 22%, var(--paper));
+}
+
+.run .logo { width: 14px; height: 14px; }
+
+.run.is-running {
+  border-color: var(--job);
+  background: color-mix(in srgb, var(--job) 32%, var(--paper));
+}
+
+/* Cut off where the node died. */
+.run.is-lost {
+  border-color: var(--fail);
+  border-right: 0;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 20%, calc(100% - 5px) 40%, 100% 60%, calc(100% - 5px) 80%, 100% 100%, 0 100%);
+}
+
+.handoffs {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.handoff {
+  stroke: var(--fail);
+  stroke-dasharray: 4 3;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.term-line {
+  stroke: var(--signal);
+  stroke-dasharray: 2 4;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.term-mark {
+  position: absolute;
+  top: -16px;
+  padding-left: 4px;
+  color: var(--signal);
+  font-family: var(--mono);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.axis {
+  position: relative;
+  grid-column: 2;
+  margin-right: var(--s3);
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 24px;
+}
+
+.axis span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.axis span:first-child { transform: none; }
+.axis span:last-child { transform: translateX(-100%); }
+
+/* Latest refresh, refresh time and activity */
+
+.cluster-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 5fr);
+  align-items: stretch;
+  gap: var(--s3);
+  margin: 0 var(--gutter);
+}
+
+.panel-box {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.box-head {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--s2);
+  padding: 0 var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.box-head h2 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.refresh .box-head h2 { color: var(--job); }
+
+.box-value {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.refresh-steps,
+.times-chart,
+.activity-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.refresh-step {
+  display: grid;
+  min-height: 36px;
+  grid-template-columns: 16px minmax(0, 1fr) auto 64px 44px;
+  align-items: center;
+  gap: var(--s3);
+  padding: 0 var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.refresh-step:last-child { border-bottom: 0; }
+
+.refresh-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refresh-step.is-queued .refresh-name { color: var(--ink-faint); }
+
+.refresh-nodes {
+  display: flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.refresh-nodes s { color: var(--fail); }
+
+.refresh-bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--wash);
+}
+
+.refresh-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--job);
+  transition: width 0.5s linear;
+}
+
+.refresh-time {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+/* One column per node count; shorter is faster. */
+.times-chart {
+  display: grid;
+  height: calc(100% - 44px);
+  min-height: 236px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--s2);
+  padding: var(--s4) var(--s3) var(--s3);
+}
+
+.times-chart li {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.times-bar {
+  position: relative;
+  width: 100%;
+  max-width: 44px;
+  height: 150px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.times-bar i {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: calc(var(--h) * 100%);
+  border-radius: 3px 3px 0 0;
+  background: var(--ink-faint);
+  transition: height var(--snappy);
+}
+
+.times-chart .is-current .times-bar i { background: var(--signal); }
+
+.times-value {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.times-nodes {
+  color: var(--ink-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.times-chart .is-current .times-nodes { color: var(--ink); font-weight: 600; }
+
+.times-count {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+}
+
+.activity-rows {
+  max-height: 290px;
+  overflow-y: auto;
+}
+
+.activity-rows li {
+  display: grid;
+  grid-template-columns: 72px 16px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s2);
+  padding: 6px var(--s3);
+  border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+}
+
+.activity-rows li:last-child { border-bottom: 0; }
+
+.logo-cluster {
+  width: 10px;
+  height: 10px;
+  margin: 3px;
+  border-radius: 2px;
+  background: var(--ink-faint);
+}
+
+@media (max-width: 1180px) {
+  .rack { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cluster-lower { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .activity { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  .rack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .board, .slot { min-height: 168px; }
+  .cluster-lower { grid-template-columns: minmax(0, 1fr); }
+  .timeline { grid-template-columns: 44px minmax(0, 1fr); }
+  .lane-names { padding-left: var(--s2); }
+  .refresh-step { grid-template-columns: 16px minmax(0, 1fr) auto 44px; }
+  .refresh-bar { display: none; }
+}

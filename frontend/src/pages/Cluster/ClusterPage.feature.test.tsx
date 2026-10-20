@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConsolePage } from "./Console";
+import { ClusterPage } from "./ClusterPage";
 
 const now = 1_000_000;
 const node = (id: string, fields: Record<string, unknown> = {}) => ({ id, up: true, member: true, role: "worker", term: 3, votes: [], members: ["Q-01", "Q-02", "Q-03"], commitIndex: 40, lastIndex: 41, electionIn: 1800, quietFor: 100, ...fields });
@@ -39,10 +39,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Console nodes", () => {
-  it("shows a row per node, with the orchestrator marked and each node's term and log", async () => {
+describe("Cluster boards", () => {
+  it("shows a board per node, with the orchestrator marked and each node's term and log", async () => {
     mockCluster(cluster());
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
     expect(within(row("Q-02")).getByText("Orchestrator")).toBeTruthy();
@@ -55,10 +55,11 @@ describe("Console nodes", () => {
 
   it("while there is no orchestrator, shows each worker's election countdown and a candidate's votes", async () => {
     mockCluster(cluster({ orchestrator: null, nodes: [node("Q-01", { electionIn: 1200 }), node("Q-03", { role: "candidate", term: 4, votes: ["Q-03"] })] }));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
 
-    expect(await screen.findByText("No orchestrator")).toBeTruthy();
-    expect(within(row("Q-01")).getByText("election in 1.2 s")).toBeTruthy();
+    await screen.findByRole("group", { name: "Q-01" });
+    expect(screen.queryByRole("img", { name: "Orchestrator" })).toBeNull();
+    expect(within(row("Q-01")).getByLabelText("election in 1.2 s")).toBeTruthy();
     expect(within(row("Q-03")).getByText("Candidate")).toBeTruthy();
     expect(within(row("Q-03")).getByLabelText("1 of 2 votes")).toBeTruthy();
   });
@@ -72,19 +73,19 @@ describe("Console nodes", () => {
       runs: [run("Q-01", { end: now - 6000, to: 0.4, outcome: "lost" }), run("Q-03", { start: now - 3000, from: 0.4, to: 0.7 })],
     });
     mockCluster(cluster({ tasks: [resumed], nodes: [node("Q-01", { up: false, role: undefined }), node("Q-02", { role: "orchestrator" }), node("Q-03")] }));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
     expect(within(row("Q-01")).getByText("Dead")).toBeTruthy();
     expect(within(row("Q-03")).getByText("from Q-01")).toBeTruthy();
     expect(within(row("Q-03")).getByText("70%")).toBeTruthy();
-    expect(document.querySelectorAll(".block.is-lost")).toHaveLength(1);
+    expect(document.querySelectorAll(".run.is-lost")).toHaveLength(1);
     expect(document.querySelectorAll(".handoff")).toHaveLength(1);
   });
 
   it("sends kill, remove and restart for the node they belong to", async () => {
     const posts = mockCluster(cluster({ nodes: [node("Q-01", { up: false }), node("Q-02", { role: "orchestrator" })] }));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
     fireEvent.click(within(row("Q-02")).getByText("Kill"));
@@ -96,13 +97,13 @@ describe("Console nodes", () => {
   });
 });
 
-describe("Console controls", () => {
+describe("Cluster controls", () => {
   it("runs a refresh, adds a node and turns auto refresh off", async () => {
     const posts = mockCluster(cluster());
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
-    fireEvent.click(screen.getByText("Run refresh"));
+    fireEvent.click(screen.getByText("Refresh"));
     fireEvent.click(screen.getByText("Add node"));
     fireEvent.click(screen.getByLabelText("Auto refresh"));
     await act(async () => {});
@@ -112,7 +113,7 @@ describe("Console controls", () => {
 
   it("shows why the cluster turned a request away", async () => {
     mockCluster(cluster(), () => Response.json({ error: "All 6 nodes are in use." }, { status: 409 }));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     fireEvent.click(await screen.findByText("Add node"));
 
     expect((await screen.findByRole("alert")).textContent).toBe("All 6 nodes are in use.");
@@ -120,15 +121,15 @@ describe("Console controls", () => {
 
   it("says when the cluster cannot be reached, and rejects malformed data", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ nodes: "nope" })));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
 
     expect((await screen.findByRole("alert")).textContent).toBe("The cluster is not reachable.");
-    expect(screen.queryByText("Queue")).toBeNull();
+    expect(screen.queryByRole("list", { name: "Nodes" })).toBeNull();
   });
 
   it("warns when the cluster stops answering, and keeps the last state it got", async () => {
     mockCluster(cluster());
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))));
@@ -137,7 +138,7 @@ describe("Console controls", () => {
   });
 });
 
-describe("Console refreshes", () => {
+describe("Cluster refreshes", () => {
   it("shows the latest refresh step by step, with who did each step", async () => {
     const steps = [
       task("T-1", "Fetch Jira tickets", { status: "done", worker: "Q-01", progress: 1, runs: [run("Q-01", { end: now - 1000, to: 1, outcome: "done" })] }),
@@ -145,24 +146,60 @@ describe("Console refreshes", () => {
       task("T-3", "Rank today's list", { after: ["T-1", "T-2"] }),
     ];
     mockCluster(cluster({ tasks: steps, jobs: [{ id: "J-2", name: "Morning refresh", queuedAt: now - 5000, doneAt: null, nodes: null }] }));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     const refresh = await screen.findByRole("region", { name: "Latest refresh" });
 
     expect(within(refresh).getByText("J-2 Morning refresh")).toBeTruthy();
     const slack = within(refresh).getByText("Fetch Slack messages").closest("li") as HTMLElement;
     expect(slack.querySelector("s")?.textContent).toBe("Q-02");
     expect(within(slack).getByText("Q-03")).toBeTruthy();
-    expect(within(refresh).queryByText("Open Report")).toBeNull();
   });
 
-  it("averages refresh time by how many nodes ran each refresh", async () => {
+  it("averages refresh time by how many nodes ran each refresh, one column per node count", async () => {
     const job = (id: number, seconds: number, nodes: number) => ({ id: `J-${id}`, name: "Morning refresh", queuedAt: 0, doneAt: seconds * 1000, nodes });
     mockCluster(cluster({ jobs: [job(1, 20, 1), job(2, 10, 3), job(3, 8, 3), job(4, 6, 6)] }));
-    render(<ConsolePage />);
+    render(<ClusterPage />);
     const times = await screen.findByRole("region", { name: "Refresh time by node count" });
 
-    const rows = [...times.querySelectorAll("li")].map((item) => item.textContent);
-    expect(rows).toEqual(["1 node20.0 s×1", "3 nodes9.0 s×2", "6 nodes6.0 s×1"]);
+    const columns = [...times.querySelectorAll("li")].map((item) => item.textContent);
+    expect(columns).toEqual(["20.0 s1 node×1", "2 nodes", "9.0 s3 nodes×2", "4 nodes", "5 nodes", "6.0 s6 nodes×1"]);
     expect(times.querySelector(".is-current")?.textContent).toContain("3 nodes");
+  });
+
+  it("shows the refresh the nodes are working on, not one still waiting behind it", async () => {
+    const job = (id: number, doneAt: number | null) => ({ id: `J-${id}`, name: "Morning refresh", queuedAt: 0, doneAt, nodes: null });
+    mockCluster(cluster({ jobs: [job(1, 5000), job(2, null), job(3, null)] }));
+    render(<ClusterPage />);
+    const refresh = await screen.findByRole("region", { name: "Latest refresh" });
+    expect(within(refresh).getByText("J-2 Morning refresh")).toBeTruthy();
+  });
+});
+
+describe("Cluster activity", () => {
+  function mockActivity(sources: Record<string, unknown[]>, events: unknown[] = []) {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const source = String(url).match(/\/api\/(jira|slack|github)\/activity$/)?.[1];
+      if (source === "slack") return Response.json({}, { status: 503 });
+      if (source) return Response.json({ events: sources[source] ?? [] });
+      return Response.json(cluster({ now: Date.now(), events }));
+    }));
+  }
+
+  it("merges what the cluster did with each source's syncs, newest first", async () => {
+    const at = Date.now();
+    mockActivity({
+      jira: [{ id: 1, timestamp: new Date(at - 3000).toISOString(), status: 200, count: 4 }, { id: 2, timestamp: new Date(at - 5000).toISOString(), status: 401, count: null }],
+      github: [{ id: 1, timestamp: new Date(at - 1000).toISOString(), status: 502, count: null }],
+    }, [{ at: at - 2000, text: "Q-02 claimed T-4 (Fetch Slack messages)" }]);
+    render(<ClusterPage />);
+    const activity = await screen.findByRole("region", { name: "Activity" });
+    await within(activity).findByText("Loaded 4 items");
+
+    expect([...activity.querySelectorAll("li")].map((item) => item.lastElementChild?.textContent)).toEqual([
+      "Fetch failed (HTTP 502)",
+      "Q-02 claimed T-4 (Fetch Slack messages)",
+      "Loaded 4 items",
+      "Sign-in required",
+    ]);
   });
 });

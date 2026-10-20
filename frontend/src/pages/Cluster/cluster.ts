@@ -22,8 +22,11 @@ export type RaftNode = {
   electionIn?: number;
   quietFor?: number | null;
 };
+export type ClusterEvent = { at: number; text: string };
 export type ClusterState = {
   tasks: Task[];
+  // Newest first.
+  events: ClusterEvent[];
   jobs: Job[];
   workers: QueueWorker[];
   terms: Term[];
@@ -64,7 +67,7 @@ export function useCluster() {
       const state: unknown = await response.json();
       if (!response.ok || !isClusterState(state)) throw new Error("Cluster unavailable");
       offset.current = state.now - Date.now();
-      setCluster(state);
+      setCluster({ ...state, events: Array.isArray(state.events) ? state.events : [] });
       setFailed(false);
     } catch {
       setFailed(true);
@@ -80,7 +83,7 @@ export function useCluster() {
   return { cluster, failed, reload: load, serverNow: () => Date.now() + offset.current };
 }
 
-// Sends a Console action to the gateway. Resolves with the error message, or null.
+// Sends a Cluster view action to the gateway. Resolves with the error message, or null.
 export async function send(path: string, body: unknown = {}): Promise<string | null> {
   try {
     const response = await fetch(apiPath(path), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
