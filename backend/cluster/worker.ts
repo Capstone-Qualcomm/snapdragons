@@ -1,76 +1,57 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { pathToFileURL } from "node:url";
-import type { Task } from "./queue.ts";
+import type { ClaimResult } from "./queue.ts";
 
 type WorkerOptions = {
   id: string;
-  url: string;
+  // Sends a queue command to the cluster and resolves with the queue's answer.
+  // It throws while there is no leader, so the worker waits and asks again.
+  call: (command: Record<string, unknown>) => Promise<unknown>;
   workMs?: number;
   pollMs?: number;
   heartbeatMs?: number;
   signal?: AbortSignal;
 };
 
-// One worker is one process. It only talks to the queue over HTTP, so the same
-// file can run on a laptop now and on an Uno Q board later by changing the URL.
-export async function runWorker({ id, url, workMs = 1000, pollMs = 500, heartbeatMs = 1000, signal }: WorkerOptions): Promise<void> {
-  const base = url.replace(/\/$/, "");
-
-  async function post<T>(path: string, body: unknown): Promise<T> {
-    const response = await fetch(base + path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal,
-    });
-    if (!response.ok) throw new Error(`${path} returned ${response.status}`);
-    return (await response.json()) as T;
-  }
-
+// The work loop each node runs next to its Raft peer. It returns when the queue
+// tells it to leave, after a Remove.
+export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbeatMs = 500, signal }: WorkerOptions): Promise<void> {
   while (!signal?.aborted) {
     try {
-      const { task } = await post<{ task: Task | null }>("/api/cluster/claim", { worker: id });
+      const { task, leave } = (await call({ type: "claim", worker: id })) as ClaimResult;
+      if (leave) return;
       if (!task) {
         await sleep(pollMs, undefined, { signal });
         continue;
       }
-      console.log(`${id} claimed ${task.id}: ${task.input}`);
-      // Keep telling the queue we are alive while the work runs, or it will
-      // hand the task to another worker once the lease runs out.
+      // Stand-in for real work (an API request, an LLM call): it just takes time,
+      // somewhere between 75% and 125% of workMs so nodes finish at different times.
+      // A step handed over from a node that died starts from that node's last checkpoint.
+      // The checkpoint is read once: on the orchestrator, task is the queue's own copy and each heartbeat moves it.
+      const from = task.progress;
+      const total = workMs * (0.75 + Math.random() / 2);
+      const startedAt = Date.now();
+      const done = () => Math.min(0.99, from + (Date.now() - startedAt) / total);
+      // Each heartbeat carries a checkpoint, so the queue knows how far this node got.
       const beat = setInterval(() => {
-        post("/api/cluster/heartbeat", { worker: id }).catch(() => {});
+        call({ type: "progress", worker: id, task: task.id, progress: done() }).catch(() => {});
       }, heartbeatMs);
       try {
-        // Stand-in for real work (an LLM call, an API request). It just takes time.
-        await sleep(workMs, undefined, { signal });
-        await post("/api/cluster/complete", { id: task.id, worker: id, result: `${task.input} (handled by ${id})` });
+        await sleep(total * (1 - from), undefined, { signal });
       } finally {
         clearInterval(beat);
       }
-      console.log(`${id} finished ${task.id}`);
-    } catch (cause) {
+      // The finished step must not be lost to a leader election, so keep trying until the queue answers.
+      while (true) {
+        try {
+          await call({ type: "complete", worker: id, task: task.id });
+          break;
+        } catch {
+          await sleep(pollMs, undefined, { signal });
+        }
+      }
+    } catch {
       if (signal?.aborted) break;
-      // The queue may not be up yet, or may have restarted. Wait and try again.
-      console.error(`${id}: ${cause instanceof Error ? cause.message : cause}`);
       await sleep(pollMs);
     }
   }
-}
-
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const id = process.env.WORKER_ID ?? process.argv[2];
-  if (!id) {
-    console.error("Give the worker a name: WORKER_ID=Q-01 npm run worker");
-    process.exit(1);
-  }
-  const controller = new AbortController();
-  process.on("SIGINT", () => controller.abort());
-  process.on("SIGTERM", () => controller.abort());
-  await runWorker({
-    id,
-    url: process.env.CLUSTER_URL ?? `http://localhost:${process.env.CLUSTER_PORT ?? 3003}`,
-    workMs: Number(process.env.WORK_MS ?? 1000),
-    heartbeatMs: Number(process.env.HEARTBEAT_MS ?? 1000),
-    signal: controller.signal,
-  });
 }
