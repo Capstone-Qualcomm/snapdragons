@@ -136,8 +136,9 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
       send(res, status, { error: cause instanceof Error ? cause.message : "Node error." });
     }
   });
-  // Peers and the gateway reach a node over loopback, and /client changes the members, so nothing else should. Set HOST to listen somewhere else.
-  server.listen(port, process.env.HOST ?? "127.0.0.1");
+  // Peers and the gateway reach a node over loopback, and /client changes the members, so nothing else should.
+  // HOST is only for the gateway: the peer addresses are always 127.0.0.1.
+  server.listen(port, "127.0.0.1");
 
   const timers = [setInterval(raft.tick, 50), setInterval(checkLeases, 250)];
   const controller = new AbortController();

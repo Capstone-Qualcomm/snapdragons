@@ -9,9 +9,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 // Each test runs a node as its own process, the way the gateway starts them.
-function runNode(port: number, dataDir: string) {
+function runNode(port: number, dataDir: string, env: Record<string, string> = {}) {
   return spawn(process.execPath, [fileURLToPath(new URL("./node.ts", import.meta.url)), "Q-01"], {
-    env: { ...process.env, NODE_ID: "Q-01", CLUSTER_PEERS: `Q-01=http://127.0.0.1:${port}`, CLUSTER_DATA: dataDir, CLUSTER_BOOTSTRAP: "Q-01" },
+    env: { ...process.env, ...env, NODE_ID: "Q-01", CLUSTER_PEERS: `Q-01=http://127.0.0.1:${port}`, CLUSTER_DATA: dataDir, CLUSTER_BOOTSTRAP: "Q-01" },
   });
 }
 
@@ -24,6 +24,17 @@ test("a node only listens on loopback", { skip: !lan && "no network address to t
     await sleep(500);
     assert.equal((await fetch("http://127.0.0.1:4981/status")).status, 200);
     await assert.rejects(fetch(`http://${lan}:4981/status`, { signal: AbortSignal.timeout(1000) }));
+  } finally {
+    node.kill();
+  }
+});
+
+// The gateway passes its environment on to every node, HOST included.
+test("a node stays on loopback, where its peers reach it, when HOST is set for the gateway", { skip: !lan && "no network address to try" }, async () => {
+  const node = runNode(4983, mkdtempSync(join(tmpdir(), "node-test-")), { HOST: lan! });
+  try {
+    await sleep(500);
+    assert.equal((await fetch("http://127.0.0.1:4983/status")).status, 200);
   } finally {
     node.kill();
   }

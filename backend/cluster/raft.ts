@@ -134,7 +134,8 @@ export function createRaft(options: RaftOptions) {
     term += 1;
     votedFor = id;
     orchestrator = null;
-    votes = new Set([id]);
+    // A node its own log takes out of the members still asks for votes, since the change may need it to commit, but does not vote for itself.
+    votes = new Set(members().includes(id) ? [id] : []);
     electionAt = now() + electionTimeout();
     persist();
     if (votes.size >= majority()) return becomeOrchestrator();
@@ -247,15 +248,15 @@ export function createRaft(options: RaftOptions) {
     if (removed) return;
     if (role === "orchestrator") {
       if (now() >= heartbeatAt) replicateAll();
-    } else if (now() >= electionAt && members().includes(id)) {
+    } else if (now() >= electionAt && members().length) {
       campaign();
     }
   }
 
   function handleVote(request: VoteRequest): VoteReply {
-    // A node that heard from an orchestrator moments ago ignores candidates, so a node
-    // that was cut off or removed cannot unseat an orchestrator that is still working.
-    if (now() - heardFromOrchestratorAt < electionMs[0]) return { term, granted: false };
+    // The orchestrator, and a node that heard from it moments ago, ignore candidates, so a
+    // node that was cut off or removed cannot unseat an orchestrator that is still working.
+    if (role === "orchestrator" || now() - heardFromOrchestratorAt < electionMs[0]) return { term, granted: false };
     if (request.term > term) becomeWorker(request.term);
     const myLastTerm = termAt(lastIndex());
     // Only vote for a candidate whose log has everything this node has, so a new
