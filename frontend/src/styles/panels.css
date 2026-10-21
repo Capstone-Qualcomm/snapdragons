@@ -67,7 +67,7 @@
 }
 
 .tone-ok { --tone: var(--live); }
-.tone-busy { --tone: var(--waiting); }
+.tone-busy { --tone: var(--live); }
 .tone-warn { --tone: var(--waiting); }
 .tone-bad { --tone: var(--fail); }
 .tone-off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--tone); }
@@ -123,9 +123,9 @@
 .button:active:not(:disabled) { transform: scale(0.97); }
 
 .button.primary {
-  border-color: var(--signal);
-  background: var(--signal);
-  color: var(--on-signal);
+  border-color: var(--solid);
+  background: var(--solid);
+  color: var(--on-solid);
 }
 
 .button.small {
@@ -143,7 +143,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--signal);
+  color: var(--ember);
   cursor: pointer;
   font-weight: 600;
 }
@@ -276,6 +276,42 @@ textarea {
 
 .switch input:checked + .switch-track { background: var(--live); box-shadow: none; }
 .switch input:checked + .switch-track::after { transform: translateX(14px); }
-.switch input:focus-visible + .switch-track { outline: 2px solid var(--signal); outline-offset: 2px; }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--ember); outline-offset: 2px; }
 .switch:has(input:disabled) { color: var(--ink-faint); cursor: not-allowed; }
 .switch input:disabled + .switch-track { opacity: 0.5; }
+
+/* A small menu under a button, for controls that are not needed every time. */
+.menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  min-width: 190px;
+  padding: var(--s1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.menu-account {
+  margin-bottom: var(--s1);
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.menu-item {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+}
+
+.menu-item:hover { background: var(--wash); }
+

@@ -1,28 +1,30 @@
-/* Tokens. The roles (canvas, paper, ink, rule, signal, status colors) and the
-   type and spacing scales follow Iris; the colors are the sand of
-   sanyamgarg.com. Burnt orange is the one signal: the brand, live things and
-   the primary action. Dark mode swaps the values, never the names. */
+/* Tokens, from Iris (hermes/ios/Shared/Theme.swift): a near-white page, white
+   surfaces, near-black ink, cool grays and one signal, ember. Ember marks the
+   brand and live things, and nothing else; green is done or live, red is
+   failed. Primary buttons are solid ink. Dark follows the system and swaps the
+   values, never the names. */
 :root {
-  color-scheme: light;
-  --canvas: #e8d9c5;
-  --paper: #f2e9dd;
-  --raised: #faf6f0;
-  --wash: #e2d2bc;
-  --ink: #30241d;
-  --ink-soft: #5c4b3f;
-  --ink-faint: #806a57;
-  --rule: #d2bea5;
-  --signal: #b34f29;
-  --signal-wash: #f3dccd;
-  --on-signal: #ffffff;
-  --live: #3f7d3a;
-  --waiting: #a86f14;
-  --fail: #b02a1c;
-  --overlay: rgb(48 36 29 / 35%);
-  --logo-filter: opacity(1);
+  color-scheme: light dark;
+  --canvas: #f7f7f8;
+  --paper: #ffffff;
+  --raised: #ffffff;
+  --wash: #f1f2f4;
+  --ink: #0b0b0d;
+  --ink-soft: #5c5f66;
+  --ink-faint: #9a9da4;
+  --rule: #e4e5e8;
+  --ember: #ff4b14;
+  --ember-wash: #fff0ea;
+  --live: #12a150;
+  --waiting: #d98a00;
+  --fail: #e5341d;
+  --solid: #0b0b0d;
+  --on-solid: #ffffff;
+  --shadow: rgb(11 11 13 / 8%);
+  --logo-filter: none;
 
-  --sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --mono: "Space Mono", "Courier New", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --radius: 6px;
   --s1: 4px;
   --s2: 8px;
@@ -31,27 +33,27 @@
   --s5: 24px;
   --gutter: 20px;
   --snappy: 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
-
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --canvas: #15110e;
-  --paper: #201a15;
-  --raised: #2c241e;
-  --wash: #2a221c;
-  --ink: #f0e5d6;
-  --ink-soft: #c2b09c;
-  --ink-faint: #8d7965;
-  --rule: #382d25;
-  --signal: #e06a3a;
-  --signal-wash: #3a2016;
-  --on-signal: #ffffff;
-  --live: #6fbf5f;
-  --waiting: #e0a740;
-  --fail: #f06450;
-  --overlay: rgb(0 0 0 / 55%);
-  --logo-filter: invert(0.9);
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #0a0a0c;
+    --paper: #161719;
+    --raised: #26282d;
+    --wash: #1f2024;
+    --ink: #f0f1f3;
+    --ink-soft: #a2a5ad;
+    --ink-faint: #6c6f78;
+    --rule: #2a2c31;
+    --ember-wash: #2b1710;
+    --live: #2fc46e;
+    --waiting: #f0a42a;
+    --fail: #ff5b47;
+    --solid: #303137;
+    --on-solid: #f0f1f3;
+    --shadow: rgb(0 0 0 / 40%);
+    --logo-filter: invert(0.9);
+  }
 }
 
 @media (max-width: 640px) {
@@ -83,11 +85,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 a { color: inherit; }
 
 :focus-visible {
-  outline: 2px solid var(--signal);
+  outline: 2px solid var(--ember);
   outline-offset: 2px;
 }
 
-::selection { background: var(--signal-wash); color: var(--ink); }
+::selection { background: var(--ember-wash); color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

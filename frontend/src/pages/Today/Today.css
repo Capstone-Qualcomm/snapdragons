@@ -34,7 +34,7 @@
 }
 
 .button.source-pill { border-radius: 999px; }
-.button.primary.source-pill .logo { padding: 1px; border-radius: 3px; background: var(--raised); }
+.button.primary.source-pill .logo { padding: 1px; border-radius: 3px; background: var(--paper); }
 summary.source-pill { cursor: pointer; }
 summary.source-pill::-webkit-details-marker { display: none; }
 summary.source-pill:hover { border-color: var(--ink-faint); }
@@ -43,40 +43,6 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
 
 .source-menu { position: relative; }
 .source-menu[open] summary { border-color: var(--ink-faint); }
-
-.menu {
-  position: absolute;
-  z-index: 10;
-  top: calc(100% + 6px);
-  left: 0;
-  display: grid;
-  min-width: 190px;
-  padding: var(--s1);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--raised);
-  box-shadow: 0 6px 18px rgb(48 36 29 / 14%);
-}
-
-.menu-account {
-  margin-bottom: var(--s1);
-  padding: 6px 10px 8px;
-  border-bottom: 1px solid var(--rule);
-  color: var(--ink-faint);
-  font-size: 12px;
-}
-
-.menu-item {
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  text-decoration: none;
-}
-
-.menu-item:hover { background: var(--wash); }
 
 .today-refresh {
   display: flex;
@@ -96,7 +62,7 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
   position: absolute;
   inset: 0 auto 0 0;
   width: calc(var(--done) * 100%);
-  background: var(--signal);
+  background: color-mix(in srgb, var(--ember) 30%, var(--paper));
   content: "";
   transition: width 0.5s linear;
 }
@@ -104,8 +70,9 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
 .refresh-button span { position: relative; }
 
 .refresh-button.is-busy:disabled {
-  border-color: var(--signal);
-  background: color-mix(in srgb, var(--signal) 55%, var(--paper));
+  border-color: var(--rule);
+  background: var(--wash);
+  color: var(--ink);
   cursor: progress;
   opacity: 1;
 }
@@ -117,21 +84,12 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2) var(--s3);
-  padding: var(--s3) var(--gutter);
-  border-block: 1px solid var(--rule);
-  background: var(--paper);
+  padding: 0 var(--gutter) var(--s4);
   text-decoration: none;
-  transition: background var(--snappy);
 }
 
-.strip:hover { background: color-mix(in srgb, var(--wash) 50%, var(--paper)); }
+.strip:hover .mini { border-color: var(--ink-faint); }
 
-.strip-queue {
-  display: flex;
-  max-width: 40%;
-  flex-wrap: wrap;
-  gap: var(--s1);
-}
 
 .strip-error { color: var(--fail); }
 
@@ -142,6 +100,7 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
 .today-list {
   margin: 0;
   padding: 0;
+  border-top: 1px solid var(--rule);
   list-style: none;
   background: var(--paper);
 }
@@ -156,7 +115,7 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
   transition: background var(--snappy);
 }
 
-.today-row:hover { background: color-mix(in srgb, var(--raised) 60%, var(--paper)); }
+.today-row:hover { background: var(--canvas); }
 
 .done-button {
   display: grid;
@@ -219,8 +178,8 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
 }
 
 .who .status.is-started {
-  background: var(--signal-wash);
-  color: var(--signal);
+  background: color-mix(in srgb, var(--live) 12%, var(--paper));
+  color: var(--live);
 }
 
 .what {
@@ -235,7 +194,7 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
 .what mark {
   padding: 0 2px;
   border-radius: 3px;
-  background: var(--signal-wash);
+  background: var(--ember-wash);
   color: var(--ink);
   font-weight: 600;
 }
@@ -268,7 +227,7 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
   text-decoration: none;
 }
 
-.jira-key:hover { color: var(--signal); }
+.jira-key:hover { color: var(--ember); }
 
 .jira-details {
   grid-column: 3 / -1;
@@ -328,10 +287,9 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
   .today-head { padding-block: var(--s3); }
   .today-refresh { margin-left: 0; width: 100%; }
   .refresh-button { flex: 1; }
-  .strip-queue { width: 100%; max-width: none; }
-  .mini .step-title,
-  .mini-last { font-size: 0; }
-  .mini .step-title .logo { flex: none; }
+  .mini .step-name,
+  .mini .work-last { font-size: 0; }
+  .mini .step-meta { font-size: 11px; }
 
   .today-row {
     grid-template-columns: 22px 16px minmax(0, 1fr) auto;
