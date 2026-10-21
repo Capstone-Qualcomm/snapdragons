@@ -36,7 +36,7 @@ trap stop_services INT TERM EXIT
 
 echo "Jira, Slack and GitHub backends plus Vite are starting. Open the URL printed by Vite (usually http://localhost:5173)."
 echo "Jira listens on 3001, Slack on 3002, GitHub on 3004, and Vite serves the app at /snapdragons/ and proxies their API and OAuth routes."
-echo "For live nodes on the Console page, run ./scripts/start-cluster.sh in another terminal."
+echo "For live nodes on Today and in the Cluster view, run ./scripts/start-cluster.sh in another terminal."
 echo "Press Ctrl+C to stop everything."
 
 wait "$JIRA_PID" "$SLACK_PID" "$GITHUB_PID" "$FRONTEND_PID"

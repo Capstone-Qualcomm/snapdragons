@@ -115,7 +115,7 @@ export function createJiraServer(options: ServerOptions = {}) {
 }
 
 function notConnected(res: ServerResponse) {
-  send(res, 401, { error: "Jira is not connected. Connect Jira in Settings." });
+  send(res, 401, { error: "Jira is not connected. Connect Jira." });
   return true;
 }
 

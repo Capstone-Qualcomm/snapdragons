@@ -100,12 +100,12 @@ export function createSourceServer<S extends Session>({ name, title, port, appUr
       if (route === `GET /api/${name}/${items}`) {
         if (!connection.connected) {
           activity.add(401);
-          send(res, 401, { error: `${title} is not connected. Connect ${title} in Settings.` });
+          send(res, 401, { error: `${title} is not connected. Connect ${title}.` });
           return;
         }
         if (!connection.enabled) {
           activity.add(403);
-          send(res, 403, { error: `${title} is turned off. Turn it on in Settings.` });
+          send(res, 403, { error: `${title} is turned off. Turn it on.` });
           return;
         }
         try {

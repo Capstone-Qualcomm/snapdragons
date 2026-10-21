@@ -60,7 +60,7 @@ const connectingGitHub: typeof fetch = async (input) => {
 test("turns GitHub on when it connects", async () => {
   const base = await startServer(connectingGitHub);
   const callback = await connectGitHub(base);
-  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/settings?github=connected");
+  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/today?github=connected");
   const { github } = await (await fetch(base + "/api/github/connection")).json() as { github: { enabled: boolean } };
   assert.equal(github.enabled, true);
 });
@@ -68,7 +68,7 @@ test("turns GitHub on when it connects", async () => {
 test("sends a sign-in with an unknown state back as invalid_state", async () => {
   const base = await startServer(connectingGitHub);
   const callback = await fetch(base + "/auth/github/callback?state=unknown&code=test", { redirect: "manual" });
-  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/settings?github=invalid_state");
+  assert.equal(callback.headers.get("location"), "http://localhost:5173/snapdragons/today?github=invalid_state");
 });
 
 test("binds the GitHub backend to IPv4 loopback", async () => {

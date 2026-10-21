@@ -24,11 +24,11 @@ const userScopes = "search:read,im:read,im:history,users:read";
 export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection }: SlackAuthOptions) {
   const pendingStates = createPendingStates();
   const configured = Boolean(clientId && clientSecret);
-  const settingsUrl = (outcome: string) => `${appUrl}/settings?slack=${encodeURIComponent(outcome)}`;
+  const returnUrl = (outcome: string) => `${appUrl}/today?slack=${encodeURIComponent(outcome)}`;
 
   function startAuthorization(res: ServerResponse) {
     if (!configured) {
-      redirect(res, settingsUrl("unconfigured"));
+      redirect(res, returnUrl("unconfigured"));
       return;
     }
     const state = pendingStates.add({});
@@ -44,11 +44,11 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
     const code = url.searchParams.get("code");
     const error = url.searchParams.get("error");
     if (!pendingStates.take(url.searchParams.get("state") ?? "")) {
-      redirect(res, settingsUrl("invalid_state"));
+      redirect(res, returnUrl("invalid_state"));
       return;
     }
     if (error || !code) {
-      redirect(res, settingsUrl(error === "access_denied" ? "denied" : "error"));
+      redirect(res, returnUrl(error === "access_denied" ? "denied" : "error"));
       return;
     }
     try {
@@ -74,10 +74,10 @@ export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, f
       slackConnection.userId = String(authedUser.id ?? "");
       slackConnection.team = team ? { id: String(team.id ?? ""), name: String(team.name ?? "") } : null;
       slackConnection.token = { accessToken: String(authedUser.access_token) };
-      redirect(res, settingsUrl("connected"));
+      redirect(res, returnUrl("connected"));
     } catch (cause) {
       console.error("Slack OAuth callback failed:", cause);
-      redirect(res, settingsUrl("error"));
+      redirect(res, returnUrl("error"));
     }
   }
 

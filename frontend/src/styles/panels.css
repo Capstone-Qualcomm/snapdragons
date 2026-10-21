@@ -1,25 +1,317 @@
-.node-card,
-.report-panel,
-.log-card {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
+/* Shared components. Hairlines separate things; a box (card) is only for
+   something that sits apart from a list. */
+
+.count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--wash);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
 }
 
-.node-mark {
-  width: 8px;
-  height: 8px;
+.logo {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  object-fit: contain;
+}
+
+.logo-github { filter: var(--logo-filter); }
+
+.subtabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--wash);
+}
+
+.subtab {
+  display: inline-flex;
+  min-height: 30px;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background var(--snappy), color var(--snappy);
+}
+
+.subtab:hover { color: var(--ink); }
+
+.subtab.is-on {
+  background: var(--raised);
+  box-shadow: 0 1px 1.5px rgb(0 0 0 / 8%);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A status dot. Busy ones pulse a ring. */
+.dot {
+  --tone: var(--ink-faint);
+  position: relative;
+  width: 7px;
+  height: 7px;
   flex: none;
   border-radius: 50%;
-  background: var(--dim);
+  background: var(--tone);
 }
 
-.node-card-header,
-.log-card header {
-  display: flex;
-  min-height: 54px;
-  align-items: center;
-  gap: 11px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--line);
+.tone-ok { --tone: var(--live); }
+.tone-busy { --tone: var(--live); }
+.tone-warn { --tone: var(--waiting); }
+.tone-bad { --tone: var(--fail); }
+.tone-off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--tone); }
+
+.tone-busy::after {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--tone);
+  content: "";
+  opacity: 0;
+  animation: pulse 1.2s ease-out infinite;
 }
+
+@keyframes pulse {
+  from { opacity: 0.4; transform: scale(0.5); }
+  to { opacity: 0; transform: scale(1.3); }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 36px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.15s, border-color var(--snappy);
+}
+
+.button:hover:not(:disabled) { border-color: var(--ink-faint); }
+.button:active:not(:disabled) { transform: scale(0.97); }
+
+.button.primary {
+  border-color: var(--solid);
+  background: var(--solid);
+  color: var(--on-solid);
+}
+
+.button.small {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.text-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ember);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.text-button:disabled { color: var(--ink-faint); cursor: not-allowed; }
+
+/* Square glyph button for the top bar. */
+.header-button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.header-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+}
+
+.header-button svg { width: 15px; height: 15px; }
+
+.error-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 var(--gutter) var(--s3);
+  padding: 10px var(--s3);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--fail) 35%, transparent);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.error-banner::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--fail);
+  content: "";
+}
+
+.error-banner p { flex: 1; }
+
+.skeleton-row {
+  display: grid;
+  gap: 6px;
+  padding: var(--s3) var(--gutter);
+  border-top: 1px solid var(--rule);
+}
+
+.skeleton-row i {
+  width: 40%;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--wash);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-row i + i { width: 75%; }
+
+@keyframes shimmer { 50% { opacity: 0.45; } }
+
+time { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+
+select,
+textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--raised);
+}
+
+textarea {
+  min-height: 92px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* An on/off switch around a checkbox. */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  cursor: pointer;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.switch-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--wash);
+  box-shadow: inset 0 0 0 1px var(--rule);
+  transition: background var(--snappy);
+}
+
+.switch-track::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--raised);
+  box-shadow: 0 1px 1.5px rgb(0 0 0 / 15%);
+  content: "";
+  transition: transform var(--snappy);
+}
+
+.switch input:checked + .switch-track { background: var(--live); box-shadow: none; }
+.switch input:checked + .switch-track::after { transform: translateX(14px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--ember); outline-offset: 2px; }
+.switch:has(input:disabled) { color: var(--ink-faint); cursor: not-allowed; }
+.switch input:disabled + .switch-track { opacity: 0.5; }
+
+/* A small menu under a button, for controls that are not needed every time. */
+.menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  min-width: 190px;
+  padding: var(--s1);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.menu-account {
+  margin-bottom: var(--s1);
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.menu-item {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+}
+
+.menu-item:hover { background: var(--wash); }
+

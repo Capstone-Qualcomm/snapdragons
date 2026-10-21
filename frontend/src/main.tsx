@@ -1,6 +1,5 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "./index.css";
 import "./styles/theme.css";
 import "./styles/layout.css";
 import "./styles/panels.css";

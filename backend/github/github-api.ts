@@ -29,7 +29,7 @@ const apiVersion = "2026-03-10";
 export function createGitHubApi({ fetchImpl = globalThis.fetch }: GitHubApiOptions = {}) {
   // Requests open issues assigned to signed-in user. Each result converted into small, consistent item.
   async function getAssignedOpenIssues(accessToken: string): Promise<GitHubWorkItem[]> {
-    if (!accessToken) throw new Error("GitHub is not connected. Connect GitHub in Settings.");
+    if (!accessToken) throw new Error("GitHub is not connected. Connect GitHub.");
 
     const items: GitHubWorkItem[] = [];
     let nextUrl: string | null = buildFirstPageUrl();
@@ -44,7 +44,7 @@ export function createGitHubApi({ fetchImpl = globalThis.fetch }: GitHubApiOptio
       });
 
       if (response.status === 401) {
-        throw new Error("GitHub authorization expired. Reconnect GitHub in Settings.");
+        throw new Error("GitHub authorization expired. Reconnect GitHub.");
       }
       if (response.status === 403) {
         throw new Error("GitHub denied access or the API rate limit was reached. Check the GitHub app permissions and try again later.");

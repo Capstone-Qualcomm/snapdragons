@@ -1,0 +1,155 @@
+/* Boards, steps and their progress, shared by Cluster and Today. */
+
+.crown {
+  width: 15px;
+  height: 11px;
+  flex: none;
+  fill: var(--ember);
+}
+
+.logo-rank {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-left: auto;
+  fill: none;
+  stroke: var(--live);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+/* A board's head and its work: the step and its bar, the last step done, or nothing. */
+.board-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.board-head strong {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.is-dead .board-head strong,
+.is-left .board-head strong { color: var(--ink-faint); text-decoration: line-through; }
+
+.step-progress {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.step-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.step-title .logo,
+.work-last .logo { width: 14px; height: 14px; }
+
+.step-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-meta {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.step-meta em {
+  color: var(--fail);
+  font-style: normal;
+}
+
+.bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--wash);
+}
+
+.bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  transition: left 0.5s linear, width 0.5s linear;
+}
+
+/* The part a dead node had already done before this one carried on. */
+.bar-before {
+  left: 0;
+  width: calc(var(--from) * 100%);
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ember) 55%, var(--paper)) 0 3px, color-mix(in srgb, var(--ember) 25%, var(--paper)) 3px 6px);
+}
+
+.bar-now {
+  left: calc(var(--from) * 100%);
+  width: calc((var(--to) - var(--from)) * 100%);
+  background: var(--ember);
+}
+
+.work-last {
+  display: flex;
+  min-width: 0;
+  height: 26px;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.work-last .logo { opacity: 0.6; }
+.work-none { height: 26px; }
+
+/* The compact boards on Today: six columns, like the rack on Cluster, however many boards there are. */
+.strip-boards {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mini {
+  display: grid;
+  min-width: 0;
+  min-height: 62px;
+  align-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  transition: border-color var(--snappy);
+}
+
+.mini.is-working { border-color: color-mix(in srgb, var(--ember) 35%, var(--rule)); }
+.mini.is-dead { background: var(--wash); }
+
+@media (max-width: 860px) {
+  .strip-boards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

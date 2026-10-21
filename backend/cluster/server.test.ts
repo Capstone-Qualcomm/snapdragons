@@ -1,64 +1,73 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdtempSync } from "node:fs";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { networkInterfaces, tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { createClusterServer } from "./server.ts";
 
+// This machine's address on a network, if it has one.
+const lan = Object.values(networkInterfaces()).flat().find((address) => address?.family === "IPv4" && !address.internal)?.address;
+
+// These run the gateway with no nodes behind it. tests/integration starts real ones.
 const servers = new Set<Server>();
 
-async function startServer(): Promise<string> {
-  const { server } = createClusterServer({ port: 0 });
+async function startGateway(): Promise<string> {
+  // A port range nothing else uses, so no stray node answers.
+  const { server } = createClusterServer({ port: 0, nodePort: 4901 });
   servers.add(server);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   return `http://localhost:${(server.address() as AddressInfo).port}`;
 }
 
-function post(base: string, path: string, body: unknown): Promise<Response> {
-  return fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-}
+const post = (base: string, path: string, body: unknown = {}) => fetch(base + path, { method: "POST", body: JSON.stringify(body) });
 
 afterEach(() => {
   for (const server of servers) server.close();
   servers.clear();
 });
 
-test("a task goes from queued to claimed to done over HTTP", async () => {
-  const base = await startServer();
-
-  const added = await post(base, "/api/cluster/tasks", { input: "summarize inbox" });
-  assert.equal(added.status, 201);
-
-  const claimed = await (await post(base, "/api/cluster/claim", { worker: "Q-01" })).json();
-  assert.equal(claimed.task.id, "T-1");
-  assert.equal(claimed.task.status, "claimed");
-
-  const completed = await post(base, "/api/cluster/complete", { id: "T-1", worker: "Q-01", result: "done" });
-  assert.equal(completed.status, 200);
-
+test("with no nodes running the state is empty and there is no orchestrator", async () => {
+  const base = await startGateway();
   const state = await (await fetch(base + "/api/cluster/state")).json();
-  assert.equal(state.tasks[0].status, "done");
-  assert.equal(state.workers[0].done, 1);
+  assert.equal(state.orchestrator, null);
+  assert.deepEqual(state.nodes, []);
+  assert.deepEqual(state.tasks, []);
+  assert.equal(state.maxNodes, 6);
+  assert.equal(state.auto, false);
 });
 
-test("claim returns a null task when the queue is empty", async () => {
-  const base = await startServer();
-  const claimed = await (await post(base, "/api/cluster/claim", { worker: "Q-01" })).json();
-  assert.equal(claimed.task, null);
+test("node routes only know the six node names", async () => {
+  const base = await startGateway();
+  assert.equal((await post(base, "/api/cluster/nodes/Q-07/start")).status, 404);
+  assert.equal((await post(base, "/api/cluster/nodes/Q-01/kill")).status, 409);
+  assert.equal((await post(base, "/api/cluster/nodes/Q-01/nope")).status, 404);
 });
 
-test("a worker cannot complete a task another worker claimed", async () => {
-  const base = await startServer();
-  await post(base, "/api/cluster/tasks", { input: "a" });
-  await post(base, "/api/cluster/claim", { worker: "Q-01" });
-
-  const completed = await post(base, "/api/cluster/complete", { id: "T-1", worker: "Q-02", result: "mine" });
-  assert.equal(completed.status, 409);
+test("auto mode turns on and off", async () => {
+  const base = await startGateway();
+  assert.deepEqual(await (await post(base, "/api/cluster/auto", { on: true })).json(), { auto: true });
+  assert.equal((await (await fetch(base + "/api/cluster/state")).json()).auto, true);
 });
 
-test("bad requests get a 400", async () => {
-  const base = await startServer();
-  assert.equal((await post(base, "/api/cluster/tasks", {})).status, 400);
-  assert.equal((await post(base, "/api/cluster/claim", { worker: 7 })).status, 400);
-  const notJson = await fetch(base + "/api/cluster/claim", { method: "POST", body: "{nope" });
-  assert.equal(notJson.status, 400);
+test("bad JSON gets a 400", async () => {
+  const base = await startGateway();
+  assert.equal((await fetch(base + "/api/cluster/auto", { method: "POST", body: "{nope" })).status, 400);
+});
+
+test("the gateway only listens on loopback", { skip: !lan && "no network address to try" }, async () => {
+  const gateway = spawn(process.execPath, [fileURLToPath(new URL("./server.ts", import.meta.url))], {
+    env: { ...process.env, CLUSTER_PORT: "4961", CLUSTER_NODE_PORT: "4971", CLUSTER_DATA: mkdtempSync(join(tmpdir(), "server-test-")) },
+  });
+  try {
+    await once(gateway.stdout, "data");
+    assert.equal((await fetch("http://127.0.0.1:4961/api/cluster/state")).status, 200);
+    await assert.rejects(fetch(`http://${lan}:4961/api/cluster/state`, { signal: AbortSignal.timeout(1000) }));
+  } finally {
+    gateway.kill();
+  }
 });

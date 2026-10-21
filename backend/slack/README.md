@@ -4,7 +4,7 @@ OAuth server for the Slack integration. Connects a user's Slack workspace so the
 
 - `slack-auth.ts` — OAuth 2.0 flow (start, callback, token exchange, reset)
 - `slack-api.ts` — message fetching (mentions via `search.messages`, unanswered DMs via `conversations.history`), text cleanup
-- `slack-logs.ts` — in-memory request log for the Console > Logs page
+- `slack-logs.ts` — in-memory request log
 - `server.ts` — HTTP server wiring all Slack routes
 
 ## Routes

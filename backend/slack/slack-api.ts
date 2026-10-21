@@ -20,14 +20,14 @@ const lookback = 24 * 60 * 60;
 export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) {
   async function slackRequest(method: string, params: Record<string, string> = {}): Promise<Record<string, unknown>> {
     const token = slackConnection.token?.accessToken;
-    if (!token) throw new Error("Slack is not connected. Connect Slack in Settings.");
+    if (!token) throw new Error("Slack is not connected. Connect Slack.");
     const url = new URL(`https://slack.com/api/${method}`);
     for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
     const response = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` } });
     const result = await response.json() as Record<string, unknown>;
     if (!result.ok) {
       if (result.error === "invalid_auth" || result.error === "token_revoked") {
-        throw new Error("Slack authorization expired. Reconnect Slack in Settings.");
+        throw new Error("Slack authorization expired. Reconnect Slack.");
       }
       throw new Error(`Slack returned ${result.error ?? "an error"} while loading messages.`);
     }
