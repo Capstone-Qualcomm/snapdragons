@@ -48,9 +48,6 @@ export function Activity({ events, offset }: { events: ClusterEvent[]; offset: n
 
   return (
     <section className="activity panel-box" aria-label="Activity">
-      <header className="box-head">
-        <h2>Activity</h2>
-      </header>
       <ol className="activity-rows" aria-live="polite">
         {entries.map((entry) => (
           <li key={entry.key}>

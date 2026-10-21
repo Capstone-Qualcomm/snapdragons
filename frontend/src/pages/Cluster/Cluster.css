@@ -7,23 +7,15 @@
 
 .cluster .error-banner { margin-bottom: 0; }
 
-/* Steps waiting for a node, on the left of the header. */
-.queue {
-  display: flex;
-  min-width: 0;
-  min-height: 28px;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s1) var(--s2);
-}
+.more { position: relative; }
+.cluster-head .page-actions { margin-left: auto; }
+.more summary { list-style: none; }
+.more summary::-webkit-details-marker { display: none; }
+.more summary svg { stroke-width: 2.6; }
+.more .menu { right: 0; left: auto; }
+.more .switch { justify-content: space-between; flex-direction: row-reverse; }
 
-.queue-name {
-  margin-right: var(--s1);
-  font-weight: 600;
-}
-
-/* The rack: six slots, one per board. */
+/* The rack: one board per node, six at most. */
 .rack {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -34,96 +26,82 @@
 }
 
 .board,
-.slot {
-  min-height: 184px;
-  border-radius: 10px;
-}
+.slot { min-height: 92px; }
 
-.board {
-  position: relative;
+.board { position: relative; }
+
+.board-face {
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  width: 100%;
+  height: 100%;
+  align-content: space-between;
   gap: var(--s3);
-  padding: 18px 14px 12px;
+  padding: var(--s3);
   border: 1px solid var(--rule);
-  background: var(--raised);
-  box-shadow: 0 1px 0 var(--rule);
-  transition: border-color var(--snappy), background var(--snappy);
+  border-radius: var(--radius);
+  background: var(--paper);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--snappy), box-shadow var(--snappy);
 }
 
-/* A row of header pins along the top edge, as on the real board. */
-.board::before {
+.board-face:hover,
+.board.is-open .board-face { border-color: var(--ink-faint); }
+.board.is-working .board-face { border-color: color-mix(in srgb, var(--ember) 35%, var(--rule)); }
+.board.is-orchestrator .board-face { box-shadow: inset 0 2px var(--ember); }
+.board.is-dead .board-face { background: var(--wash); }
+.board.is-left .board-face,
+.board.is-joining .board-face { opacity: 0.6; }
+
+/* Opened from the board: its role, Raft numbers and controls. */
+.board-menu {
   position: absolute;
-  top: 7px;
-  right: 14px;
-  left: 14px;
-  height: 4px;
-  background: radial-gradient(circle, var(--rule) 1.4px, transparent 1.8px) 0 0 / 8px 4px repeat-x;
-  content: "";
-}
-
-.board.is-orchestrator {
-  border-color: color-mix(in srgb, var(--signal) 55%, var(--rule));
-  box-shadow: inset 0 3px var(--signal);
-}
-
-.board.is-orchestrator::before { background-image: radial-gradient(circle, color-mix(in srgb, var(--signal) 45%, var(--rule)) 1.4px, transparent 1.8px); }
-
-.board.is-dead {
-  border-color: color-mix(in srgb, var(--fail) 40%, var(--rule));
-  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--fail) 6%, var(--paper)) 0 8px, var(--paper) 8px 16px);
-  box-shadow: none;
-}
-
-.board.is-left,
-.board.is-joining { opacity: 0.7; }
-
-.board-head {
-  display: flex;
-  align-items: center;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  display: grid;
+  min-width: 180px;
   gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: 0 6px 18px var(--shadow);
 }
 
-.board-head strong {
-  font-family: var(--mono);
-  font-size: 14px;
-}
-
-.board.is-dead .board-head strong { color: var(--ink-faint); text-decoration: line-through; }
-
-.role {
-  margin-left: auto;
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.role.is-orchestrator { color: var(--signal); }
+.role { font-weight: 600; }
+.role.is-orchestrator { color: var(--ember); }
 .role.is-candidate,
 .role.is-leaving,
 .role.is-joining { color: var(--waiting); }
 .role.is-dead { color: var(--fail); }
 
-.board-work {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-}
-
 .board-raft {
   display: flex;
   flex-wrap: wrap;
   gap: 2px var(--s2);
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   font-family: var(--mono);
   font-size: 11px;
 }
 
+.board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.board-actions .button.is-kill {
+  margin-left: auto;
+  border-color: color-mix(in srgb, var(--fail) 40%, var(--rule));
+  color: var(--fail);
+}
+
 /* While there is no orchestrator: a worker's timeout running down, or a candidate's votes. */
 .countdown {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   margin-left: auto;
   transform: rotate(-90deg);
 }
@@ -135,69 +113,69 @@
   transition: stroke-dasharray 0.5s linear;
 }
 
-.countdown + .role { margin-left: 0; }
-
 .votes {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  margin-left: auto;
 }
 
 .votes i {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   box-shadow: inset 0 0 0 1.5px var(--waiting);
 }
 
 .votes i.is-in { background: var(--waiting); }
 
-.board-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s1);
-}
-
-.board-actions .button.is-kill {
-  margin-left: auto;
-  border-color: color-mix(in srgb, var(--fail) 45%, var(--paper));
-  color: var(--fail);
-}
-
-.slot { border: 1.5px dashed var(--rule); }
-
 .slot-add {
   display: flex;
   width: 100%;
   height: 100%;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--s1);
-  border: 0;
-  border-radius: inherit;
-  background: none;
+  gap: var(--s2);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--wash);
   color: var(--ink-soft);
   cursor: pointer;
   font-weight: 600;
-  transition: background var(--snappy), color var(--snappy);
+  transition: border-color var(--snappy), color var(--snappy);
 }
 
 .slot-add span {
-  font-size: 26px;
+  font-size: 18px;
   font-weight: 400;
   line-height: 1;
 }
 
-.slot-add:hover { background: var(--paper); color: var(--ink); }
+.slot-add:hover { border-color: var(--rule); color: var(--ink); }
+
+/* One detail at a time under the rack. */
+.cluster-detail {
+  display: grid;
+  gap: var(--s3);
+  margin: 0 var(--gutter);
+}
+
+.cluster-detail > .subtabs { width: min(480px, 100%); }
+
+.panel-box {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
 
 /* Timeline */
 
 .timeline {
-  --row: 40px;
+  --row: 46px;
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   grid-template-rows: calc(var(--rows) * var(--row)) 24px;
-  margin: 0 var(--gutter);
   padding-top: 18px;
   overflow: hidden;
   border: 1px solid var(--rule);
@@ -231,28 +209,29 @@
 
 .run {
   position: absolute;
-  top: 7px;
+  top: 10px;
   display: flex;
-  height: 26px;
+  height: 24px;
   align-items: center;
   padding: 0 5px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--job) 55%, var(--paper));
+  border: 1px solid var(--rule);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--job) 22%, var(--paper));
+  background: var(--wash);
 }
 
 .run .logo { width: 14px; height: 14px; }
 
 .run.is-running {
-  border-color: var(--job);
-  background: color-mix(in srgb, var(--job) 32%, var(--paper));
+  border-color: var(--ember);
+  background: var(--ember-wash);
 }
 
 /* Cut off where the node died. */
 .run.is-lost {
   border-color: var(--fail);
   border-right: 0;
+  background: color-mix(in srgb, var(--fail) 8%, var(--paper));
   clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 20%, calc(100% - 5px) 40%, 100% 60%, calc(100% - 5px) 80%, 100% 100%, 0 100%);
 }
 
@@ -273,7 +252,7 @@
 }
 
 .term-line {
-  stroke: var(--signal);
+  stroke: var(--ember);
   stroke-dasharray: 2 4;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
@@ -283,7 +262,7 @@
   position: absolute;
   top: -16px;
   padding-left: 4px;
-  color: var(--signal);
+  color: var(--ember);
   font-family: var(--mono);
   font-size: 10px;
   white-space: nowrap;
@@ -307,23 +286,7 @@
 .axis span:first-child { transform: none; }
 .axis span:last-child { transform: translateX(-100%); }
 
-/* Latest refresh, refresh time and activity */
-
-.cluster-lower {
-  display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 5fr);
-  align-items: stretch;
-  gap: var(--s3);
-  margin: 0 var(--gutter);
-}
-
-.panel-box {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-}
+/* Steps of the current refresh */
 
 .box-head {
   display: flex;
@@ -338,8 +301,6 @@
   font-size: 13px;
   font-weight: 600;
 }
-
-.refresh .box-head h2 { color: var(--job); }
 
 .box-value {
   margin-left: auto;
@@ -357,8 +318,8 @@
 
 .refresh-step {
   display: grid;
-  min-height: 36px;
-  grid-template-columns: 16px minmax(0, 1fr) auto 64px 44px;
+  min-height: 40px;
+  grid-template-columns: 16px minmax(0, 1fr) auto minmax(60px, 160px) 44px;
   align-items: center;
   gap: var(--s3);
   padding: 0 var(--s3);
@@ -395,9 +356,11 @@
 .refresh-bar i {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--job);
+  background: var(--ember);
   transition: width 0.5s linear;
 }
+
+.refresh-step.is-done .refresh-bar i { background: var(--ink-faint); }
 
 .refresh-time {
   color: var(--ink-faint);
@@ -409,11 +372,10 @@
 /* One column per node count; shorter is faster. */
 .times-chart {
   display: grid;
-  height: calc(100% - 44px);
-  min-height: 236px;
+  height: 260px;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--s2);
-  padding: var(--s4) var(--s3) var(--s3);
+  gap: var(--s3);
+  padding: var(--s4) var(--s4) var(--s3);
 }
 
 .times-chart li {
@@ -428,8 +390,8 @@
 .times-bar {
   position: relative;
   width: 100%;
-  max-width: 44px;
-  height: 150px;
+  max-width: 56px;
+  height: 170px;
   border-bottom: 1px solid var(--rule);
 }
 
@@ -440,11 +402,11 @@
   left: 0;
   height: calc(var(--h) * 100%);
   border-radius: 3px 3px 0 0;
-  background: var(--ink-faint);
+  background: var(--rule);
   transition: height var(--snappy);
 }
 
-.times-chart .is-current .times-bar i { background: var(--signal); }
+.times-chart .is-current .times-bar i { background: var(--solid); }
 
 .times-value {
   font-family: var(--mono);
@@ -466,16 +428,16 @@
 }
 
 .activity-rows {
-  max-height: 290px;
+  max-height: 360px;
   overflow-y: auto;
 }
 
 .activity-rows li {
   display: grid;
-  grid-template-columns: 72px 16px minmax(0, 1fr);
+  grid-template-columns: 84px 16px minmax(0, 1fr);
   align-items: center;
   gap: var(--s2);
-  padding: 6px var(--s3);
+  padding: 7px var(--s3);
   border-bottom: 1px solid var(--rule);
   font-size: 12px;
 }
@@ -483,25 +445,22 @@
 .activity-rows li:last-child { border-bottom: 0; }
 
 .logo-cluster {
-  width: 10px;
-  height: 10px;
-  margin: 3px;
+  width: 8px;
+  height: 8px;
+  margin: 4px;
   border-radius: 2px;
   background: var(--ink-faint);
 }
 
 @media (max-width: 1180px) {
   .rack { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .cluster-lower { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .activity { grid-column: 1 / -1; }
 }
 
 @media (max-width: 720px) {
   .rack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .board, .slot { min-height: 168px; }
-  .cluster-lower { grid-template-columns: minmax(0, 1fr); }
   .timeline { grid-template-columns: 44px minmax(0, 1fr); }
   .lane-names { padding-left: var(--s2); }
   .refresh-step { grid-template-columns: 16px minmax(0, 1fr) auto 44px; }
   .refresh-bar { display: none; }
+  .times-chart { gap: var(--s1); padding-inline: var(--s2); }
 }

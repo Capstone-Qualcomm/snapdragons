@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { jobColor, seconds } from "./cluster";
+import { seconds } from "./cluster";
 import type { ClusterState, Job, Task } from "./cluster";
 import { SourceIcon } from "./Boards";
 
@@ -11,7 +11,7 @@ export function LatestRefresh({ cluster, now }: { cluster: ClusterState; now: nu
   if (!job) return <section className="refresh panel-box" aria-label="Latest refresh" />;
   const steps = cluster.tasks.filter((task) => task.job === job.id);
   return (
-    <section className={`refresh panel-box ${jobColor(job.id)}`} aria-label="Latest refresh">
+    <section className="refresh panel-box" aria-label="Latest refresh">
       <header className="box-head">
         <h2>
           {job.id} {job.name}
@@ -59,9 +59,6 @@ export function RefreshTimes({ jobs, members, maxNodes }: { jobs: Job[]; members
 
   return (
     <section className="times panel-box" aria-label="Refresh time by node count">
-      <header className="box-head">
-        <h2>Refresh time</h2>
-      </header>
       <ol className="times-chart">
         {Array.from({ length: maxNodes }, (_, index) => {
           const nodes = index + 1;

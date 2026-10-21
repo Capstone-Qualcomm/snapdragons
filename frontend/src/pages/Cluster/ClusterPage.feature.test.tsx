@@ -33,6 +33,8 @@ function mockCluster(state: unknown, postReply: () => Response = () => Response.
 }
 
 const row = (id: string) => screen.getByRole("group", { name: id });
+const openBoard = (id: string) => fireEvent.click(row(id).querySelector(".board-face")!);
+const showPanel = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
 
 afterEach(() => {
   cleanup();
@@ -40,13 +42,17 @@ afterEach(() => {
 });
 
 describe("Cluster boards", () => {
-  it("shows a board per node, with the orchestrator marked and each node's term and log", async () => {
+  it("crowns the orchestrator's board, and shows a board's role, term and log once it is opened", async () => {
     mockCluster(cluster());
     render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
-    expect(within(row("Q-02")).getByText("Orchestrator")).toBeTruthy();
     expect(within(row("Q-02")).getByRole("img", { name: "Orchestrator" })).toBeTruthy();
+    expect(screen.queryByText("term 3")).toBeNull();
+    openBoard("Q-02");
+    expect(within(row("Q-02")).getByText("Orchestrator")).toBeTruthy();
+    openBoard("Q-01");
+    expect(within(row("Q-02")).queryByText("Orchestrator")).toBeNull();
     expect(within(row("Q-01")).getByText("Worker")).toBeTruthy();
     expect(within(row("Q-01")).getByText("term 3")).toBeTruthy();
     expect(within(row("Q-01")).getByText("log 41")).toBeTruthy();
@@ -60,6 +66,7 @@ describe("Cluster boards", () => {
     await screen.findByRole("group", { name: "Q-01" });
     expect(screen.queryByRole("img", { name: "Orchestrator" })).toBeNull();
     expect(within(row("Q-01")).getByLabelText("election in 1.2 s")).toBeTruthy();
+    openBoard("Q-03");
     expect(within(row("Q-03")).getByText("Candidate")).toBeTruthy();
     expect(within(row("Q-03")).getByLabelText("1 of 2 votes")).toBeTruthy();
   });
@@ -76,9 +83,8 @@ describe("Cluster boards", () => {
     render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
-    expect(within(row("Q-01")).getByText("Dead")).toBeTruthy();
+    expect(row("Q-01").className).toContain("is-dead");
     expect(within(row("Q-03")).getByText("from Q-01")).toBeTruthy();
-    expect(within(row("Q-03")).getByText("70%")).toBeTruthy();
     expect(document.querySelectorAll(".run.is-lost")).toHaveLength(1);
     expect(document.querySelectorAll(".handoff")).toHaveLength(1);
   });
@@ -88,8 +94,12 @@ describe("Cluster boards", () => {
     render(<ClusterPage />);
     await screen.findByRole("group", { name: "Q-01" });
 
+    expect(within(row("Q-02")).queryByText("Kill")).toBeNull();
+    openBoard("Q-02");
     fireEvent.click(within(row("Q-02")).getByText("Kill"));
+    openBoard("Q-02");
     fireEvent.click(within(row("Q-02")).getByText("Remove"));
+    openBoard("Q-01");
     fireEvent.click(within(row("Q-01")).getByText("Restart"));
     await act(async () => {});
 
@@ -147,6 +157,8 @@ describe("Cluster refreshes", () => {
     ];
     mockCluster(cluster({ tasks: steps, jobs: [{ id: "J-2", name: "Morning refresh", queuedAt: now - 5000, doneAt: null, nodes: null }] }));
     render(<ClusterPage />);
+    await screen.findByRole("button", { name: "Steps" });
+    showPanel("Steps");
     const refresh = await screen.findByRole("region", { name: "Latest refresh" });
 
     expect(within(refresh).getByText("J-2 Morning refresh")).toBeTruthy();
@@ -159,6 +171,8 @@ describe("Cluster refreshes", () => {
     const job = (id: number, seconds: number, nodes: number) => ({ id: `J-${id}`, name: "Morning refresh", queuedAt: 0, doneAt: seconds * 1000, nodes });
     mockCluster(cluster({ jobs: [job(1, 20, 1), job(2, 10, 3), job(3, 8, 3), job(4, 6, 6)] }));
     render(<ClusterPage />);
+    await screen.findByRole("button", { name: "Refresh time" });
+    showPanel("Refresh time");
     const times = await screen.findByRole("region", { name: "Refresh time by node count" });
 
     const columns = [...times.querySelectorAll("li")].map((item) => item.textContent);
@@ -166,10 +180,21 @@ describe("Cluster refreshes", () => {
     expect(times.querySelector(".is-current")?.textContent).toContain("3 nodes");
   });
 
+  it("shows the timeline first and one detail at a time", async () => {
+    mockCluster(cluster());
+    render(<ClusterPage />);
+    expect(await screen.findByRole("region", { name: "Timeline" })).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Activity" })).toBeNull();
+    showPanel("Activity");
+    expect(screen.queryByRole("region", { name: "Timeline" })).toBeNull();
+  });
+
   it("shows the refresh the nodes are working on, not one still waiting behind it", async () => {
     const job = (id: number, doneAt: number | null) => ({ id: `J-${id}`, name: "Morning refresh", queuedAt: 0, doneAt, nodes: null });
     mockCluster(cluster({ jobs: [job(1, 5000), job(2, null), job(3, null)] }));
     render(<ClusterPage />);
+    await screen.findByRole("button", { name: "Steps" });
+    showPanel("Steps");
     const refresh = await screen.findByRole("region", { name: "Latest refresh" });
     expect(within(refresh).getByText("J-2 Morning refresh")).toBeTruthy();
   });
@@ -192,6 +217,8 @@ describe("Cluster activity", () => {
       github: [{ id: 1, timestamp: new Date(at - 1000).toISOString(), status: 502, count: null }],
     }, [{ at: at - 2000, text: "Q-02 claimed T-4 (Fetch Slack messages)" }]);
     render(<ClusterPage />);
+    await screen.findByRole("button", { name: "Activity" });
+    showPanel("Activity");
     const activity = await screen.findByRole("region", { name: "Activity" });
     await within(activity).findByText("Loaded 4 items");
 

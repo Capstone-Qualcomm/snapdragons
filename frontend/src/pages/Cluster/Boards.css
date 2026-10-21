@@ -1,17 +1,10 @@
 /* Boards, steps and their progress, shared by Cluster and Today. */
 
-/* One color per refresh, so its steps can be followed across nodes. */
-.job-0 { --job: #b34f29; }
-.job-1 { --job: #3f7d3a; }
-.job-2 { --job: #4f6d8a; }
-.job-3 { --job: #a86f14; }
-.job-4 { --job: #8a4f6e; }
-
 .crown {
-  width: 16px;
-  height: 12px;
+  width: 15px;
+  height: 11px;
   flex: none;
-  fill: var(--signal);
+  fill: var(--ember);
 }
 
 .logo-rank {
@@ -21,45 +14,39 @@
   stroke-width: 1.8;
 }
 
-/* A step waiting in the queue. Dashed while it waits on other steps. */
-.step-chip {
-  display: inline-flex;
+.check {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-left: auto;
+  fill: none;
+  stroke: var(--live);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+/* A board's head and its work: the step and its bar, the last step done, or nothing. */
+.board-head {
+  display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 5px;
-  padding: 2px 8px 2px 6px;
-  border: 1px solid color-mix(in srgb, var(--job) 55%, var(--paper));
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--job) 14%, var(--paper));
-  font-size: 12px;
-  white-space: nowrap;
+  gap: 7px;
 }
 
-.step-chip.is-blocked {
-  border-style: dashed;
-  background: var(--paper);
-  color: var(--ink-faint);
-}
-
-.step-chip .logo { width: 13px; height: 13px; }
-
-.chip-progress {
-  color: var(--fail);
+.board-head strong {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-/* A step's progress. The pale part is what a dead node had already done. */
+.is-dead .board-head strong,
+.is-left .board-head strong { color: var(--ink-faint); text-decoration: line-through; }
+
 .step-progress {
   display: grid;
   min-width: 0;
   gap: 6px;
-}
-
-/* On Today: name and percent on one line, the bar under them. */
-.step-progress.is-compact {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 6px var(--s2);
 }
 
 .step-title {
@@ -67,21 +54,37 @@
   min-width: 0;
   align-items: center;
   gap: 6px;
-  overflow: hidden;
   font-size: 12px;
   font-weight: 500;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.step-title .logo { width: 14px; height: 14px; }
+.step-title .logo,
+.work-last .logo { width: 14px; height: 14px; }
+
+.step-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-meta {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.step-meta em {
+  color: var(--fail);
+  font-style: normal;
+}
 
 .bar {
   position: relative;
-  grid-column: 1 / -1;
-  height: 6px;
+  height: 4px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--wash);
 }
 
@@ -92,37 +95,32 @@
   transition: left 0.5s linear, width 0.5s linear;
 }
 
+/* The part a dead node had already done before this one carried on. */
 .bar-before {
   left: 0;
   width: calc(var(--from) * 100%);
-  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--job) 45%, var(--wash)) 0 3px, color-mix(in srgb, var(--job) 25%, var(--wash)) 3px 6px);
+  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ember) 55%, var(--paper)) 0 3px, color-mix(in srgb, var(--ember) 25%, var(--paper)) 3px 6px);
 }
 
 .bar-now {
   left: calc(var(--from) * 100%);
   width: calc((var(--to) - var(--from)) * 100%);
-  background: var(--job);
+  background: var(--ember);
 }
 
-.step-meta {
+.work-last {
   display: flex;
-  justify-content: space-between;
-  gap: var(--s2);
+  min-width: 0;
+  height: 26px;
+  align-items: center;
+  gap: 6px;
   color: var(--ink-faint);
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
-.is-compact .step-meta {
-  grid-row: 1;
-  grid-column: 2;
-}
-
-.step-meta em {
-  color: var(--fail);
-  font-style: normal;
-}
+.work-last .logo { opacity: 0.6; }
+.work-none { height: 26px; }
 
 /* The compact boards on Today: six columns, like the rack on Cluster, however many boards there are. */
 .strip-boards {
@@ -139,72 +137,19 @@
 .mini {
   display: grid;
   min-width: 0;
-  min-height: 64px;
-  grid-template-columns: auto auto 1fr;
+  min-height: 62px;
   align-content: center;
-  align-items: center;
-  gap: 4px 6px;
-  padding: 7px 10px;
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  background: var(--raised);
-  transition: border-color var(--snappy), background var(--snappy);
-}
-
-.mini strong {
-  font-family: var(--mono);
-  font-size: 12px;
-}
-
-.mini .step-progress,
-.mini .board-idle { grid-column: 1 / -1; }
-
-.mini-last {
-  display: flex;
-  min-width: 0;
-  height: 26px;
-  grid-column: 1 / -1;
-  align-items: center;
   gap: 6px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  white-space: nowrap;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  transition: border-color var(--snappy);
 }
 
-.mini-last .logo { width: 14px; height: 14px; opacity: 0.75; }
-
-.check {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  margin-left: auto;
-  fill: none;
-  stroke: var(--live);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-}
-
-/* An idle board's empty socket, the size of a step. */
-.board-idle {
-  height: 30px;
-  border: 1.5px dashed var(--rule);
-  border-radius: 6px;
-}
-
-.mini .board-idle { height: 26px; }
-.is-dead .board-idle,
-.is-left .board-idle { visibility: hidden; }
-.mini.is-working { border-color: color-mix(in srgb, var(--waiting) 45%, var(--rule)); }
-
-.mini.is-dead {
-  border-color: color-mix(in srgb, var(--fail) 40%, var(--rule));
-  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--fail) 7%, var(--paper)) 0 6px, var(--paper) 6px 12px);
-}
+.mini.is-working { border-color: color-mix(in srgb, var(--ember) 35%, var(--rule)); }
+.mini.is-dead { background: var(--wash); }
 
 @media (max-width: 860px) {
   .strip-boards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-
-.mini.is-dead strong,
-.mini.is-left strong { color: var(--ink-faint); text-decoration: line-through; }

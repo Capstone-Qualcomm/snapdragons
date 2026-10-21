@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { jobColor } from "./cluster";
 import type { ClusterState } from "./cluster";
 import { SourceIcon } from "./Boards";
 
@@ -36,7 +35,7 @@ export function Timeline({ cluster, serverNow }: { cluster: ClusterState; server
                 return (
                   <span
                     key={`${task.id}-${index}`}
-                    className={`run ${jobColor(task.job)} is-${run.outcome}`}
+                    className={`run is-${run.outcome}`}
                     style={{ left: `${x(run.start)}%`, width: `${Math.max(x(end) - x(run.start), 0.3)}%` }}
                     title={`${task.id} ${task.input}`}
                   >

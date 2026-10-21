@@ -3,7 +3,7 @@ import type { CSSProperties, MouseEvent } from "react";
 import { ErrorBanner, RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { api } from "../../lib/api";
 import { appPath } from "../../lib/urls";
-import { BoardStrip, QueueChips } from "../Cluster/Boards";
+import { BoardStrip } from "../Cluster/Boards";
 import { useCluster } from "../Cluster/cluster";
 import { Connection, signInError } from "./Connections";
 import { JiraEditor } from "./JiraEditor";
@@ -152,10 +152,7 @@ export function TodayPage({ active = true, onOpenCluster }: { active?: boolean; 
 
       <a className="strip" href={appPath("cluster")} onClick={openCluster} aria-label="Cluster">
         {cluster ? (
-          <>
-            <BoardStrip cluster={cluster} />
-            <span className="strip-queue"><QueueChips cluster={cluster} compact /></span>
-          </>
+          <BoardStrip cluster={cluster} />
         ) : failed ? (
           <span className="strip-error">The cluster is not reachable.</span>
         ) : null}
