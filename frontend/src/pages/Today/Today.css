@@ -282,6 +282,71 @@ summary.source-pill:hover { border-color: var(--ink-faint); }
 .jira-message { color: var(--live); }
 .jira-message.is-error { color: var(--fail); }
 
+/* The empty state a visitor sees before any source is connected. */
+.today-empty {
+  padding: var(--s5) var(--gutter);
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.sample {
+  background: var(--paper);
+}
+
+.sample-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s4) var(--gutter) var(--s3);
+  border-top: 1px solid var(--rule);
+}
+
+.sample-head h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 15px;
+}
+
+.sample-head p {
+  max-width: 60ch;
+  color: var(--ink-soft);
+}
+
+.sample-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ember-wash);
+  color: var(--ember);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sample-list { border-top: none; }
+
+.today-row.is-sample { cursor: default; }
+.today-row.is-sample .what,
+.today-row.is-sample .who span,
+.today-row.is-sample time { color: var(--ink-faint); }
+.today-row.is-sample .what mark { background: var(--wash); color: inherit; }
+.today-row.is-sample .done-button { border-style: dashed; cursor: default; }
+.today-row.is-sample .done-button:hover { border-color: var(--ink-faint); }
+
+.sample-connect {
+  align-items: center;
+  padding: var(--s3) var(--gutter) var(--s5);
+}
+
+.sample-connect-label {
+  margin-right: var(--s2);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
 
 @media (max-width: 720px) {
   .today-head { padding-block: var(--s3); }

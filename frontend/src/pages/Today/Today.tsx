@@ -10,7 +10,7 @@ import { JiraEditor } from "./JiraEditor";
 import { rank, toItems } from "./rank";
 import type { Item } from "./rank";
 import { titles, useSource } from "./sources";
-import type { SourceName } from "./sources";
+import type { Source, SourceName } from "./sources";
 import "./Today.css";
 
 const DONE_KEY = "continuum-done";
@@ -59,6 +59,9 @@ export function TodayPage({ active = true, onOpenCluster }: { active?: boolean; 
   const open = ranked.filter((item) => !isDone(item));
   const cleared = ranked.filter(isDone);
   const counts = Object.fromEntries((Object.keys(titles) as SourceName[]).map((name) => [name, open.filter((item) => item.source === name).length]));
+  // A visitor with no source connected sees what Today is for, not a blank page.
+  const loading = sources.every((source) => source.status === "loading");
+  const ready = sources.some((source) => source.status === "ready");
 
   // The refresh this page asked the cluster for, and how far along it is.
   const job = cluster?.jobs.find((candidate) => candidate.id === jobId);
@@ -161,14 +164,18 @@ export function TodayPage({ active = true, onOpenCluster }: { active?: boolean; 
       {signInErrors.map((message) => <ErrorBanner key={message} message={message} />)}
       {sources.map((source) => source.status === "error" && <ErrorBanner key={source.name} message={source.error} onRetry={() => void source.reload()} />)}
 
-      {sources.every((source) => source.status === "loading") ? (
+      {loading ? (
         <SkeletonRows count={5} />
-      ) : (
+      ) : open.length > 0 ? (
         <ol className="today-list" aria-label="Today">
           {open.map((item) => (
             <Row key={item.key} item={item} onDone={() => markDone(item)} onSaved={jira.reload} />
           ))}
         </ol>
+      ) : ready ? (
+        <p className="today-empty">Nothing waiting. You are all caught up.</p>
+      ) : (
+        <SampleDashboard sources={sources} />
       )}
 
       {cleared.length > 0 && (
@@ -194,6 +201,87 @@ export function TodayPage({ active = true, onOpenCluster }: { active?: boolean; 
 
 function textOf(item: Item) {
   return item.source === "slack" ? item.data.text : item.source === "jira" ? item.data.summary : item.data.title;
+}
+
+// A visitor with nothing connected sees a worked example: the same rows Today
+// builds, filled with sample items, and the buttons that connect each source.
+function SampleDashboard({ sources }: { sources: Source<unknown>[] }) {
+  return (
+    <section className="sample" aria-labelledby="sample-title">
+      <div className="sample-head">
+        <h2 id="sample-title"><span className="sample-chip">Sample</span> What Today looks like with a source connected</h2>
+        <p>Connect Jira, Slack and GitHub and this list fills with your tickets, mentions and pull requests, ranked by what is most urgent.</p>
+      </div>
+      <ol className="today-list sample-list" aria-label="Sample items">
+        {rank(sampleItems()).map((item) => <SampleRow key={item.key} item={item} />)}
+      </ol>
+      <div className="sources sample-connect">
+        <span className="sample-connect-label">Connect a source to get started</span>
+        {sources.map((source) => <Connection key={source.name} source={source} count={0} />)}
+      </div>
+    </section>
+  );
+}
+
+const sampleAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+
+// Illustrative only: these are never written anywhere.
+function sampleItems(): Item[] {
+  const at = (minutes: number) => Date.now() - minutes * 60_000;
+  return [
+    {
+      key: "sample:slack", source: "slack", at: at(3),
+      data: { id: "sample-slack", kind: "dm", from: "Priya Raman", where: "Direct message", text: "Can you look over the demo script before standup?", sentAt: sampleAgo(3), url: "" },
+    },
+    {
+      key: "sample:jira", source: "jira", at: at(41),
+      data: { key: "QT1S-42", summary: "Wire the failover test into CI", status: "In Progress", issueType: "Task", updated: sampleAgo(41), url: "", description: "", sprints: ["Sprint 5"], labels: [], storyPointEstimate: 3, reporter: "You" },
+    },
+    {
+      key: "sample:github", source: "github", at: at(95),
+      data: { id: "sample-github", kind: "pull_request", repository: "Capstone-Qualcomm/snapdragons", number: 15, title: "Today and Cluster redesign", state: "open", updatedAt: sampleAgo(95), url: "" },
+    },
+  ];
+}
+
+function SampleRow({ item }: { item: Item }) {
+  return (
+    <li className={`today-row is-sample is-${item.source}`}>
+      <span className="done-button is-sample" aria-hidden="true" />
+      <SourceLogo name={item.source} />
+      <SampleWho item={item} />
+      <p className="what">{item.source === "slack" ? withMentions(item.data.text) : textOf(item)}</p>
+      <RelativeTime value={item.at} />
+      <span className="row-action" />
+    </li>
+  );
+}
+
+// The same detail as Who, without the links a sample must not follow.
+function SampleWho({ item }: { item: Item }) {
+  switch (item.source) {
+    case "slack":
+      return (
+        <div className="who">
+          <strong>{item.data.from}</strong>
+          <span>{item.data.kind === "dm" ? "DM" : item.data.where}</span>
+        </div>
+      );
+    case "jira":
+      return (
+        <div className="who">
+          <span className="jira-key">{item.data.key}</span>
+          <span className={/progress|review/i.test(item.data.status) ? "status is-started" : "status"}>{item.data.status}</span>
+        </div>
+      );
+    case "github":
+      return (
+        <div className="who">
+          <strong title={item.data.repository}>{item.data.repository.split("/").at(-1)} #{item.data.number}</strong>
+          <span>{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>
+        </div>
+      );
+  }
 }
 
 function Row({ item, onDone, onSaved }: { item: Item; onDone: () => void; onSaved: () => Promise<void> }) {
