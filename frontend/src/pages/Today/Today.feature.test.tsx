@@ -132,6 +132,28 @@ describe("Today connections", () => {
     expect(screen.getByText("The Jira sign-in expired or could not be verified. Connect again.")).toBeTruthy();
     expect(window.location.search).toBe("");
   });
+
+  it("shows a sample dashboard and connection buttons when no source is connected", async () => {
+    connections = {
+      jira: { configured: true, connected: false, enabled: false },
+      slack: { configured: true, connected: false, enabled: false },
+      github: { configured: false, connected: false, enabled: false },
+    };
+    render(<TodayPage />);
+    const sample = await screen.findByRole("region", { name: /What Today looks like/ });
+    expect(within(sample).getByText("Sample")).toBeTruthy();
+    expect(within(sample).getAllByRole("listitem")).toHaveLength(3);
+    expect(within(sample).getByRole("link", { name: "Connect Slack" }).getAttribute("href")).toBe("/auth/slack/start");
+    expect(within(sample).getByRole("button", { name: "Connect GitHub" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows an all-clear, not sample data, when a connected source has nothing", async () => {
+    lists = { slack: { messages: [] }, github: { issues: [] } };
+    jiraIssues = () => Response.json({ issues: [] });
+    render(<TodayPage />);
+    expect(await screen.findByText("Nothing waiting. You are all caught up.")).toBeTruthy();
+    expect(screen.queryByText(/What Today looks like/)).toBeNull();
+  });
 });
 
 describe("Today refresh", () => {
