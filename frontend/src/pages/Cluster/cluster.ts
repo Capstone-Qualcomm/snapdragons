@@ -95,22 +95,17 @@ export async function send(path: string, body: unknown = {}): Promise<string | n
   }
 }
 
-export type Source = "jira" | "slack" | "github" | "outlook";
+export type Source = "jira" | "slack" | "github";
 
 // "Fetch Slack messages" comes from Slack; the ranking step has no source.
 export function sourceOf(step: string): Source | null {
-  const match = step.match(/\b(Jira|Slack|GitHub|Outlook)\b/);
+  const match = step.match(/\b(Jira|Slack|GitHub)\b/);
   return match ? (match[1].toLowerCase() as Source) : null;
 }
 
 // The short name drawn on a timeline block.
 export function shortName(step: string): string {
   return step.replace(/^Fetch /, "").replace(/^Rank today's list$/, "Rank");
-}
-
-// Jobs are numbered J-1, J-2, ..., so the number picks one of five colors.
-export function jobColor(job: string | null): string {
-  return `job-${job ? Number(job.slice(2)) % 5 : 0}`;
 }
 
 export function seconds(ms: number): string {

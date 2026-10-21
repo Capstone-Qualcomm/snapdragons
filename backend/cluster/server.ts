@@ -16,11 +16,12 @@ import { fileStorage } from "./node.ts";
 // Six Uno Q boards, so six node names.
 export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
 
-// The product's morning refresh: the fetches run on different nodes at the same
-// time, and ranking waits for all of them.
+// The product's morning refresh: one fetch per source Today really loads (each
+// backend's list call), run on different nodes at the same time, and ranking
+// waits for all of them. A new source adds its fetch here.
 export const REFRESH = {
   name: "Morning refresh",
-  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub pull requests", "Fetch GitHub reviews", "Fetch Outlook mail", "Fetch Outlook calendar"],
+  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues"],
   then: "Rank today's list",
 };
 

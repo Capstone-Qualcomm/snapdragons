@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
-import { createClusterServer } from "../../backend/cluster/server.ts";
+import { createClusterServer, REFRESH } from "../../backend/cluster/server.ts";
 
 // Real node processes behind the gateway, with fast timings so each test takes seconds.
 type Run = { worker: string; from: number; outcome: string };
@@ -62,7 +62,7 @@ test("three nodes elect an orchestrator and split a refresh, each step done once
     const done = await cluster.until(cluster.jobDone(job), "the refresh is done");
     const steps = done.tasks.filter((task) => task.job === job);
 
-    assert.equal(steps.length, 7);
+    assert.equal(steps.length, REFRESH.steps.length + 1);
     for (const step of steps) assert.deepEqual(step.runs.map((run) => run.outcome), ["done"]);
     assert.equal(done.jobs.find((entry) => entry.id === job)!.nodes, 3);
   } finally {
@@ -105,7 +105,7 @@ test("every node restarts at once and the queue comes back from disk", async () 
     // A new orchestrator replays the saved log once its first entry commits.
     const back = await cluster.until((current) => current.orchestrator !== null && cluster.jobDone(job)(current), "the queue is back");
     assert.equal(back.nodes.filter((node) => node.up).length, 3);
-    assert.equal(back.tasks.filter((task) => task.job === job).length, 7);
+    assert.equal(back.tasks.filter((task) => task.job === job).length, REFRESH.steps.length + 1);
   } finally {
     cluster.close();
   }

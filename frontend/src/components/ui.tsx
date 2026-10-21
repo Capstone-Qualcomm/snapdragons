@@ -11,7 +11,7 @@ export function StatusDot({ tone }: { tone: Tone }) {
   return <span className={`dot tone-${tone}`} aria-hidden="true" />;
 }
 
-export function SourceLogo({ name }: { name: "jira" | "slack" | "github" | "outlook" }) {
+export function SourceLogo({ name }: { name: "jira" | "slack" | "github" }) {
   return <img className={`logo logo-${name}`} src={appPath(`${name}-logo.png`)} alt="" />;
 }
 
