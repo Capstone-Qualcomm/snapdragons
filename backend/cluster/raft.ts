@@ -254,9 +254,9 @@ export function createRaft(options: RaftOptions) {
   }
 
   function handleVote(request: VoteRequest): VoteReply {
-    // A node that heard from an orchestrator moments ago ignores candidates, so a node
-    // that was cut off or removed cannot unseat an orchestrator that is still working.
-    if (now() - heardFromOrchestratorAt < electionMs[0]) return { term, granted: false };
+    // The orchestrator, and a node that heard from it moments ago, ignore candidates, so a
+    // node that was cut off or removed cannot unseat an orchestrator that is still working.
+    if (role === "orchestrator" || now() - heardFromOrchestratorAt < electionMs[0]) return { term, granted: false };
     if (request.term > term) becomeWorker(request.term);
     const myLastTerm = termAt(lastIndex());
     // Only vote for a candidate whose log has everything this node has, so a new

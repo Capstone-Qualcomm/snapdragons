@@ -223,6 +223,25 @@ test("a node is added and removed through the log, one change at a time", async 
   assert.equal(next.status().members.length, 3);
 });
 
+test("a removed orchestrator restarted by hand cannot unseat the one that replaced it", async () => {
+  const cluster = testCluster(["Q-01", "Q-02", "Q-03"]);
+  const old = await cluster.elect();
+  const oldId = old.status().id;
+  await cluster.run(300);
+  const removing = old.changeMembers({ remove: oldId });
+  await cluster.run(500);
+  await removing;
+  cluster.kill(oldId);
+  const next = await cluster.elect();
+  const { id, term } = next.status();
+
+  // Its saved log removes it, so nobody sends it heartbeats and it keeps asking for votes.
+  cluster.start(oldId, undefined);
+  await cluster.run(5000);
+  assert.equal(next.isOrchestrator(), true);
+  assert.deepEqual([next.status().id, next.status().term], [id, term]);
+});
+
 test("the last member cannot be removed, and the cluster keeps working", async () => {
   const cluster = testCluster(["Q-01"]);
   const orchestrator = await cluster.elect();
