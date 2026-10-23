@@ -6,12 +6,12 @@
 .tasks-table .col-from { width: 140px; color: var(--ink-soft); }
 .tasks-table .col-status { width: 150px; }
 .tasks-table .col-updated { width: 96px; white-space: nowrap; }
-.tasks-table .col-action { width: 184px; }
+.tasks-table .col-action { width: 112px; }
 .tasks-table td.col-from { overflow: hidden; max-width: 140px; text-overflow: ellipsis; white-space: nowrap; }
 
 .outlook-row-actions {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
@@ -104,6 +104,17 @@ a.jira-key:hover { color: var(--ember); }
 .outlook-reply-editor { display: grid; gap: var(--s2); }
 .outlook-reply-label { display: grid; gap: var(--s1); color: var(--ink-faint); font-size: 12px; }
 .outlook-reply-label textarea { width: 100%; resize: vertical; }
+.outlook-thread { display: grid; max-height: 380px; gap: var(--s2); overflow: auto; }
+.outlook-thread h3 { margin: 0; color: var(--ink-soft); font-size: 13px; }
+.outlook-thread-note,
+.outlook-thread-error { margin: 0; color: var(--ink-soft); font-size: 12px; }
+.outlook-thread-error { color: var(--fail); }
+.outlook-thread-message { min-width: 0; padding: var(--s2); border: 1px solid var(--rule); border-radius: var(--radius); background: var(--raised); }
+.outlook-thread-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s2); color: var(--ink-soft); font-size: 12px; }
+.outlook-thread-head strong { overflow-wrap: anywhere; color: var(--ink); }
+.outlook-thread-head time { color: var(--ink-faint); text-align: right; }
+.outlook-thread-head span { grid-column: 1 / -1; font-weight: 600; }
+.outlook-thread-content { margin-top: var(--s2); color: var(--ink); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .jira-details[hidden] { display: none; }
 .tasks-table[hidden],

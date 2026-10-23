@@ -20,13 +20,13 @@ Microsoft identity platform OAuth server and Microsoft Graph reader. Outlook is 
 |--------|------|---------|
 | GET | `/api/outlook/connection` | Current connection status |
 | GET | `/api/outlook/messages` | Unread Inbox messages |
+| GET | `/api/outlook/messages/{id}/thread` | Load the messages and text content in a conversation |
 | GET | `/api/outlook/activity` | Recent message sync activity |
-| POST | `/api/outlook/messages/{id}/read` | Mark a message as read |
 | POST | `/api/outlook/messages/{id}/delete` | Delete a message |
-| POST | `/api/outlook/messages/{id}/reply` | Send a direct reply to a message |
+| POST | `/api/outlook/messages/{id}/reply` | Send a direct reply and mark the original message as read |
 | GET | `/auth/outlook/start` | Start OAuth flow |
 | GET | `/auth/outlook/callback` | OAuth callback |
 | POST | `/api/outlook/connection/enabled` | Toggle on/off |
 | POST | `/api/outlook/connection/disconnect` | Remove saved token |
 
-The backend calls `GET /v1.0/me/mailFolders/inbox/messages` for unread messages received in the past 72 hours, requests only message summary fields, and follows Microsoft Graph paging links. Mark-as-read and delete actions apply only to the selected message. Reply uses Microsoft Graph's `POST /v1.0/me/messages/{id}/reply` and sends immediately, saving the reply in Sent Items.
+The backend calls `GET /v1.0/me/mailFolders/inbox/messages` for unread messages received in the past 72 hours, requests only message summary fields, and follows Microsoft Graph paging links. Opening Reply loads the full conversation on demand, including each message's unique text content. Delete applies only to the selected message. Reply uses Microsoft Graph's `POST /v1.0/me/messages/{id}/reply`, sends immediately, saves the reply in Sent Items, and then marks the original message as read.

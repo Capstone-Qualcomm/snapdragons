@@ -55,8 +55,8 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     void outlook.reload();
   }, [busy, startJob, github.reload, jira.reload, outlook.reload, slack.reload]);
 
-  const actOnOutlook = useCallback(async (action: "read" | "delete", messageId: string) => {
-    await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/${action}`, {});
+  const deleteOutlook = useCallback(async (messageId: string) => {
+    await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/delete`, {});
     // Graph can briefly return a just-updated message in a list response. Hide it
     // once the action succeeds and keep it hidden until a later sync confirms it is gone.
     setHandledOutlookIds((current) => new Set(current).add(messageId));
@@ -64,8 +64,11 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   }, [outlook.reload]);
 
   const replyToOutlook = useCallback(async (messageId: string, comment: string) => {
-    await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/reply`, { comment });
-  }, []);
+    const result = await api<{ markedRead: boolean }>(`/api/outlook/messages/${encodeURIComponent(messageId)}/reply`, { comment });
+    if (result.markedRead) setHandledOutlookIds((current) => new Set(current).add(messageId));
+    await outlook.reload();
+    return result.markedRead;
+  }, [outlook.reload]);
 
   useEffect(() => {
     const currentIds = new Set(outlook.items.map((item) => item.id));
@@ -159,7 +162,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       </ul>
 
       <div className="page-body">
-        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={actOnOutlook} onOutlookReply={replyToOutlook} />
+        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} />
       </div>
     </div>
   );

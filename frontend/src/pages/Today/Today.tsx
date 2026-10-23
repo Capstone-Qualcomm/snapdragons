@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../../components/Icon";
 import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
+import { api } from "../../lib/api";
 import { appPath } from "../../lib/urls";
 import { JiraEditor } from "./JiraEditor";
 import { rank, score } from "./rank";
@@ -62,8 +63,8 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
   onDone: (item: Item) => void;
   onUndo: (item: Item) => void;
   onSaved: () => Promise<void>;
-  onOutlookAction: (action: "read" | "delete", messageId: string) => Promise<void>;
-  onOutlookReply: (messageId: string, comment: string) => Promise<void>;
+  onOutlookAction: (messageId: string) => Promise<void>;
+  onOutlookReply: (messageId: string, comment: string) => Promise<boolean>;
 }) {
   const [filter, setFilter] = useState<SourceName | "all">("all");
   const [sort, setSort] = useState<Sort>("rank");
@@ -165,24 +166,27 @@ export function textOf(item: Item) {
   }
 }
 
-function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (action: "read" | "delete", messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<void> }) {
+type OutlookThreadMessage = { id: string; from: string; subject: string; receivedAt: string; content: string };
+
+function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyDraft, setReplyDraft] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyStatus, setReplyStatus] = useState({ text: "", isError: false });
+  const [thread, setThread] = useState<{ messages: OutlookThreadMessage[] | null; loading: boolean; error: string }>({ messages: null, loading: false, error: "" });
   const [outlookBusy, setOutlookBusy] = useState(false);
   const [outlookError, setOutlookError] = useState("");
   const editorId = `edit-${item.key}`;
-  const link = sample ? undefined : item.data.url;
+  const link = sample || item.source === "outlook" ? undefined : item.data.url;
 
-  async function actOnOutlook(action: "read" | "delete") {
+  async function deleteOutlook() {
     if (item.source !== "outlook") return;
-    if (action === "delete" && !window.confirm("Delete this email? You can find it in Outlook's Deleted Items.")) return;
+    if (!window.confirm("Delete this email? You can find it in Outlook's Deleted Items.")) return;
     setOutlookBusy(true);
     setOutlookError("");
     try {
-      await onOutlookAction(action, item.data.id);
+      await onOutlookAction(item.data.id);
     } catch (cause) {
       setOutlookError((cause as Error).message);
     } finally {
@@ -195,15 +199,33 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
     setReplyBusy(true);
     setReplyStatus({ text: "", isError: false });
     try {
-      await onOutlookReply(item.data.id, replyDraft);
+      const markedRead = await onOutlookReply(item.data.id, replyDraft);
       setReplyDraft("");
       setReplying(false);
-      setReplyStatus({ text: "Reply sent.", isError: false });
+      setReplyStatus({ text: markedRead ? "Reply sent." : "Reply sent, but Outlook could not mark the email as read.", isError: !markedRead });
     } catch (cause) {
       setReplyStatus({ text: (cause as Error).message, isError: true });
     } finally {
       setReplyBusy(false);
     }
+  }
+
+  async function loadOutlookThread() {
+    if (item.source !== "outlook" || thread.loading || thread.messages) return;
+    setThread({ messages: null, loading: true, error: "" });
+    try {
+      const result = await api<{ messages: OutlookThreadMessage[] }>(`/api/outlook/messages/${encodeURIComponent(item.data.id)}/thread`);
+      setThread({ messages: result.messages, loading: false, error: "" });
+    } catch (cause) {
+      setThread({ messages: null, loading: false, error: (cause as Error).message });
+    }
+  }
+
+  function toggleReply() {
+    const open = !replying;
+    setReplying(open);
+    setReplyStatus({ text: "", isError: false });
+    if (open) void loadOutlookThread();
   }
 
   return (
@@ -235,12 +257,8 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
             </button>
           ) : item.source === "outlook" ? (
             <div className="outlook-row-actions">
-              <a className="button small" href={link} target="_blank" rel="noreferrer">Open</a>
-              <button className={replying ? "button small is-on" : "button small"} type="button" aria-expanded={replying} aria-controls={`${editorId}-reply`} disabled={outlookBusy || replyBusy} onClick={() => { setReplying(!replying); setReplyStatus({ text: "", isError: false }); }}>Reply</button>
-              <button className="button small outlook-icon-button" type="button" aria-label="Mark as read" title="Mark as read" disabled={outlookBusy} onClick={() => void actOnOutlook("read")}>
-                <Icon name="check" size={16} />
-              </button>
-              <button className="button small outlook-icon-button is-delete" type="button" aria-label="Delete email" title="Delete email" disabled={outlookBusy} onClick={() => void actOnOutlook("delete")}>
+              <button className={replying ? "button small is-on" : "button small"} type="button" aria-expanded={replying} aria-controls={`${editorId}-reply`} disabled={outlookBusy || replyBusy} onClick={toggleReply}>Reply</button>
+              <button className="button small outlook-icon-button is-delete" type="button" aria-label="Delete email" title="Delete email" disabled={outlookBusy} onClick={() => void deleteOutlook()}>
                 <Icon name="trash" size={15} />
               </button>
               {outlookError && <span className="outlook-action-error" role="alert">{outlookError}</span>}
@@ -271,6 +289,21 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
         <tr className="editor-row outlook-reply-row" hidden={hidden}>
           <td colSpan={8}>
             <div className="jira-details outlook-reply-editor" id={`${editorId}-reply`}>
+              <section className="outlook-thread" aria-label="Email conversation">
+                <h3>Email conversation</h3>
+                {thread.loading && <p className="outlook-thread-note" role="status">Loading conversation…</p>}
+                {thread.error && <p className="outlook-thread-error" role="alert">{thread.error} <button className="button small" type="button" onClick={() => void loadOutlookThread()}>Retry</button></p>}
+                {thread.messages?.map((message) => (
+                  <article className="outlook-thread-message" key={message.id}>
+                    <header className="outlook-thread-head">
+                      <strong>{message.from}</strong>
+                      <time dateTime={message.receivedAt}>{new Date(message.receivedAt).toLocaleString()}</time>
+                      <span>{message.subject}</span>
+                    </header>
+                    <div className="outlook-thread-content">{message.content || "(No message content)"}</div>
+                  </article>
+                ))}
+              </section>
               <label className="outlook-reply-label">
                 Reply to {item.data.from}
                 <textarea autoFocus rows={4} value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} placeholder="Write your reply…" disabled={replyBusy} />
