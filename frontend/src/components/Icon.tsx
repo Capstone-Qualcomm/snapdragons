@@ -1,7 +1,7 @@
 import { appPath } from "../lib/urls";
 
-// Line icons on a 24-unit grid, drawn with the current text color. Slack, Jira
-// and GitHub use their own logos.
+// Line icons on a 24-unit grid, drawn with the current text color. Integrations
+// use their own logos.
 const PATHS: Record<string, string> = {
   mail: "M4 6h16a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1z M3.5 7l8.5 6 8.5-6",
   globe: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M3 12h18 M12 3c2.5 2.7 3.6 5.7 3.6 9s-1.1 6.3-3.6 9c-2.5-2.7-3.6-5.7-3.6-9S9.5 5.7 12 3z",
@@ -34,10 +34,10 @@ const PATHS: Record<string, string> = {
   info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v5 M12 8h.01",
 };
 
-export type IconName = keyof typeof PATHS | "slack" | "jira" | "github";
+export type IconName = keyof typeof PATHS | "slack" | "jira" | "github" | "outlook";
 
 export function Icon({ name, size = 16, className = "" }: { name: IconName | string; size?: number; className?: string }) {
-  if (name === "slack" || name === "jira" || name === "github") {
+  if (name === "slack" || name === "jira" || name === "github" || name === "outlook") {
     return <img className={`icon logo-img logo-${name} ${className}`} src={appPath(`${name}-logo.png`)} alt="" width={size} height={size} />;
   }
   return (

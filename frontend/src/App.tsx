@@ -35,8 +35,9 @@ function App() {
   const slack = useSource("slack");
   const jira = useSource("jira");
   const github = useSource("github");
-  const sources = [slack, jira, github];
-  const items = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items }));
+  const outlook = useSource("outlook");
+  const sources = [slack, jira, github, outlook];
+  const items = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: [] }));
   const counts = Object.fromEntries(sources.map((source) => [source.name, items.filter((item) => item.source === source.name).length]));
 
   useEffect(() => {

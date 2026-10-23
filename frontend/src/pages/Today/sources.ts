@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { JiraIssue } from "./jira";
 
-export type SourceName = "jira" | "slack" | "github";
+export type SourceName = "jira" | "slack" | "github" | "outlook";
 export type SourceStatus = "loading" | "unconfigured" | "disconnected" | "disabled" | "error" | "ready";
 
 export type SlackMessage = {
@@ -26,7 +26,16 @@ export type GitHubIssue = {
   url: string;
 };
 
-export type ItemsOf = { slack: SlackMessage; jira: JiraIssue; github: GitHubIssue };
+export type OutlookMessage = {
+  id: string;
+  from: string;
+  subject: string;
+  preview: string;
+  receivedAt: string;
+  url: string;
+};
+
+export type ItemsOf = { slack: SlackMessage; jira: JiraIssue; github: GitHubIssue; outlook: OutlookMessage };
 
 type Connection = {
   configured: boolean;
@@ -36,6 +45,7 @@ type Connection = {
   user?: string | null;
   cloudId?: string | null;
   sites?: Array<{ id: string; name: string }>;
+  email?: string | null;
 };
 
 export type Source<T> = {
@@ -57,11 +67,11 @@ export type Source<T> = {
 
 type State<T> = Pick<Source<T>, "status" | "syncing" | "items" | "error" | "loadedAt" | "account">;
 
-export const titles: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub" };
-const lists: Record<SourceName, string> = { jira: "issues", slack: "messages", github: "issues" };
+export const titles: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub", outlook: "Outlook" };
+const lists: Record<SourceName, string> = { jira: "issues", slack: "messages", github: "issues", outlook: "messages" };
 
 const accountOf = (connection: Connection) =>
-  connection.team ?? connection.user ?? connection.sites?.find((site) => site.id === connection.cloudId)?.name ?? null;
+  connection.team ?? connection.user ?? connection.email ?? connection.sites?.find((site) => site.id === connection.cloudId)?.name ?? null;
 
 // Checks the source's connection, then loads its list from /api/<name>/<list>.
 export function useSource<N extends SourceName>(name: N): Source<ItemsOf[N]> {

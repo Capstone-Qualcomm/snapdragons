@@ -13,7 +13,7 @@ export function signInError(title: string, outcome: string): string | undefined 
   }[outcome];
 }
 
-// Slack, Jira and GitHub as integration cards: what each brings, whether it is
+// Integrations as cards: what each brings, whether it is
 // connected, and the button that changes that. Nothing sits behind a menu.
 export function ConnectionsPanel({ sources, counts }: { sources: Source<unknown>[]; counts: Record<string, number> }) {
   return (
@@ -36,6 +36,7 @@ const ABOUT: Record<string, string> = {
   slack: "Direct messages and mentions that need a reply.",
   jira: "Tickets assigned to you, with status, sprint and story points.",
   github: "Pull requests waiting on your review and issues assigned to you.",
+  outlook: "Unread messages from your Outlook inbox.",
 };
 
 function Connection({ source, count }: { source: Source<unknown>; count: number }) {
