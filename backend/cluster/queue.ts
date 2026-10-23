@@ -306,8 +306,10 @@ export function createQueue() {
       log(at, `${job.id} done in ${((at - job.queuedAt) / 1000).toFixed(1)} s on ${job.nodes} nodes`);
     }
 
-    const plans = data.jobs.filter((entry) => entry.plan).slice(-KEEP_PLANS).map((entry) => entry.id);
-    const finished = data.tasks.filter((candidate) => candidate.status === "done" && !plans.includes(candidate.job ?? ""));
+    // A running plan's later stages read its earlier steps' outputs, so those are never dropped.
+    const plans = data.jobs.filter((entry) => entry.plan);
+    const kept = new Set([...plans.slice(-KEEP_PLANS), ...plans.filter((entry) => entry.doneAt === null)].map((entry) => entry.id));
+    const finished = data.tasks.filter((candidate) => candidate.status === "done" && !kept.has(candidate.job ?? ""));
     if (finished.length > KEEP_DONE) data.tasks.splice(data.tasks.indexOf(finished[0]), 1);
     return task;
   }
@@ -324,16 +326,21 @@ export function createQueue() {
   }
 
   // Remove: a working node finishes its step first; a dead one is dropped now.
-  function leave(worker: string, at: number): void {
+  // Returns false when no other node would be left working. Removals go through
+  // the log one at a time, so two at once cannot both take the last two nodes.
+  function leave(worker: string, at: number): boolean {
     const entry = workerById(worker);
-    if (!entry) return;
+    if (!entry) return true;
     if (!entry.alive) {
       data.workers.splice(data.workers.indexOf(entry), 1);
       log(at, `${worker} removed`);
-      return;
+      return true;
     }
+    if (entry.leaving) return true;
+    if (!data.workers.some((other) => other !== entry && other.alive && !other.leaving)) return false;
     entry.leaving = true;
     log(at, `${worker} will leave after its current step`);
+    return true;
   }
 
   function apply(command: Command): unknown {

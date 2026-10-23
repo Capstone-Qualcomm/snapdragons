@@ -13,12 +13,13 @@ function testQueue() {
     queue,
     tick: (ms: number) => (at += ms),
     job: (steps: string[], then?: string) => run("job", { name: "Morning refresh", steps, then }) as Job,
+    plan: (scenario: string) => run("plan", { scenario, prompt: "Go" }) as Job,
     claim: (worker: string) => (run("claim", { worker }) as ClaimResult).task?.id ?? null,
     claimed: (worker: string) => (run("claim", { worker }) as ClaimResult),
     progress: (worker: string, task: string, progress: number) => run("progress", { worker, task, progress }) as boolean,
     complete: (worker: string, task: string) => run("complete", { worker, task }) as Task | null,
     expire: (worker: string) => run("expire", { worker }),
-    leave: (worker: string) => run("leave", { worker }),
+    leave: (worker: string) => run("leave", { worker }) as boolean,
     task: (id: string) => queue.state().tasks.find((task) => task.id === id)!,
   };
 }
@@ -94,13 +95,24 @@ test("a removed worker finishes its step, then is told to leave", () => {
   const q = testQueue();
   q.job(["a", "b"]);
   q.claim("Q-01");
+  q.claim("Q-02");
   q.leave("Q-01");
 
   assert.equal(q.queue.state().workers[0].leaving, true);
   assert.equal(q.complete("Q-01", "T-1")?.status, "done");
   assert.deepEqual(q.claimed("Q-01"), { task: null, leave: true });
-  assert.deepEqual(q.queue.state().workers, []);
-  assert.equal(q.task("T-2").status, "queued");
+  assert.deepEqual(q.queue.state().workers.map((worker) => worker.id), ["Q-02"]);
+  assert.equal(q.task("T-2").status, "claimed");
+});
+
+test("two removals at once cannot take the last two working nodes", () => {
+  const q = testQueue();
+  q.claim("Q-01");
+  q.claim("Q-02");
+
+  assert.equal(q.leave("Q-01"), true);
+  assert.equal(q.leave("Q-02"), false);
+  assert.deepEqual(q.queue.state().workers.map((worker) => worker.leaving), [true, false]);
 });
 
 test("a finished job records how long it took and how many nodes ran it", () => {
@@ -131,6 +143,25 @@ test("old done tasks and events are dropped, done counts are kept", () => {
   assert.equal(workers[0].done, 100);
   assert.equal(events.length, 60);
   assert.match(events[0].text, /^J-100 done/);
+});
+
+test("a running plan keeps the steps its later stages read, however much other work finishes", () => {
+  const q = testQueue();
+  const drain = () => {
+    for (let id = q.claim("Q-01"); id; id = q.claim("Q-01")) q.complete("Q-01", id);
+  };
+  // With no orchestrator elected, nobody can take the merge step, so J-1 stays unfinished after its first stage.
+  q.plan("business");
+  drain();
+  q.plan("business");
+  q.plan("business");
+  for (let n = 1; n <= 100; n++) {
+    q.job([`step ${n}`]);
+    drain();
+  }
+
+  assert.equal(q.queue.state().jobs[0].doneAt, null);
+  assert.equal(q.queue.state().tasks.filter((task) => task.job === "J-1" && task.status === "done").length, 4);
 });
 
 test("unfinished jobs are kept however many are queued", () => {

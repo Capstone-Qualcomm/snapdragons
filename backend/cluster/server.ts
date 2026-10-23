@@ -236,13 +236,13 @@ export function createClusterServer(options: ServerOptions = {}) {
   }
 
   async function removeNode(id: string): Promise<[number, unknown]> {
-    // The orchestrator refuses this too, but only after the node has left the queue.
+    const last: [number, unknown] = [409, { error: "The last node cannot be removed." }];
     const members = orchestratorOf(await statuses())?.members ?? [];
-    if (members.length === 1 && members[0] === id) return [409, { error: "The last node cannot be removed." }];
+    if (members.length === 1 && members[0] === id) return last;
     if (children.has(id)) {
       // The node finishes its current step, leaves the queue, then takes itself out of the members.
-      await clusterRequest({ type: "leave", worker: id });
-      return [200, { id }];
+      // The queue refuses when no other node would be left working, which also catches two removals at once.
+      return (await clusterRequest({ type: "leave", worker: id })) === false ? last : [200, { id }];
     }
     // A dead node is taken out right away.
     await clusterRequest({ members: { remove: id } });
