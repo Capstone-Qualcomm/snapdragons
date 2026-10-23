@@ -1,172 +1,149 @@
-import { useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import type { CSSProperties } from "react";
 import { appPath } from "../../lib/urls";
 import "./Boards.css";
-import { shortName, sourceOf } from "./cluster";
+import { boardName, seconds, sourceOf, stepLabel } from "./cluster";
 import type { ClusterState, RaftNode, Task } from "./cluster";
 
 type BoardState = "dead" | "left" | "joining" | "leaving" | "working" | "idle";
 
 // What one board is doing right now, from the gateway's state.
-function boardOf(node: RaftNode, cluster: ClusterState) {
+export function boardOf(node: RaftNode, cluster: ClusterState) {
   const worker = cluster.workers.find((candidate) => candidate.id === node.id);
   const task = cluster.tasks.find((candidate) => candidate.status === "claimed" && candidate.worker === node.id);
   const state: BoardState = !node.up ? (node.member ? "dead" : "left") : !node.member ? "joining" : worker?.leaving ? "leaving" : task ? "working" : "idle";
-  return { task, state, leaving: Boolean(worker?.leaving), isOrchestrator: node.id === cluster.orchestrator };
+  return { task, state, worker, isOrchestrator: node.id === cluster.orchestrator };
 }
 
-const led: Record<BoardState, string> = { dead: "tone-bad", left: "tone-off", joining: "tone-warn", leaving: "tone-warn", working: "tone-busy", idle: "" };
+const status: Record<BoardState, { label: string; tone: string }> = {
+  dead: { label: "Down", tone: "is-bad" },
+  left: { label: "Removed", tone: "" },
+  joining: { label: "Joining", tone: "is-warn" },
+  leaving: { label: "Leaving", tone: "is-warn" },
+  working: { label: "Online", tone: "is-ok" },
+  idle: { label: "Online", tone: "is-ok" },
+};
 
 type Act = (path: string, body?: unknown) => void;
 
-// The rack: one board per node and, while there is room, a tile that adds one.
-// A board shows its name, the crown if it is orchestrator, and its step;
-// clicking it opens its Raft numbers and controls.
-export function Rack({ cluster, act }: { cluster: ClusterState; act: Act }) {
+// One row per board: whether it is up, its role, what it is doing, how much it
+// has done, and Kill or Restart. Its Raft numbers open under it on a click.
+export function BoardsTable({ cluster, act }: { cluster: ClusterState; act: Act }) {
   const [open, setOpen] = useState<string | null>(null);
 
-  useEffect(() => {
-    function close(event: PointerEvent) {
-      if (!(event.target as Element).closest?.(".board")) setOpen(null);
-    }
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, []);
-
   return (
-    <ul className="rack" aria-label="Nodes">
-      {cluster.nodes.map((node) => (
-        <Board
-          key={node.id}
-          node={node}
-          cluster={cluster}
-          open={open === node.id}
-          onToggle={() => setOpen(open === node.id ? null : node.id)}
-          act={(path) => {
-            setOpen(null);
-            act(path);
-          }}
-        />
-      ))}
-      {cluster.nodes.length < cluster.maxNodes && (
-        <li className="slot">
-          <button className="slot-add" type="button" onClick={() => act("/api/cluster/nodes")}>
-            <span aria-hidden="true">+</span>Add node
-          </button>
-        </li>
-      )}
-    </ul>
+    <table className="table boards-table" aria-label="Boards">
+      <thead>
+        <tr>
+          <th>Board</th>
+          <th>Status</th>
+          <th>Role</th>
+          <th>Current task</th>
+          <th className="num">Tasks done</th>
+          <th className="num">Last heartbeat</th>
+          <th className="col-action">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {cluster.nodes.map((node) => (
+          <Fragment key={node.id}>
+            <BoardRow node={node} cluster={cluster} open={open === node.id} onToggle={() => setOpen(open === node.id ? null : node.id)} act={act} />
+            {open === node.id && (
+              <tr className="detail-row">
+                <td colSpan={7}>
+                  <span className="raft">
+                    <span>Network id {node.id}</span>
+                    {node.up && (
+                      <>
+                        <span>term {node.term}</span>
+                        <span>log {node.lastIndex}</span>
+                        <span>commit {node.commitIndex}</span>
+                      </>
+                    )}
+                  </span>
+                </td>
+              </tr>
+            )}
+          </Fragment>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
-function Board({ node, cluster, open, onToggle, act }: { node: RaftNode; cluster: ClusterState; open: boolean; onToggle: () => void; act: Act }) {
-  const { task, state, leaving, isOrchestrator } = boardOf(node, cluster);
+function BoardRow({ node, cluster, open, onToggle, act }: { node: RaftNode; cluster: ClusterState; open: boolean; onToggle: () => void; act: Act }) {
+  const { task, state, worker, isOrchestrator } = boardOf(node, cluster);
   const path = (action: string) => `/api/cluster/nodes/${node.id}/${action}`;
   const needed = Math.floor((node.members?.length ?? 0) / 2) + 1;
-  const role = !node.up ? (state === "dead" ? "Dead" : "Left") : node.role === "candidate" ? "Candidate" : isOrchestrator ? "Orchestrator" : leaving ? "Leaving" : state === "joining" ? "Joining" : "Worker";
   // While there is no orchestrator, each worker counts down its own random
   // timeout; the first to reach zero asks the others for their votes.
   const electing = node.up && node.member && !cluster.orchestrator;
+  const role = !node.up || !node.member ? "—" : node.role === "candidate" ? `Candidate, ${node.votes?.length ?? 0} of ${needed} votes` : isOrchestrator ? "Orchestrator" : electing ? `Worker, election in ${((node.electionIn ?? 0) / 1000).toFixed(1)} s` : "Worker";
 
   return (
-    <li className={`board is-${state}${isOrchestrator ? " is-orchestrator" : ""}${open ? " is-open" : ""}`} role="group" aria-label={node.id}>
-      <button className="board-face" type="button" aria-expanded={open} onClick={onToggle}>
-        <span className="board-head">
-          <span className={`dot ${led[state]}`} aria-hidden="true" />
-          <strong>{node.id}</strong>
-          {isOrchestrator && <Crown />}
-          {electing && node.role === "worker" && <Countdown ms={node.electionIn ?? 0} />}
-          {node.role === "candidate" && node.up && (
-            <span className="votes" role="img" aria-label={`${node.votes?.length ?? 0} of ${needed} votes`}>
-              {Array.from({ length: needed }, (_, index) => <i key={index} className={index < (node.votes?.length ?? 0) ? "is-in" : ""} />)}
-            </span>
-          )}
+    <tr className={`board-row is-${state}${isOrchestrator ? " is-orchestrator" : ""}`} aria-label={boardName(node.id)}>
+      <td className="col-board">
+        <button className="board-toggle" type="button" aria-expanded={open} onClick={onToggle} title="Show Raft details">
+          <svg className="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d={open ? "m4 6 4 4 4-4" : "m6 4 4 4-4 4"} /></svg>
+          {boardName(node.id)}
+        </button>
+      </td>
+      <td className="col-status">
+        <span className={`badge ${status[state].tone}`}>
+          <i className="badge-dot" aria-hidden="true" />
+          {status[state].label}
         </span>
-        <Work task={task} node={node} cluster={cluster} />
-      </button>
-
-      {open && (
-        <div className="board-menu">
-          <p className={`role is-${role.toLowerCase()}`}>{role}</p>
-          {node.up && (
-            <p className="board-raft">
-              <span>term {node.term}</span>
-              <span>log {node.lastIndex}</span>
-              <span>commit {node.commitIndex}</span>
-            </p>
-          )}
-          <div className="board-actions">
-            {state === "dead" && <button className="button small" type="button" onClick={() => act(path("start"))}>Restart</button>}
-            {(state === "dead" || (node.up && !leaving)) && <button className="button small" type="button" onClick={() => act(path("remove"))}>Remove</button>}
-            {node.up && <button className="button small is-kill" type="button" onClick={() => act(path("kill"))}>Kill</button>}
-          </div>
-        </div>
-      )}
-    </li>
+      </td>
+      <td className={`col-role${isOrchestrator ? " is-orchestrator" : ""}`}>
+        {isOrchestrator && <Crown />}
+        {role}
+      </td>
+      <td className="col-task">
+        <Work task={task} node={node} />
+      </td>
+      <td className="col-done-count num">{worker?.done ?? 0}</td>
+      <td className="col-heartbeat num">{heartbeat(node, isOrchestrator)}</td>
+      <td className="col-action">
+        {state === "dead" ? (
+          <button className="button small" type="button" onClick={() => act(path("start"))}>Restart</button>
+        ) : node.up ? (
+          <button className="button small is-kill" type="button" onClick={() => act(path("kill"))}>Kill</button>
+        ) : null}
+        {(state === "dead" || (node.up && state !== "leaving")) && (
+          <button className="button small quiet" type="button" onClick={() => act(path("remove"))}>Remove</button>
+        )}
+      </td>
+    </tr>
   );
 }
 
-// The same boards in one line, for Today: who holds which step right now.
-export function BoardStrip({ cluster }: { cluster: ClusterState }) {
-  return (
-    <ul className="strip-boards">
-      {cluster.nodes.map((node) => {
-        const { task, state, isOrchestrator } = boardOf(node, cluster);
-        return (
-          <li key={node.id} className={`mini is-${state}`} role="group" aria-label={node.id}>
-            <span className="board-head">
-              <span className={`dot ${led[state]}`} aria-hidden="true" />
-              <strong>{node.id}</strong>
-              {isOrchestrator && <Crown />}
-            </span>
-            <Work task={task} node={node} cluster={cluster} />
-          </li>
-        );
-      })}
-    </ul>
-  );
+// Workers hear the orchestrator's heartbeat every 300 ms; the orchestrator sends it.
+function heartbeat(node: RaftNode, isOrchestrator: boolean) {
+  if (!node.up) return "—";
+  if (isOrchestrator) return "Sending";
+  if (node.quietFor == null) return "—";
+  return node.quietFor < 1000 ? `${node.quietFor} ms ago` : `${seconds(node.quietFor)} ago`;
 }
 
-// A board's step with its progress; between refreshes, the step it finished
-// last; nothing for a board that has not run one or is down.
-function Work({ task, node, cluster }: { task?: Task; node: RaftNode; cluster: ClusterState }) {
-  if (task) return <StepProgress key={task.id} task={task} />;
-  const last = node.up ? lastDone(node.id, cluster) : undefined;
-  if (!last) return <span className="work-none" aria-hidden="true" />;
-  return (
-    <span className="work-last" title={last.input}>
-      <SourceIcon step={last.input} />
-      {shortName(last.input)}
-      <svg className="check" viewBox="0 0 16 16" aria-label="Done" role="img"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
-    </span>
-  );
-}
-
-function lastDone(id: string, cluster: ClusterState): Task | undefined {
-  let last: Task | undefined;
-  for (const task of cluster.tasks) {
-    const run = task.runs.at(-1);
-    if (task.status === "done" && run?.worker === id && (!last || (run.end ?? 0) > (last.runs.at(-1)!.end ?? 0))) last = task;
-  }
-  return last;
-}
-
-// The bar starts where the step's last checkpoint was, so a step handed over
-// from a dead node visibly carries on instead of starting again.
-function StepProgress({ task }: { task: Task }) {
+// The step a board is on, in words, with its progress. A step taken over from
+// a dead board says so, and its bar starts where that board's checkpoint was.
+function Work({ task, node }: { task?: Task; node: RaftNode }) {
+  if (!node.up) return <span className="muted">—</span>;
+  if (!task) return <span className="muted">Idle</span>;
   const run = task.runs.at(-1)!;
   const from = task.lostBy.at(-1);
   return (
     <span className="step-progress" title={task.input}>
       <span className="step-title">
         <SourceIcon step={task.input} />
-        <span className="step-name">{shortName(task.input)}</span>
-        <span className="step-meta">{from ? <em>from {from}</em> : `${Math.round(task.progress * 100)}%`}</span>
+        <span className="step-name">{stepLabel(task.input)}</span>
+        <span className="step-meta num">{Math.round(task.progress * 100)}%</span>
       </span>
       <span className="bar" style={{ "--from": run.from, "--to": task.progress } as CSSProperties}>
         <i className="bar-before" />
         <i className="bar-now" />
       </span>
+      {from && <span className="took-over">Taken over from {boardName(from)}</span>}
     </span>
   );
 }
@@ -180,19 +157,10 @@ export function SourceIcon({ step }: { step: string }) {
   );
 }
 
-// A ring that empties as the worker's election timeout runs out (3 s at most).
-function Countdown({ ms }: { ms: number }) {
-  const left = Math.min(ms / 3000, 1);
-  return (
-    <svg className="countdown" viewBox="0 0 16 16" role="img" aria-label={`election in ${(ms / 1000).toFixed(1)} s`}>
-      <circle cx="8" cy="8" r="6" pathLength="1" strokeDasharray={`${left} 1`} />
-    </svg>
-  );
-}
-
+// Drawn beside the word "Orchestrator", so it says nothing more to a screen reader.
 function Crown() {
   return (
-    <svg className="crown" viewBox="0 0 16 12" aria-label="Orchestrator" role="img">
+    <svg className="crown" viewBox="0 0 16 12" aria-hidden="true">
       <path d="M1 10.5h14L13.6 3 10.4 6.4 8 1.5 5.6 6.4 2.4 3z" />
     </svg>
   );

@@ -1,63 +1,75 @@
-/* Tokens, from Iris (hermes/ios/Shared/Theme.swift): a near-white page, white
-   surfaces, near-black ink, cool grays and one signal, ember. Ember marks the
-   brand and live things, and nothing else; green is done or live, red is
-   failed. Primary buttons are solid ink. Dark follows the system and swaps the
-   values, never the names. */
+/* Tokens. A soft near-white canvas, white cards with a hairline and a whisper
+   of shadow, two text grays, and ember as the one accent, used sparingly.
+   Status colors are muted tints, never bright outlines. Dark follows the
+   system and swaps the values, never the names. */
 :root {
   color-scheme: light dark;
-  --canvas: #f7f7f8;
+  --canvas: #fafaf9;
   --paper: #ffffff;
   --raised: #ffffff;
-  --wash: #f1f2f4;
-  --ink: #0b0b0d;
-  --ink-soft: #5c5f66;
-  --ink-faint: #9a9da4;
-  --rule: #e4e5e8;
+  --wash: #f4f4f2;
+  --hover: #f6f6f4;
+  --ink: #171717;
+  --ink-soft: #6b6b6b;
+  --ink-faint: #a3a3a0;
+  --rule: #ededeb;
+  --rule-strong: #e2e2df;
   --ember: #ff4b14;
-  --ember-wash: #fff0ea;
-  --live: #12a150;
-  --waiting: #d98a00;
-  --fail: #e5341d;
-  --solid: #0b0b0d;
+  --ember-ink: #d93d0b;
+  --ember-wash: #fff3ee;
+  --live: #2f8a57;
+  --live-wash: #eaf5ee;
+  --waiting: #a8680a;
+  --waiting-wash: #fbf2df;
+  --fail: #c2412d;
+  --fail-wash: #fbebe7;
+  --solid: #171717;
   --on-solid: #ffffff;
-  --shadow: rgb(11 11 13 / 8%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  --shadow-lift: 0 4px 16px rgb(0 0 0 / 6%), 0 1px 2px rgb(0 0 0 / 4%);
   --logo-filter: none;
 
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --radius: 6px;
+  --radius: 8px;
+  --card-radius: 12px;
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
   --s5: 24px;
-  --gutter: 20px;
+  --s6: 32px;
+  --s7: 48px;
+  --gutter: 0px;
   --snappy: 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --canvas: #0a0a0c;
-    --paper: #161719;
-    --raised: #26282d;
+    --canvas: #0e0f11;
+    --paper: #16171a;
+    --raised: #1c1d21;
     --wash: #1f2024;
-    --ink: #f0f1f3;
-    --ink-soft: #a2a5ad;
-    --ink-faint: #6c6f78;
-    --rule: #2a2c31;
-    --ember-wash: #2b1710;
-    --live: #2fc46e;
-    --waiting: #f0a42a;
-    --fail: #ff5b47;
-    --solid: #303137;
-    --on-solid: #f0f1f3;
-    --shadow: rgb(0 0 0 / 40%);
+    --hover: #1b1c20;
+    --ink: #ededed;
+    --ink-soft: #8b8b8b;
+    --ink-faint: #5f6066;
+    --rule: rgb(255 255 255 / 7%);
+    --rule-strong: rgb(255 255 255 / 11%);
+    --ember-ink: #ff6a3d;
+    --ember-wash: rgb(255 75 20 / 12%);
+    --live: #5cc28a;
+    --live-wash: rgb(92 194 138 / 12%);
+    --waiting: #e0a443;
+    --waiting-wash: rgb(224 164 67 / 13%);
+    --fail: #ef7a66;
+    --fail-wash: rgb(239 122 102 / 13%);
+    --solid: #ededed;
+    --on-solid: #16171a;
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%);
+    --shadow-lift: 0 6px 20px rgb(0 0 0 / 40%);
     --logo-filter: invert(0.9);
   }
-}
-
-@media (max-width: 640px) {
-  :root { --gutter: 16px; }
 }
 
 * { box-sizing: border-box; }
@@ -73,8 +85,9 @@ body {
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: "cv11", "ss01";
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -85,7 +98,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 a { color: inherit; }
 
 :focus-visible {
-  outline: 2px solid var(--ember);
+  outline: 2px solid color-mix(in srgb, var(--ember) 60%, transparent);
   outline-offset: 2px;
 }
 

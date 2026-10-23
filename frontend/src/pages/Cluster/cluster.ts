@@ -3,9 +3,49 @@ import { apiPath } from "../../lib/urls";
 
 // The shape of GET /api/cluster/state, from backend/cluster/server.ts.
 
-export type Run = { worker: string; start: number; heardAt: number; end: number | null; from: number; to: number; outcome: "running" | "done" | "lost" };
-export type Task = { id: string; input: string; status: "queued" | "claimed" | "done"; worker: string | null; lostBy: string[]; job: string | null; after: string[]; progress: number; runs: Run[] };
-export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null };
+export type Run = { worker: string; start: number; heardAt: number; end: number | null; from: number; to: number; outcome: "running" | "done" | "lost"; lostAt?: number };
+export type Meter = { verb: string; noun: string; total: number };
+export type Preview =
+  | { kind: "list"; look: string; rows: Array<[string, string]> }
+  | { kind: "page"; look: string; pages: Array<{ url: string; lines: string[] }> }
+  | { kind: "calendar"; days: string[]; busy: Array<[number, number, number]> };
+export type Found = { marks?: Array<[number, string]>; chips?: string[]; pages?: string[][]; slots?: Array<[number, number, number]> };
+export type StepOutput = { summary: string; short: string; data: unknown; found?: Found };
+export type Task = {
+  id: string;
+  input: string;
+  status: "queued" | "claimed" | "done";
+  worker: string | null;
+  lostBy: string[];
+  job: string | null;
+  after: string[];
+  progress: number;
+  runs: Run[];
+  // Assistant plan steps: input is then the board's plain-English instruction.
+  skill?: string;
+  // The 2–4 words and the icon drawn on its chip.
+  label?: string;
+  icon?: string;
+  // Its real input in small, and what it found, for the board's live preview.
+  preview?: Preview;
+  found?: Found | null;
+  stage?: number;
+  meter?: Meter;
+  output?: StepOutput | null;
+  assignee?: string | null;
+  role?: "orchestrator";
+};
+export type Section =
+  | { title: string; kind: "table"; columns: string[]; rows: string[][] }
+  | { title: string; kind: "list"; items: string[] }
+  | { title: string; kind: "text"; body: string }
+  | { title: string; kind: "cards"; cards: Array<{ title: string; subtitle: string; lines: string[] }> };
+export type Result = { headline: string; stats: Array<{ value: string; label: string }>; sections: Section[] };
+export type Plan = { scenario: string; prompt: string; pace: number; stage: number; stages: Array<{ label: string; short: string; icon: string }>; result: Result | null; error?: string };
+export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null; plan?: Plan };
+
+// Today's refreshes, without the Assistant's plans.
+export const refreshes = (jobs: Job[]) => jobs.filter((job) => !job.plan);
 export type QueueWorker = { id: string; alive: boolean; leaving: boolean; done: number; current: string | null };
 export type Term = { term: number; orchestrator: string; at: number };
 export type RaftNode = {
@@ -103,9 +143,53 @@ export function sourceOf(step: string): Source | null {
   return match ? (match[1].toLowerCase() as Source) : null;
 }
 
-// The short name drawn on a timeline block.
+// The short name drawn on a timeline block: "Slack", or "Rank".
 export function shortName(step: string): string {
-  return step.replace(/^Fetch /, "").replace(/^Rank today's list$/, "Rank");
+  const source = step.match(/\b(Jira|Slack|GitHub)\b/);
+  return source ? source[1] : step.startsWith("Rank") ? "Rank" : step;
+}
+
+// A step in words while it runs: "Fetching Slack", "Ranking the list".
+export function stepLabel(step: string): string {
+  const name = shortName(step);
+  if (name === "Rank") return "Ranking the list";
+  return name === step ? step : `Fetching ${name}`;
+}
+
+// "Q-02" is the board's id on the network; people see "Board 2".
+export function boardName(id: string): string {
+  const number = id.match(/^Q-0*(\d+)$/)?.[1];
+  return number ? `Board ${number}` : id;
+}
+
+// The same, for every board id inside a sentence from the cluster's log.
+export function withBoardNames(text: string): string {
+  return text.replace(/\bQ-\d+\b/g, boardName);
+}
+
+// One line of the cluster's log as a plain sentence, with task and job ids
+// turned into what they are: "Board 1 took over Fetch Slack messages from
+// Board 3 at 40%".
+export function describeEvent(text: string, tasks: Task[]): string {
+  const step = (id: string) => tasks.find((task) => task.id === id)?.input ?? "a step";
+  const rules: Array<[RegExp, (...parts: string[]) => string]> = [
+    [/^(\S+) resumed (T-\d+) \((.+)\) at (\d+%), lost by (\S+)$/, (who, _id, input, at, from) => `Orchestrator gave ${from}'s “${input}” to ${who} at ${at}`],
+    [/^(\S+) claimed T-\d+ \((.+)\)$/, (who, input) => `${who} started “${input}”`],
+    [/^(\S+) completed (T-\d+)$/, (who, id) => `${who} finished “${step(id)}”`],
+    [/^(T-\d+) back in the queue at (\d+%), from (\S+)$/, (id, at, from) => `Orchestrator took “${step(id)}” back from ${from} at ${at}`],
+    [/^(T-\d+) back in the queue at (\d+%)$/, (id, at) => `“${step(id)}” went back in the queue at ${at}`],
+    [/^Plan J-\d+ done in (\S+ s) on (\d+) nodes?$/, (time, count) => `Job finished in ${time} on ${count} ${count === "1" ? "board" : "boards"}`],
+    [/^J-\d+ .+ queued as (\d+) steps$/, (count) => `Refresh queued as ${count} steps`],
+    [/^J-\d+ done in (\S+ s) on (\d+) nodes?$/, (time, count) => `Refresh finished in ${time} on ${count} ${count === "1" ? "board" : "boards"}`],
+    [/^(\S+) stopped responding$/, (who) => `${who} stopped responding`],
+    [/^(\S+) elected orchestrator for term (\d+)$/, (who) => `${who} was elected orchestrator`],
+    [/^Members are now (.*)$/, (list) => `Boards in the cluster: ${list}`],
+  ];
+  for (const [pattern, say] of rules) {
+    const match = text.match(pattern);
+    if (match) return withBoardNames(say(...match.slice(1)));
+  }
+  return withBoardNames(text);
 }
 
 export function seconds(ms: number): string {

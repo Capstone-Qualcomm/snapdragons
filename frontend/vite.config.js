@@ -8,6 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/snapdragons/api/cluster": { target: "http://127.0.0.1:3003", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/api/assistant": { target: "http://127.0.0.1:3003", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/api/slack": { target: "http://127.0.0.1:3002", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/auth/slack": { target: "http://127.0.0.1:3002", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/api/github": { target: "http://127.0.0.1:3004", rewrite: (path) => path.replace(/^\/snapdragons/, "") },

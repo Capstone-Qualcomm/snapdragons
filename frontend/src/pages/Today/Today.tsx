@@ -1,23 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent } from "react";
-import { ErrorBanner, RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
-import { api } from "../../lib/api";
+import { useState } from "react";
+import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { appPath } from "../../lib/urls";
-import { BoardStrip } from "../Cluster/Boards";
-import { useCluster } from "../Cluster/cluster";
-import { Connection, signInError } from "./Connections";
 import { JiraEditor } from "./JiraEditor";
-import { rank, toItems } from "./rank";
+import { rank, score } from "./rank";
 import type { Item } from "./rank";
-import { titles, useSource } from "./sources";
-import type { Source, SourceName } from "./sources";
+import { titles } from "./sources";
+import type { SourceName } from "./sources";
 import "./Today.css";
 
 const DONE_KEY = "continuum-done";
 
 // What was marked done, kept in this browser. An item counts as done only
 // until it changes again, so a new reply brings it back.
-function useDone() {
+export function useDone() {
   const [done, setDone] = useState<string[]>(() => {
     try {
       const saved: unknown = JSON.parse(localStorage.getItem(DONE_KEY) ?? "[]");
@@ -44,188 +39,195 @@ function useDone() {
   };
 }
 
-export function TodayPage({ active = true, onOpenCluster }: { active?: boolean; onOpenCluster?: () => void }) {
-  const slack = useSource("slack");
-  const jira = useSource("jira");
-  const github = useSource("github");
-  const { cluster, failed } = useCluster();
-  const { isDone, markDone, undo } = useDone();
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [signInErrors, setSignInErrors] = useState<string[]>([]);
-  const lastRefreshAt = useRef(Date.now());
-  const sources = [slack, jira, github];
+// Someone is waiting on you: a direct message or a pull request.
+export const isWaiting = (item: Item) => score(item) >= 4;
 
-  const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items }));
-  const open = ranked.filter((item) => !isDone(item));
-  const cleared = ranked.filter(isDone);
-  const counts = Object.fromEntries((Object.keys(titles) as SourceName[]).map((name) => [name, open.filter((item) => item.source === name).length]));
-  // A visitor with no source connected sees what Today is for, not a blank page.
-  const loading = sources.every((source) => source.status === "loading");
-  const ready = sources.some((source) => source.status === "ready");
+type Sort = "rank" | "source" | "updated";
+const sorts: Array<{ value: Sort; label: string }> = [
+  { value: "rank", label: "#" },
+  { value: "source", label: "Source" },
+  { value: "updated", label: "Updated" },
+];
 
-  // The refresh this page asked the cluster for, and how far along it is.
-  const job = cluster?.jobs.find((candidate) => candidate.id === jobId);
-  const steps = cluster?.tasks.filter((task) => task.job === jobId) ?? [];
-  const jobProgress = steps.length ? steps.reduce((sum, task) => sum + task.progress, 0) / steps.length : 0;
-  const jobRunning = Boolean(job && job.doneAt === null && cluster?.orchestrator);
-  const syncing = sources.some((source) => source.syncing);
-  const busy = syncing || jobRunning;
-
-  const startJob = useCallback(() => {
-    api<{ job: { id: string } }>("/api/cluster/refresh", {}).then(({ job }) => setJobId(job.id), () => {});
-  }, []);
-
-  // The cluster runs a refresh job while this browser syncs each source itself.
-  const refresh = useCallback(() => {
-    if (busy) return;
-    lastRefreshAt.current = Date.now();
-    startJob();
-    void slack.reload();
-    void jira.reload();
-    void github.reload();
-  }, [busy, startJob, github.reload, jira.reload, slack.reload]);
-
-  // Opening Today is a refresh too: the sources load on their own, and the
-  // cluster gets a job, unless one is already running for Today to follow.
-  const followed = useRef(false);
-  useEffect(() => {
-    if (followed.current || !cluster) return;
-    followed.current = true;
-    const running = cluster.jobs.find((candidate) => candidate.doneAt === null);
-    if (running) setJobId(running.id);
-    else startJob();
-  }, [cluster, startJob]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const errors = (Object.keys(titles) as SourceName[]).flatMap((name) => signInError(titles[name], params.get(name) ?? "") ?? []);
-    if ((Object.keys(titles) as SourceName[]).some((name) => params.has(name))) window.history.replaceState({}, "", window.location.pathname);
-    setSignInErrors(errors);
-  }, []);
-
-  // Refresh again after five minutes, but only while someone is looking.
-  useEffect(() => {
-    if (!active) return;
-    function refreshIfDue() {
-      if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current >= 5 * 60_000) refresh();
-    }
-    const timer = setInterval(refreshIfDue, 30_000);
-    document.addEventListener("visibilitychange", refreshIfDue);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", refreshIfDue);
-    };
-  }, [active, refresh]);
-
-  useEffect(() => {
-    if (!active) return;
-    function onKey(event: KeyboardEvent) {
-      const typing = event.target instanceof HTMLElement && event.target.closest("input, textarea, select");
-      if (event.key === "r" && !typing && !event.metaKey && !event.ctrlKey) refresh();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [active, refresh]);
-
-  function openCluster(event: MouseEvent) {
-    if (!onOpenCluster || event.metaKey || event.ctrlKey) return;
-    event.preventDefault();
-    onOpenCluster();
-  }
+// Today's work as a table: ranked, filterable by source, sortable by rank,
+// source or time. With nothing connected it shows sample rows, marked as such.
+export function TasksPanel({ items, cleared, loading, sample, onDone, onUndo, onSaved }: {
+  items: Item[];
+  cleared: Item[];
+  loading: boolean;
+  sample: boolean;
+  onDone: (item: Item) => void;
+  onUndo: (item: Item) => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [filter, setFilter] = useState<SourceName | "all">("all");
+  const [sort, setSort] = useState<Sort>("rank");
+  const shown = sample ? rank(sampleItems()) : items;
+  const ranked = shown.map((item, index) => ({ item, rank: index + 1 }));
+  const rows = ranked
+    .filter(({ item }) => filter === "all" || item.source === filter)
+    .sort((a, b) => (sort === "updated" ? b.item.at - a.item.at : sort === "source" ? titles[a.item.source].localeCompare(titles[b.item.source]) || a.rank - b.rank : a.rank - b.rank));
+  const count = (name: SourceName) => shown.filter((item) => item.source === name).length;
 
   return (
-    <div className="today">
-      <header className="today-head">
-        <div className="sources">
-          {sources.map((source) => <Connection key={source.name} source={source} count={counts[source.name]} />)}
-        </div>
-        <div className="today-refresh">
-          <button
-            className={busy ? "button primary refresh-button is-busy" : "button primary refresh-button"}
-            type="button"
-            onClick={refresh}
-            disabled={busy}
-            aria-keyshortcuts="r"
-            style={{ "--done": jobRunning ? jobProgress : 0 } as CSSProperties}
-          >
-            <span>{busy ? "Refreshing" : "Refresh"}</span>
+    <section className="panel tasks" id="tasks" aria-labelledby="tasks-title">
+      <header className="panel-head">
+        <h2 id="tasks-title">Today's tasks</h2>
+        {sample && <span className="badge is-sample">Sample data</span>}
+        <div className="chips" role="group" aria-label="Filter by source">
+          <button className="chip-button" type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+            All <span className="count">{shown.length}</span>
           </button>
+          {(["slack", "jira", "github"] as SourceName[]).map((name) => (
+            <button className="chip-button" type="button" key={name} aria-pressed={filter === name} onClick={() => setFilter(name)}>
+              <SourceLogo name={name} />
+              {titles[name]} <span className="count">{count(name)}</span>
+            </button>
+          ))}
         </div>
       </header>
-
-      <a className="strip" href={appPath("cluster")} onClick={openCluster} aria-label="Cluster">
-        {cluster ? (
-          <BoardStrip cluster={cluster} />
-        ) : failed ? (
-          <span className="strip-error">The cluster is not reachable.</span>
-        ) : null}
-      </a>
-
-      {signInErrors.map((message) => <ErrorBanner key={message} message={message} />)}
-      {sources.map((source) => source.status === "error" && <ErrorBanner key={source.name} message={source.error} onRetry={() => void source.reload()} />)}
+      {sample && (
+        <p className="panel-note">
+          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira or GitHub</a> to see your own.
+        </p>
+      )}
 
       {loading ? (
         <SkeletonRows count={5} />
-      ) : open.length > 0 ? (
-        <ol className="today-list" aria-label="Today">
-          {open.map((item) => (
-            <Row key={item.key} item={item} onDone={() => markDone(item)} onSaved={jira.reload} />
-          ))}
-        </ol>
-      ) : ready ? (
-        <p className="today-empty">Nothing waiting. You are all caught up.</p>
+      ) : rows.length === 0 ? (
+        <p className="panel-empty">{items.length ? "Nothing from this source." : "Nothing waiting. You are all caught up."}</p>
       ) : (
-        <SampleDashboard sources={sources} />
+        <table className="table tasks-table" aria-label={sample ? "Sample tasks" : "Today"}>
+          <thead>
+            <tr>
+              <th className="col-done"><span className="sr-only">Done</span></th>
+              {sorts.slice(0, 2).map((column) => <SortHeader key={column.value} column={column} sort={sort} setSort={setSort} />)}
+              <th>Item</th>
+              <th>From</th>
+              <th>Status</th>
+              <SortHeader column={sorts[2]} sort={sort} setSort={setSort} />
+              <th className="col-action"><span className="sr-only">Action</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} onDone={() => onDone(item)} onSaved={onSaved} />)}
+          </tbody>
+        </table>
       )}
 
       {cleared.length > 0 && (
         <details className="done-list">
           <summary>
-            Done <span className="count">{cleared.length}</span>
+            Done today <span className="count">{cleared.length}</span>
           </summary>
-          <ol className="today-list">
+          <ul>
             {cleared.map((item) => (
-              <li className="today-row is-done" key={item.key}>
+              <li key={item.key}>
                 <SourceLogo name={item.source} />
-                <Who item={item} />
-                <p className="what">{textOf(item)}</p>
-                <button className="button small quiet" type="button" onClick={() => undo(item)}>Undo</button>
+                <span className="what">{textOf(item)}</span>
+                <button className="button small" type="button" onClick={() => onUndo(item)}>Undo</button>
               </li>
             ))}
-          </ol>
+          </ul>
         </details>
       )}
-    </div>
-  );
-}
-
-function textOf(item: Item) {
-  return item.source === "slack" ? item.data.text : item.source === "jira" ? item.data.summary : item.data.title;
-}
-
-// A visitor with nothing connected sees a worked example: the same rows Today
-// builds, filled with sample items, and the buttons that connect each source.
-function SampleDashboard({ sources }: { sources: Source<unknown>[] }) {
-  return (
-    <section className="sample" aria-labelledby="sample-title">
-      <div className="sample-head">
-        <h2 id="sample-title"><span className="sample-chip">Sample</span> What Today looks like with a source connected</h2>
-        <p>Connect Jira, Slack and GitHub and this list fills with your tickets, mentions and pull requests, ranked by what is most urgent.</p>
-      </div>
-      <ol className="today-list sample-list" aria-label="Sample items">
-        {rank(sampleItems()).map((item) => <SampleRow key={item.key} item={item} />)}
-      </ol>
-      <div className="sources sample-connect">
-        <span className="sample-connect-label">Connect a source to get started</span>
-        {sources.map((source) => <Connection key={source.name} source={source} count={0} />)}
-      </div>
     </section>
   );
 }
 
+function SortHeader({ column, sort, setSort }: { column: { value: Sort; label: string }; sort: Sort; setSort: (sort: Sort) => void }) {
+  const on = sort === column.value;
+  return (
+    <th className={`col-${column.value}`} aria-sort={on ? (column.value === "updated" ? "descending" : "ascending") : undefined}>
+      <button className="sort-button" type="button" onClick={() => setSort(column.value)} aria-label={`Sort by ${column.value === "rank" ? "rank" : column.label.toLowerCase()}`}>
+        {column.label}
+        <span aria-hidden="true">{on ? (column.value === "updated" ? "↓" : "↑") : ""}</span>
+      </button>
+    </th>
+  );
+}
+
+export function textOf(item: Item) {
+  return item.source === "slack" ? item.data.text : item.source === "jira" ? item.data.summary : item.data.title;
+}
+
+function Row({ item, rank, sample, onDone, onSaved }: { item: Item; rank: number; sample: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const editorId = `edit-${item.key}`;
+  const link = sample ? undefined : item.data.url;
+
+  return (
+    <>
+      <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)}>
+        <td className="col-done">
+          {!sample && (
+            <button className="done-button" type="button" aria-label="Done" title="Mark done" onClick={onDone}>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
+            </button>
+          )}
+        </td>
+        <td className="col-rank num">{rank}</td>
+        <td className="col-source">
+          <span className="source-cell"><SourceLogo name={item.source} />{titles[item.source]}</span>
+        </td>
+        <td className="col-item">
+          {item.source === "jira" && (link ? <a className="jira-key" href={link} target="_blank" rel="noreferrer">{item.data.key}</a> : <span className="jira-key">{item.data.key}</span>)}
+          {item.source === "github" && <span className="item-number">#{item.data.number}</span>}
+          <span className="what">{item.source === "slack" ? withMentions(item.data.text) : textOf(item)}</span>
+        </td>
+        <td className="col-from">{fromOf(item)}</td>
+        <td className="col-status"><Status item={item} /></td>
+        <td className="col-updated num">{item.at > 0 ? <RelativeTime value={item.at} /> : "—"}</td>
+        <td className="col-action">
+          {sample ? null : item.source === "jira" ? (
+            <button className={editing ? "button small is-on" : "button small"} type="button" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
+              Edit
+            </button>
+          ) : (
+            <a className="button small" href={link} target="_blank" rel="noreferrer">{item.source === "slack" ? "Reply" : "Open"}</a>
+          )}
+        </td>
+      </tr>
+      {item.source === "jira" && editing && (
+        <tr className="editor-row">
+          <td colSpan={8}>
+            <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function fromOf(item: Item) {
+  switch (item.source) {
+    case "slack":
+      return item.data.from;
+    case "jira":
+      return item.data.reporter;
+    case "github":
+      return <span title={item.data.repository}>{item.data.repository.split("/").at(-1)}</span>;
+  }
+}
+
+function Status({ item }: { item: Item }) {
+  switch (item.source) {
+    case "slack":
+      return <span className="badge">{item.data.kind === "dm" ? "Direct message" : `Mention in ${item.data.where}`}</span>;
+    case "jira":
+      return <span className={/progress|review/i.test(item.data.status) ? "badge is-ok" : "badge"}>{item.data.status}</span>;
+    case "github":
+      return <span className="badge">{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>;
+  }
+}
+
+function withMentions(text: string) {
+  return text.split(/(@you\b)/).map((part, index) => (part === "@you" ? <mark key={index}>@you</mark> : part));
+}
+
 const sampleAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-// Illustrative only: these are never written anywhere.
+// Illustrative only: these are never written anywhere, and never counted as real work.
 function sampleItems(): Item[] {
   const at = (minutes: number) => Date.now() - minutes * 60_000;
   return [
@@ -235,109 +237,15 @@ function sampleItems(): Item[] {
     },
     {
       key: "sample:jira", source: "jira", at: at(41),
-      data: { key: "QT1S-42", summary: "Wire the failover test into CI", status: "In Progress", issueType: "Task", updated: sampleAgo(41), url: "", description: "", sprints: ["Sprint 5"], labels: [], storyPointEstimate: 3, reporter: "You" },
+      data: { key: "QT1S-42", summary: "Wire the failover test into CI", status: "In Progress", issueType: "Task", updated: sampleAgo(41), url: "", description: "", sprints: ["Sprint 5"], labels: [], storyPointEstimate: 3, reporter: "Alex Kim" },
     },
     {
       key: "sample:github", source: "github", at: at(95),
       data: { id: "sample-github", kind: "pull_request", repository: "Capstone-Qualcomm/snapdragons", number: 15, title: "Today and Cluster redesign", state: "open", updatedAt: sampleAgo(95), url: "" },
     },
+    {
+      key: "sample:mention", source: "slack", at: at(12),
+      data: { id: "sample-mention", kind: "mention", from: "Jordan Lee", where: "#dev", text: "@you the nightly build failed on the board image", sentAt: sampleAgo(12), url: "" },
+    },
   ];
-}
-
-function SampleRow({ item }: { item: Item }) {
-  return (
-    <li className={`today-row is-sample is-${item.source}`}>
-      <span className="done-button is-sample" aria-hidden="true" />
-      <SourceLogo name={item.source} />
-      <SampleWho item={item} />
-      <p className="what">{item.source === "slack" ? withMentions(item.data.text) : textOf(item)}</p>
-      <RelativeTime value={item.at} />
-      <span className="row-action" />
-    </li>
-  );
-}
-
-// The same detail as Who, without the links a sample must not follow.
-function SampleWho({ item }: { item: Item }) {
-  switch (item.source) {
-    case "slack":
-      return (
-        <div className="who">
-          <strong>{item.data.from}</strong>
-          <span>{item.data.kind === "dm" ? "DM" : item.data.where}</span>
-        </div>
-      );
-    case "jira":
-      return (
-        <div className="who">
-          <span className="jira-key">{item.data.key}</span>
-          <span className={/progress|review/i.test(item.data.status) ? "status is-started" : "status"}>{item.data.status}</span>
-        </div>
-      );
-    case "github":
-      return (
-        <div className="who">
-          <strong title={item.data.repository}>{item.data.repository.split("/").at(-1)} #{item.data.number}</strong>
-          <span>{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>
-        </div>
-      );
-  }
-}
-
-function Row({ item, onDone, onSaved }: { item: Item; onDone: () => void; onSaved: () => Promise<void> }) {
-  const [editing, setEditing] = useState(false);
-  const editorId = `edit-${item.key}`;
-
-  return (
-    <li className={`today-row is-${item.source}`} aria-label={textOf(item)}>
-      <button className="done-button" type="button" aria-label="Done" title="Done" onClick={onDone}>
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
-      </button>
-      <SourceLogo name={item.source} />
-      <Who item={item} />
-      <p className="what">{item.source === "slack" ? withMentions(item.data.text) : textOf(item)}</p>
-      {item.at > 0 ? <RelativeTime value={item.at} /> : <span />}
-      <span className="row-action">
-        {item.source === "slack" && <a className="button small" href={item.data.url} target="_blank" rel="noreferrer">Reply</a>}
-        {item.source === "github" && <a className="button small" href={item.data.url} target="_blank" rel="noreferrer">Open</a>}
-        {item.source === "jira" && (
-          <button className={editing ? "button small is-on" : "button small"} type="button" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
-            Edit
-          </button>
-        )}
-      </span>
-      {item.source === "jira" && editing && <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />}
-    </li>
-  );
-}
-
-// Who is asking, or which ticket or pull request it is, with the one detail that ranked it.
-function Who({ item }: { item: Item }) {
-  switch (item.source) {
-    case "slack":
-      return (
-        <div className="who">
-          <strong>{item.data.from}</strong>
-          <span>{item.data.kind === "dm" ? "DM" : item.data.where}</span>
-        </div>
-      );
-    case "jira":
-      return (
-        <div className="who">
-          <a className="jira-key" href={item.data.url} target="_blank" rel="noreferrer">{item.data.key}</a>
-          <span className={/progress|review/i.test(item.data.status) ? "status is-started" : "status"}>{item.data.status}</span>
-        </div>
-      );
-    case "github":
-      return (
-        <div className="who">
-          <strong title={item.data.repository}>{item.data.repository.split("/").at(-1)} #{item.data.number}</strong>
-          <span>{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>
-        </div>
-      );
-  }
-}
-
-function withMentions(text: string) {
-  return text.split(/(@you\b)/).map((part, index) => (part === "@you" ? <mark key={index}>@you</mark> : part));
 }

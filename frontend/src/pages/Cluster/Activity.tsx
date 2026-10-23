@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { SourceLogo } from "../../components/ui";
 import { api } from "../../lib/api";
-import type { ClusterEvent } from "./cluster";
+import { titles } from "../Today/sources";
+import { describeEvent } from "./cluster";
+import type { ClusterEvent, Task } from "./cluster";
 
 type SourceName = "jira" | "slack" | "github";
 type SyncEvent = { id: number; timestamp: string; status: number; count: number | null };
@@ -37,26 +39,33 @@ function useSyncEvents() {
   return events;
 }
 
-// What the cluster and the sources did, newest first, in one list.
-export function Activity({ events, offset }: { events: ClusterEvent[]; offset: number }) {
+// What the cluster and the sources did, newest first, in plain sentences.
+export function Activity({ events, tasks, offset }: { events: ClusterEvent[]; tasks: Task[]; offset: number }) {
   const syncs = useSyncEvents();
   const entries: Entry[] = [
     // Cluster times are the gateway's clock; offset turns them into this browser's.
-    ...events.map((event, index) => ({ key: `c${index}-${event.at}`, at: event.at - offset, text: event.text, source: null })),
+    ...events.map((event, index) => ({ key: `c${index}-${event.at}`, at: event.at - offset, text: describeEvent(event.text, tasks), source: null })),
     ...sources.flatMap((source) => (syncs[source] ?? []).map((event) => ({ key: `${source}${event.id}`, at: new Date(event.timestamp).getTime(), text: syncText(event), source }))),
   ].sort((a, b) => b.at - a.at).slice(0, 40);
 
   return (
-    <section className="activity panel-box" aria-label="Activity">
-      <ol className="activity-rows" aria-live="polite">
-        {entries.map((entry) => (
-          <li key={entry.key}>
-            <time dateTime={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</time>
-            {entry.source ? <SourceLogo name={entry.source} /> : <span className="logo logo-cluster" aria-hidden="true" />}
-            <span>{entry.text}</span>
-          </li>
-        ))}
-      </ol>
+    <section className="panel activity" aria-labelledby="activity-title">
+      <header className="panel-head">
+        <h2 id="activity-title">Activity</h2>
+      </header>
+      {entries.length === 0 ? (
+        <p className="panel-empty">Nothing has happened yet.</p>
+      ) : (
+        <ol className="activity-rows" aria-label="Activity" aria-live="polite">
+          {entries.map((entry) => (
+            <li key={entry.key}>
+              <time className="num" dateTime={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</time>
+              {entry.source ? <SourceLogo name={entry.source} /> : <span className="logo logo-cluster" aria-hidden="true" />}
+              <span>{entry.source ? `${titles[entry.source]}: ${entry.text}` : entry.text}</span>
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }
