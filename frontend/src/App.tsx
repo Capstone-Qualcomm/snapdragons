@@ -30,6 +30,8 @@ function App() {
   const [page, setPage] = useState<Page>(() => pageFromPath(window.location.pathname));
   // One poll of the cluster and one load of each source, shared by every page.
   const { cluster, failed, reload, serverNow } = useCluster();
+  // The Assistant job being followed, kept here so leaving the Assistant page does not lose it.
+  const [shownJob, setShownJob] = useState<string | null>(null);
   const slack = useSource("slack");
   const jira = useSource("jira");
   const github = useSource("github");
@@ -106,7 +108,7 @@ function App() {
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
 
       <main className="content">
-        {page === "assistant" && <AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} />}
+        {page === "assistant" && <AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} />}
         <TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} />
         {page === "cluster" && <ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} />}
         {page === "connections" && <ConnectionsPage sources={sources} counts={counts} />}

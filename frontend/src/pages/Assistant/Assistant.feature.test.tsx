@@ -90,6 +90,32 @@ describe("Assistant: ask", () => {
     await act(async () => {});
     expect(posts).toEqual([["/api/assistant/run", { scenario: "engineer", prompt: scenarios[1].prompt, pace: "slow" }]]);
   });
+
+  it("sends one job however often Run is clicked while the server answers", async () => {
+    const posts: unknown[] = [];
+    let answer = () => {};
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (init?.method === "POST") {
+        posts.push(path);
+        await new Promise<void>((resolve) => (answer = resolve));
+        return Response.json({ job: { id: "J-9" } }, { status: 201 });
+      }
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return Response.json(cluster({ jobs: [], tasks: [] }));
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    await screen.findByRole("button", { name: /Engineer/ });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Run" }).hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(screen.getByRole("button", { name: "Run" }).hasAttribute("disabled")).toBe(true);
+    await act(async () => answer());
+    expect(posts).toEqual(["/api/assistant/run"]);
+  });
 });
 
 describe("Assistant: watch", () => {
@@ -137,6 +163,23 @@ describe("Assistant: watch", () => {
     expect(within(log).getByText("Orchestrator gave Board 4's “Mon–Wed slots” to Board 2")).toBeTruthy();
   });
 
+  it("warns when the cluster stops answering mid-job, and keeps the last state", async () => {
+    let up = true;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const path = String(url);
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return up ? Response.json(cluster()) : Response.json({}, { status: 503 });
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    await screen.findByRole("region", { name: "Cluster" });
+    up = false;
+    expect(await screen.findByText("The cluster is not reachable. Showing the last received state.")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Cluster" })).toBeTruthy();
+  });
+
   it("while the boards elect a new orchestrator, says so", async () => {
     mock(cluster({ orchestrator: null, nodes: [node("Q-01", { up: false }), node("Q-02", { role: "candidate" }), node("Q-03")] }));
     const stage = await screen.findByRole("region", { name: "Cluster" });
@@ -159,6 +202,27 @@ describe("Assistant: report", () => {
   it("opens empty even when an earlier job has finished", async () => {
     mock(cluster({ jobs: [{ ...plan({ stage: 2, result }), doneAt: now - 1000, nodes: 3 }] }));
     expect(await screen.findByRole("heading", { name: "What should your boards do?" })).toBeTruthy();
+  });
+
+  it("still shows the report of a job followed to another page and back", async () => {
+    let state = cluster();
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const path = String(url);
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/(connection|activity)$/);
+      if (source?.[2] === "connection") return Response.json({ [source[1]]: { configured: false, connected: false, enabled: false } });
+      if (source) return Response.json({ events: [] });
+      return Response.json(state);
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    await screen.findByRole("region", { name: "Cluster" });
+    const nav = within(screen.getByRole("navigation", { name: "Pages" }));
+    fireEvent.click(nav.getByRole("link", { name: "Cluster" }));
+    state = cluster({ jobs: [{ ...plan({ stage: 2, result }), doneAt: now - 1000, nodes: 3 }] });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 600)); });
+    fireEvent.click(nav.getByRole("link", { name: "Assistant" }));
+    expect(await screen.findByText("6 companies replied and 4 want an interview.")).toBeTruthy();
   });
 
   it("leads with a headline and stat tiles, puts each section in a tab, and goes back to ask for another", async () => {

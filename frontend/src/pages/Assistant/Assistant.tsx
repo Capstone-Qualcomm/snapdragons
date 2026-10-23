@@ -14,13 +14,21 @@ export type ScenarioInfo = { id: string; audience: string; icon: string; title: 
 
 // The Assistant, one focus at a time: ask (an empty page with the prompt),
 // watch (the boards splitting the job), read (the report).
-export function AssistantPage({ cluster, failed, reload, serverNow }: { cluster: ClusterState | null; failed: boolean; reload: () => Promise<void>; serverNow: () => number }) {
+// shown is the job this page follows. App keeps it, so it is still there after a visit to another page.
+export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown }: {
+  cluster: ClusterState | null;
+  failed: boolean;
+  reload: () => Promise<void>;
+  serverNow: () => number;
+  shown: string | null;
+  setShown: (id: string | null) => void;
+}) {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [selected, setSelected] = useState("student");
   const [prompt, setPrompt] = useState("");
   const [pace, setPace] = useState("normal");
   const [error, setError] = useState<string | null>(null);
-  const [shown, setShown] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const now = useClock(serverNow);
 
   useEffect(() => {
@@ -33,6 +41,12 @@ export function AssistantPage({ cluster, failed, reload, serverNow }: { cluster:
   const plans = cluster?.jobs.filter((job) => job.plan) ?? [];
   const running = plans.find((job) => job.doneAt === null) ?? null;
   const job = running ?? plans.find((entry) => entry.id === shown) ?? null;
+  // A running job is followed through to its report, even one this page did not start.
+  useEffect(() => {
+    if (running) setShown(running.id);
+  }, [running?.id, setShown]);
+  const stale = failed ? (cluster ? "The cluster is not reachable. Showing the last received state." : "The cluster is not reachable. Start it with ./scripts/start-cluster.sh.") : null;
+  const banner = error ?? stale;
   const scenario = scenarios.find((entry) => entry.id === (job?.plan!.scenario ?? selected));
 
   function pick(id: string) {
@@ -40,14 +54,19 @@ export function AssistantPage({ cluster, failed, reload, serverNow }: { cluster:
     setPrompt(scenarios.find((entry) => entry.id === id)?.prompt ?? "");
   }
 
+  // One job per click: Run stays off until the server answers.
   async function run() {
+    if (starting) return;
+    setStarting(true);
     setError(null);
     try {
       const { job } = await api<{ job: Job }>("/api/assistant/run", { scenario: selected, prompt, pace });
       setShown(job.id);
-      void reload();
+      await reload();
     } catch (cause) {
       setError((cause as Error).message);
+    } finally {
+      setStarting(false);
     }
   }
 
@@ -63,8 +82,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow }: { cluster:
         selected={selected}
         prompt={prompt}
         pace={pace}
-        error={error ?? (failed && !cluster ? "The cluster is not reachable. Start it with ./scripts/start-cluster.sh." : null)}
-        canRun={Boolean(cluster?.orchestrator && scenarios.length)}
+        error={banner}
+        canRun={Boolean(cluster?.orchestrator && scenarios.length) && !starting}
         onPick={pick}
         onPrompt={setPrompt}
         onPace={setPace}
@@ -78,7 +97,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow }: { cluster:
 
   return (
     <div className="assistant">
-      {error && <ErrorBanner message={error} />}
+      {banner && <ErrorBanner message={banner} />}
       <RunHeader job={job} scenario={scenario} onStop={() => void act("/api/assistant/stop", { job: job.id })} onAgain={() => setShown(null)} />
       {job.doneAt === null || !job.plan!.result ? (
         <Watching job={job} tasks={tasks} cluster={cluster} events={events} now={now} offset={serverNow() - Date.now()} act={(path) => void act(path)} />
