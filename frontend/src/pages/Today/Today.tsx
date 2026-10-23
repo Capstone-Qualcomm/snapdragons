@@ -39,7 +39,7 @@ export function useDone() {
   };
 }
 
-// Someone is waiting on you: a direct message or a pull request.
+// Someone is waiting on you: a direct message, pull request or unread email.
 export const isWaiting = (item: Item) => score(item) >= 4;
 
 type Sort = "rank" | "source" | "updated";
@@ -81,7 +81,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
           <button className="chip-button" type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
             All <span className="count">{shown.length}</span>
           </button>
-          {(["slack", "jira", "github"] as SourceName[]).map((name) => (
+          {(["slack", "jira", "github", "outlook"] as SourceName[]).map((name) => (
             <button className="chip-button" type="button" key={name} aria-pressed={filter === name} onClick={() => setFilter(name)}>
               <SourceLogo name={name} />
               {titles[name]} <span className="count">{count(name)}</span>
@@ -91,7 +91,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
       </header>
       {sample && (
         <p className="panel-note">
-          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira or GitHub</a> to see your own.
+          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira, GitHub or Outlook</a> to see your own.
         </p>
       )}
 
@@ -154,7 +154,12 @@ function SortHeader({ column, sort, setSort }: { column: { value: Sort; label: s
 }
 
 export function textOf(item: Item) {
-  return item.source === "slack" ? item.data.text : item.source === "jira" ? item.data.summary : item.data.title;
+  switch (item.source) {
+    case "slack": return item.data.text;
+    case "jira": return item.data.summary;
+    case "github": return item.data.title;
+    case "outlook": return item.data.subject;
+  }
 }
 
 function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
@@ -190,7 +195,16 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
               Edit
             </button>
           ) : (
-            <a className="button small" href={link} target="_blank" rel="noreferrer">{item.source === "slack" ? "Reply" : "Open"}</a>
+            <a
+              className="button small"
+              href={link}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={item.source === "outlook" ? "Open in Outlook" : undefined}
+              title={item.source === "outlook" ? "Open in Outlook" : undefined}
+            >
+              {item.source === "slack" ? "Reply" : "Open"}
+            </a>
           )}
         </td>
       </tr>
@@ -213,6 +227,8 @@ function fromOf(item: Item) {
       return item.data.reporter;
     case "github":
       return <span title={item.data.repository}>{item.data.repository.split("/").at(-1)}</span>;
+    case "outlook":
+      return item.data.from;
   }
 }
 
@@ -224,6 +240,8 @@ function Status({ item }: { item: Item }) {
       return <span className={/progress|review/i.test(item.data.status) ? "badge is-ok" : "badge"}>{item.data.status}</span>;
     case "github":
       return <span className="badge">{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>;
+    case "outlook":
+      return <span className="badge">Unread email</span>;
   }
 }
 

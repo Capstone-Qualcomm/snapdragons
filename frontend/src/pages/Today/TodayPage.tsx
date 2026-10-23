@@ -12,16 +12,16 @@ import { isWaiting, TasksPanel, useDone } from "./Today";
 
 const off = (source: Source<any>) => ["unconfigured", "disconnected", "disabled"].includes(source.status);
 
-// Today: your Slack, Jira and GitHub work in one ranked table, with the numbers that matter above it.
+// Today: your Slack, Jira, GitHub and Outlook work in one ranked table, with the numbers that matter above it.
 // It stays mounted while another page is open, so an open Jira edit survives; active is whether it is on screen.
 export function TodayPage({ sources, cluster, failed, offset, active }: { sources: Source<any>[]; cluster: ClusterState | null; failed: boolean; offset: number; active: boolean }) {
-  const [slack, jira, github] = sources;
+  const [slack, jira, github, outlook] = sources;
   const { isDone, markDone, undo } = useDone();
   const [jobId, setJobId] = useState<string | null>(null);
   const [signInErrors, setSignInErrors] = useState<string[]>([]);
   const lastRefreshAt = useRef(Date.now());
 
-  const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items }));
+  const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }));
   const open = ranked.filter((item) => !isDone(item));
   const cleared = ranked.filter(isDone);
   // A visitor with no source connected sees sample rows, never counted as real work.
@@ -50,7 +50,8 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     void slack.reload();
     void jira.reload();
     void github.reload();
-  }, [busy, startJob, github.reload, jira.reload, slack.reload]);
+    void outlook.reload();
+  }, [busy, startJob, github.reload, jira.reload, outlook.reload, slack.reload]);
 
   // Opening Today is a refresh too: the sources load on their own, and the
   // cluster gets a job, unless one is already running for Today to follow, or
@@ -107,7 +108,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       <header className="page-head">
         <div className="page-title">
           <h1>Today</h1>
-          <p className="lede">Your Slack, Jira and GitHub work, ranked by what needs you first.</p>
+          <p className="lede">Your Slack, Jira, GitHub and Outlook work, ranked by what needs you first.</p>
         </div>
         <button
           className={busy ? "button primary refresh-button is-busy" : "button primary refresh-button"}
@@ -125,9 +126,9 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       {sources.map((source) => source.status === "error" && <ErrorBanner key={source.name} message={`${source.title}: ${source.error}`} onRetry={() => void source.reload()} />)}
 
       <ul className="stats is-4" aria-label="Summary">
-        <Stat label="Open tasks" value={items ? String(items.length) : "—"} note={items ? "From Slack, Jira and GitHub" : "No source connected yet"} />
-        <Stat label="Waiting on you" value={items ? String(waiting) : "—"} note={items ? "Direct messages and pull requests" : "No source connected yet"} tone={waiting ? "is-ember" : ""} />
-        <Stat label="Sources connected" value={`${connected} / ${sources.length}`} note={connected === sources.length ? "Slack, Jira and GitHub" : "Connect the rest on Connections"} />
+        <Stat label="Open tasks" value={items ? String(items.length) : "—"} note={items ? "From Slack, Jira, GitHub and Outlook" : "No source connected yet"} />
+        <Stat label="Waiting on you" value={items ? String(waiting) : "—"} note={items ? "Direct messages, pull requests and unread email" : "No source connected yet"} tone={waiting ? "is-ember" : ""} />
+        <Stat label="Sources connected" value={`${connected} / ${sources.length}`} note={connected === sources.length ? "All four sources connected" : "Connect the rest on Connections"} />
         <Stat
           label="Last refresh"
           value={last ? `${((last.doneAt! - last.queuedAt) / 1000).toFixed(1)} s` : "—"}

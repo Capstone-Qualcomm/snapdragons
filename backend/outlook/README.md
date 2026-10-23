@@ -26,4 +26,4 @@ Microsoft identity platform OAuth server and Microsoft Graph reader. Outlook is 
 | POST | `/api/outlook/connection/enabled` | Toggle on/off |
 | POST | `/api/outlook/connection/disconnect` | Remove saved token |
 
-The backend calls `GET /v1.0/me/mailFolders/inbox/messages` with `isRead eq false`, requests only message summary fields, and follows Microsoft Graph paging links. It does not modify messages.
+The backend calls `GET /v1.0/me/mailFolders/inbox/messages` for unread messages received in the past 72 hours, requests only message summary fields, and follows Microsoft Graph paging links. It does not modify messages.

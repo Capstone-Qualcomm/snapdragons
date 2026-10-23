@@ -135,18 +135,18 @@ export async function send(path: string, body: unknown = {}): Promise<string | n
   }
 }
 
-export type Source = "jira" | "slack" | "github";
+export type Source = "jira" | "slack" | "github" | "outlook";
 
 // "Fetch Slack messages" comes from Slack; the ranking step has no source.
 export function sourceOf(step: string): Source | null {
-  const match = step.match(/\b(Jira|Slack|GitHub)\b/);
+  const match = step.match(/\b(Jira|Slack|GitHub|Outlook)\b/i);
   return match ? (match[1].toLowerCase() as Source) : null;
 }
 
 // The short name drawn on a timeline block: "Slack", or "Rank".
 export function shortName(step: string): string {
-  const source = step.match(/\b(Jira|Slack|GitHub)\b/);
-  return source ? source[1] : step.startsWith("Rank") ? "Rank" : step;
+  const source = step.match(/\b(Jira|Slack|GitHub|Outlook)\b/i);
+  return source ? source[1][0].toUpperCase() + source[1].slice(1).toLowerCase() : step.startsWith("Rank") ? "Rank" : step;
 }
 
 // A step in words while it runs: "Fetching Slack", "Ranking the list".

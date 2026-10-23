@@ -4,7 +4,6 @@ export type OutlookMessage = {
   id: string;
   from: string;
   subject: string;
-  preview: string;
   receivedAt: string;
   url: string;
 };
@@ -14,7 +13,6 @@ type GraphMessage = {
   isRead?: unknown;
   from?: { emailAddress?: { name?: unknown; address?: unknown } };
   subject?: unknown;
-  bodyPreview?: unknown;
   receivedDateTime?: unknown;
   webLink?: unknown;
 };
@@ -33,8 +31,10 @@ export function createOutlookApi({ outlookConnection, fetchImpl = globalThis.fet
     const accessToken = await getAccessToken();
     const items: OutlookMessage[] = [];
     const first = new URL(`${graphOrigin}/v1.0/me/mailFolders/inbox/messages`);
-    first.searchParams.set("$filter", "isRead eq false");
-    first.searchParams.set("$select", "id,isRead,from,subject,bodyPreview,receivedDateTime,webLink");
+    const receivedAfter = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+    // Graph requires the ordered property first in the filter when both are used.
+    first.searchParams.set("$filter", `receivedDateTime ge ${receivedAfter} and isRead eq false`);
+    first.searchParams.set("$select", "id,isRead,from,subject,receivedDateTime,webLink");
     first.searchParams.set("$orderby", "receivedDateTime desc");
     first.searchParams.set("$top", "50");
     let next: string | null = first.toString();
@@ -71,7 +71,6 @@ function toMessage(message: GraphMessage): OutlookMessage {
     id: message.id as string,
     from: typeof sender?.name === "string" ? sender.name : typeof sender?.address === "string" ? sender.address : "Unknown sender",
     subject: typeof message.subject === "string" && message.subject ? message.subject : "(no subject)",
-    preview: typeof message.bodyPreview === "string" ? message.bodyPreview : "",
     receivedAt: message.receivedDateTime as string,
     url: typeof message.webLink === "string" ? message.webLink : "https://outlook.office.com/mail/inbox",
   };
