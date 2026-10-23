@@ -71,7 +71,7 @@ afterEach(() => {
 
 // Goes to the Connections page the way a person would, from the top bar.
 const openConnections = () => fireEvent.click(within(screen.getByRole("navigation", { name: "Pages" })).getByRole("link", { name: "Connections" }));
-const rows = () => [...screen.getByRole("table", { name: "Today" }).querySelectorAll("tbody .task-row")] as HTMLElement[];
+const rows = () => [...screen.getByRole("table", { name: "Today" }).querySelectorAll("tbody .task-row:not([hidden])")] as HTMLElement[];
 const row = (text: string) => screen.getByRole("row", { name: text });
 const sourceGets = (source: string) => vi.mocked(fetch).mock.calls.filter(([url, init]) => !init?.method && String(url).endsWith(`/api/${source}/connection`)).length;
 
@@ -266,6 +266,16 @@ describe("Today across pages", () => {
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Half written" } });
     go("Cluster");
     go("Today");
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Half written");
+  });
+
+  it("keeps an open Jira edit while the list is filtered to another source", async () => {
+    await openToday();
+    fireEvent.click(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Half written" } });
+    fireEvent.click(screen.getByRole("button", { name: /^GitHub/ }));
+    expect(screen.queryByRole("textbox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^All/ }));
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Half written");
   });
 

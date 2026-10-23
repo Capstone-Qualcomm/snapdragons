@@ -87,6 +87,8 @@ a.jira-key:hover { color: var(--ember); }
 }
 
 .jira-details[hidden] { display: none; }
+.tasks-table[hidden],
+.tasks-table tr[hidden] { display: none; }
 
 .jira-fields {
   display: grid;

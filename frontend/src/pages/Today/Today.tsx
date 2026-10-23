@@ -66,9 +66,10 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
   const [sort, setSort] = useState<Sort>("rank");
   const shown = sample ? rank(sampleItems()) : items;
   const ranked = shown.map((item, index) => ({ item, rank: index + 1 }));
-  const rows = ranked
-    .filter(({ item }) => filter === "all" || item.source === filter)
-    .sort((a, b) => (sort === "updated" ? b.item.at - a.item.at : sort === "source" ? titles[a.item.source].localeCompare(titles[b.item.source]) || a.rank - b.rank : a.rank - b.rank));
+  // Rows the filter leaves out stay mounted, hidden, so an open Jira edit keeps its draft.
+  const shows = (item: Item) => filter === "all" || item.source === filter;
+  const rows = ranked.sort((a, b) => (sort === "updated" ? b.item.at - a.item.at : sort === "source" ? titles[a.item.source].localeCompare(titles[b.item.source]) || a.rank - b.rank : a.rank - b.rank));
+  const empty = !rows.some(({ item }) => shows(item));
   const count = (name: SourceName) => shown.filter((item) => item.source === name).length;
 
   return (
@@ -96,25 +97,28 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
 
       {loading ? (
         <SkeletonRows count={5} />
-      ) : rows.length === 0 ? (
-        <p className="panel-empty">{items.length ? "Nothing from this source." : checked ? "Nothing waiting. You are all caught up." : "Nothing to show, but a source could not be loaded."}</p>
       ) : (
-        <table className="table tasks-table" aria-label={sample ? "Sample tasks" : "Today"}>
-          <thead>
-            <tr>
-              <th className="col-done"><span className="sr-only">Done</span></th>
-              {sorts.slice(0, 2).map((column) => <SortHeader key={column.value} column={column} sort={sort} setSort={setSort} />)}
-              <th>Item</th>
-              <th>From</th>
-              <th>Status</th>
-              <SortHeader column={sorts[2]} sort={sort} setSort={setSort} />
-              <th className="col-action"><span className="sr-only">Action</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} onDone={() => onDone(item)} onSaved={onSaved} />)}
-          </tbody>
-        </table>
+        <>
+          {empty && <p className="panel-empty">{items.length ? "Nothing from this source." : checked ? "Nothing waiting. You are all caught up." : "Nothing to show, but a source could not be loaded."}</p>}
+          {rows.length > 0 && (
+            <table className="table tasks-table" aria-label={sample ? "Sample tasks" : "Today"} hidden={empty}>
+              <thead>
+                <tr>
+                  <th className="col-done"><span className="sr-only">Done</span></th>
+                  {sorts.slice(0, 2).map((column) => <SortHeader key={column.value} column={column} sort={sort} setSort={setSort} />)}
+                  <th>Item</th>
+                  <th>From</th>
+                  <th>Status</th>
+                  <SortHeader column={sorts[2]} sort={sort} setSort={setSort} />
+                  <th className="col-action"><span className="sr-only">Action</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} />)}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
 
       {cleared.length > 0 && (
@@ -153,14 +157,14 @@ export function textOf(item: Item) {
   return item.source === "slack" ? item.data.text : item.source === "jira" ? item.data.summary : item.data.title;
 }
 
-function Row({ item, rank, sample, onDone, onSaved }: { item: Item; rank: number; sample: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
+function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const editorId = `edit-${item.key}`;
   const link = sample ? undefined : item.data.url;
 
   return (
     <>
-      <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)}>
+      <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)} hidden={hidden}>
         <td className="col-done">
           {!sample && (
             <button className="done-button" type="button" aria-label="Done" title="Mark done" onClick={onDone}>
@@ -191,7 +195,7 @@ function Row({ item, rank, sample, onDone, onSaved }: { item: Item; rank: number
         </td>
       </tr>
       {item.source === "jira" && editing && (
-        <tr className="editor-row">
+        <tr className="editor-row" hidden={hidden}>
           <td colSpan={8}>
             <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
           </td>
