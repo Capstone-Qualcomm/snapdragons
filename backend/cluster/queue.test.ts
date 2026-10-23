@@ -68,6 +68,8 @@ test("a step lost by a dead worker resumes from its last checkpoint on another",
   assert.equal(task?.progress, 0.4);
   assert.deepEqual(task?.lostBy, ["Q-01"]);
   // The lost run ends at the last time Q-01 was heard from, and the new one starts at 40%.
+  // lostAt is when the orchestrator noticed, at the expire.
+  assert.equal(task?.runs[0].lostAt, 3000);
   assert.deepEqual(task?.runs.map(({ worker, start, end, from, to, outcome }) => ({ worker, start, end, from, to, outcome })), [
     { worker: "Q-01", start: 0, end: 1000, from: 0, to: 0.4, outcome: "lost" },
     { worker: "Q-02", start: 3000, end: null, from: 0.4, to: 0.4, outcome: "running" },
@@ -127,7 +129,7 @@ test("old done tasks and events are dropped, done counts are kept", () => {
   assert.equal(tasks.length, 80);
   assert.equal(jobs.length, 30);
   assert.equal(workers[0].done, 100);
-  assert.equal(events.length, 40);
+  assert.equal(events.length, 60);
   assert.match(events[0].text, /^J-100 done/);
 });
 

@@ -10,6 +10,14 @@ Every node runs a Raft peer, its copy of the task queue, and a worker. The Raft 
 - `node.ts` one node process: the three above, plus the HTTP routes the other nodes call
 - `server.ts` the gateway on port 3003 for the Cluster view and Today. It starts and stops node processes, reads each node's Raft status and the orchestrator's queue, and passes requests on. It holds no queue itself
 
+## Assistant plans
+
+Besides the fixed refresh, the queue runs plans: a person's job split into stages of steps. `plan.ts` says what a scenario is, and `scenarios/` holds five, each with its own made-up demo dataset and skills (`student`, `engineer`, `hiring`, `business`, `research`). Each stage turns the outputs of the stage before into the next steps, so the orchestrator fans work out from what came back. A step carries a plain-English instruction with a 2–4 word label and an icon for the page, its params and, once done, its output; the board that ran it computes the output with the step's skill and sends it with `complete`, so it is in the log like everything else.
+
+- The orchestrator hands each step to a board (`assignee`); a step whose board is down or busy can be taken by any idle board, and a dead board's step goes back with its checkpoint.
+- Planning and merging steps (`role: "orchestrator"`) only the current orchestrator runs, so a new orchestrator picks them up after an election. Other plan steps never go to the orchestrator while another board is up.
+- Stage functions run inside `apply` on every node, so they are pure: only step outputs and the dataset.
+
 ## Run it
 
 ```
@@ -44,6 +52,9 @@ Kill a node from a terminal the way a board loses power:
 | POST | `/api/cluster/nodes/:id/kill` | SIGKILL a node, like a board losing power |
 | POST | `/api/cluster/nodes/:id/remove` | Remove a node after its current step |
 | POST | `/api/cluster/restart` | Kill every node, then start them all again |
+| GET | `/api/assistant/scenarios` | The demo scenarios: who each is for, its prompt, its demo data and its stages |
+| POST | `/api/assistant/run` | `{ "scenario": "student", "prompt": "...", "pace": "normal" }` queues that scenario's plan. Auto refresh waits while it runs |
+| POST | `/api/assistant/stop` | `{ "job": "J-4" }` stops a running plan: its unfinished steps are dropped |
 
 Timings, all in milliseconds: `WORK_MS` (3000 per step), `LEASE_MS` (2000), `RAFT_HEARTBEAT_MS` (300), `RAFT_ELECTION_MIN_MS` and `RAFT_ELECTION_MAX_MS` (1500 and 3000).
 

@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fileStorage } from "./node.ts";
 import type { Persisted } from "./raft.ts";
+import { describeScenarios, scenarioById } from "./scenarios/index.ts";
 
 // The gateway between the app and the cluster. It holds no queue of its
 // own: it starts and stops the node processes, asks each node for its Raft
@@ -28,6 +29,9 @@ export const REFRESH = {
 
 // Auto mode waits this long after a refresh finishes before starting the next.
 const AUTO_PAUSE_MS = 1500;
+
+// How fast an Assistant plan runs: each step's time is multiplied by this.
+const PACES: Record<string, number> = { slow: 1.6, normal: 1, fast: 0.5 };
 
 type ServerOptions = {
   port?: number;
@@ -51,7 +55,7 @@ type NodeStatus = {
   lastIndex: number;
 };
 
-type QueueState = { tasks: unknown[]; jobs: Array<{ doneAt: number | null }>; workers: unknown[]; terms: unknown[]; events: unknown[] };
+type QueueState = { tasks: unknown[]; jobs: Array<{ doneAt: number | null; plan?: unknown }>; workers: unknown[]; terms: unknown[]; events: unknown[] };
 const EMPTY_QUEUE: QueueState = { tasks: [], jobs: [], workers: [], terms: [], events: [] };
 
 export function createClusterServer(options: ServerOptions = {}) {
@@ -194,6 +198,7 @@ export function createClusterServer(options: ServerOptions = {}) {
     submitting = true;
     try {
       const { jobs, orchestrator } = await clusterState();
+      // Any unfinished job holds it back, an Assistant plan included, so the boards stay on the plan.
       const running = jobs.some((job) => job.doneAt === null);
       const lastDone = Math.max(0, ...jobs.map((job) => job.doneAt ?? 0));
       if (orchestrator && !running && Date.now() - lastDone >= AUTO_PAUSE_MS) await clusterRequest({ type: "job", ...REFRESH });
@@ -262,6 +267,19 @@ export function createClusterServer(options: ServerOptions = {}) {
 
       if (req.method === "GET" && url.pathname === "/api/cluster/state") return send(res, 200, await clusterState());
       if (post && url.pathname === "/api/cluster/refresh") return send(res, 201, { job: await clusterRequest({ type: "job", ...REFRESH }) });
+      if (req.method === "GET" && url.pathname === "/api/assistant/scenarios") return send(res, 200, { scenarios: describeScenarios() });
+      if (post && url.pathname === "/api/assistant/run") {
+        const body = await readBody(req);
+        const scenario = scenarioById(String(body.scenario ?? ""));
+        if (!scenario) return send(res, 400, { error: "Pick one of the demo scenarios." });
+        const prompt = typeof body.prompt === "string" && body.prompt.trim() ? body.prompt.trim().slice(0, 500) : scenario.prompt;
+        const pace = PACES[String(body.pace)] ?? 1;
+        return send(res, 201, { job: await clusterRequest({ type: "plan", scenario: scenario.id, prompt, pace }) });
+      }
+      if (post && url.pathname === "/api/assistant/stop") {
+        const job = await clusterRequest({ type: "cancel", job: String((await readBody(req)).job ?? "") });
+        return job ? send(res, 200, { job }) : send(res, 409, { error: "That job is not running." });
+      }
       if (post && url.pathname === "/api/cluster/auto") {
         auto = Boolean((await readBody(req)).on);
         return send(res, 200, { auto });

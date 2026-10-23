@@ -54,6 +54,14 @@ test("auto mode turns on and off", async () => {
   assert.equal((await (await fetch(base + "/api/cluster/state")).json()).auto, true);
 });
 
+test("the Assistant lists its scenarios, and refuses one it does not have", async () => {
+  const base = await startGateway();
+  const { scenarios } = await (await fetch(base + "/api/assistant/scenarios")).json();
+  assert.deepEqual(scenarios.map((scenario: { id: string }) => scenario.id), ["student", "engineer", "hiring", "business", "research"]);
+  assert.ok(scenarios.every((scenario: { audience: string; prompt: string; data: { label: string }; stages: string[] }) => scenario.audience && scenario.prompt && /demo/i.test(scenario.data.label) && scenario.stages.length >= 3));
+  assert.equal((await post(base, "/api/assistant/run", { scenario: "nope" })).status, 400);
+});
+
 test("bad JSON gets a 400", async () => {
   const base = await startGateway();
   assert.equal((await fetch(base + "/api/cluster/auto", { method: "POST", body: "{nope" })).status, 400);

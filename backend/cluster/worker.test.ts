@@ -56,3 +56,24 @@ test("checkpoints count from where the step started, even when the claimed task 
   assert.ok(beats.length >= 3);
   for (const beat of beats) assert.ok(beat.progress <= beat.elapsed / 750 + 0.05, `${beat.progress} after ${beat.elapsed} ms`);
 });
+
+test("a plan step's first heartbeat carries what the skill found, and its completion the full output", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  let claims = 0;
+  await runWorker({
+    id: "Q-02",
+    pollMs: 20,
+    heartbeatMs: 60,
+    call: async (command) => {
+      calls.push(command);
+      if (command.type === "claim") return claims++ ? { task: null, leave: true } : { task: { id: "T-1", progress: 0, skill: "inbox", scenario: "student", params: { from: 1, to: 40 }, durationMs: 300 } };
+      return true;
+    },
+  });
+  const beats = calls.filter((call) => call.type === "progress");
+  assert.ok(beats.length >= 2);
+  assert.deepEqual((beats[0].found as { chips: string[] }).chips, ["northwind-robotics.example"]);
+  assert.ok(beats.slice(1).every((beat) => !beat.found));
+  const complete = calls.find((call) => call.type === "complete")!;
+  assert.equal((complete.output as { short: string }).short, "2 replies");
+});

@@ -6,9 +6,14 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["*.ts"]
+  "include": [
+    "*.ts",
+    "scenarios/*.ts"
+  ]
 }

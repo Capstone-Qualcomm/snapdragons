@@ -14,8 +14,8 @@ type State = {
   term: number | null;
   members: string[];
   nodes: Array<{ id: string; up: boolean }>;
-  tasks: Array<{ id: string; status: string; worker: string | null; job: string; progress: number; lostBy: string[]; runs: Run[] }>;
-  jobs: Array<{ id: string; doneAt: number | null; nodes: number | null }>;
+  tasks: Array<{ id: string; status: string; worker: string | null; job: string; progress: number; lostBy: string[]; runs: Run[]; stage?: number }>;
+  jobs: Array<{ id: string; doneAt: number | null; nodes: number | null; plan?: { result: { sections: Array<{ title: string; rows?: string[][] }> } | null } }>;
 };
 
 async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"))) {
@@ -29,8 +29,8 @@ async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(jo
   const base = `http://localhost:${(server.address() as AddressInfo).port}`;
 
   const state = async () => (await (await fetch(`${base}/api/cluster/state`)).json()) as State;
-  async function until(check: (current: State) => boolean, what: string): Promise<State> {
-    for (let attempt = 0; attempt < 200; attempt++) {
+  async function until(check: (current: State) => boolean, what: string, attempts = 200): Promise<State> {
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const current = await state();
       if (check(current)) return current;
       await sleep(100);
@@ -249,5 +249,29 @@ test("a removal cut off halfway, saved only by the orchestrator it removes, stil
     assert.deepEqual(back.members, remaining);
   } finally {
     again.close();
+  }
+});
+
+test("an Assistant plan survives a worker and then the orchestrator being killed, and still produces its result", async () => {
+  // Five boards, so with two killed the other three are still a majority and can elect.
+  const cluster = await startCluster(4641, 5);
+  try {
+    const run = await cluster.post("/api/assistant/run", { scenario: "student", pace: "fast" });
+    const job = ((await run.json()) as { job: { id: string } }).job.id;
+    const reading = await cluster.until((current) => current.tasks.some((task) => task.job === job && task.status === "claimed" && task.worker !== current.orchestrator && task.progress >= 0.2), "a worker is partway through reading the inbox");
+    const victim = reading.tasks.find((task) => task.job === job && task.status === "claimed" && task.worker !== reading.orchestrator)!;
+    assert.equal((await cluster.post(`/api/cluster/nodes/${victim.worker}/kill`)).status, 200);
+
+    const second = await cluster.until((current) => current.tasks.some((task) => task.job === job && task.stage === 1), "the orchestrator plans the second step", 400);
+    const old = second.orchestrator!;
+    assert.equal((await cluster.post(`/api/cluster/nodes/${old}/kill`)).status, 200);
+
+    const done = await cluster.until(cluster.jobDone(job), "the plan is done", 600);
+    assert.notEqual(done.orchestrator, old);
+    assert.deepEqual(done.tasks.find((task) => task.id === victim.id)!.lostBy, [victim.worker]);
+    const replies = done.jobs.find((entry) => entry.id === job)!.plan!.result!.sections[0].rows!;
+    assert.equal(replies.length, 6);
+  } finally {
+    cluster.close();
   }
 });
