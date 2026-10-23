@@ -4,8 +4,8 @@ CS 620 capstone, Qualcomm Team 1. Persistent agent runtime that scales out acros
 
 ## Layout
 
-- `frontend/` the app (React and Vite): Assistant (give the boards a job and watch them split it, on demo data), Today (your Slack, Jira and GitHub work, ranked), Cluster (the boards, refresh times and activity) and Connections
-- `backend/jira/`, `backend/slack/` and `backend/github/` sign-in and data for each source, on ports 3001, 3002 and 3004. Code they share is in `backend/*.mts`
+- `frontend/` the app (React and Vite): Assistant (give the boards a job and watch them split it, on demo data), Today (your Slack, Jira, GitHub and Outlook work, ranked), Cluster (the boards, refresh times and activity) and Connections
+- `backend/jira/`, `backend/slack/`, `backend/github/` and `backend/outlook/` sign-in and data for each source, on ports 3001, 3002, 3004 and 3005. Code they share is in `backend/*.mts`
 - `backend/cluster/` the cluster on one laptop: a gateway on port 3003 and node processes that share a Raft-replicated task queue
 - `mvp/` concept landing page (static, run with `python3 -m http.server 8080` inside it)
 
@@ -13,7 +13,7 @@ CS 620 capstone, Qualcomm Team 1. Persistent agent runtime that scales out acros
 
 The backends need Node 22.18 or newer.
 
-- `./scripts/start-dev.sh` starts the Jira, Slack and GitHub backends and the dashboard. It needs `backend/.env`, see `backend/.env.example`.
+- `./scripts/start-dev.sh` starts the Jira, Slack, GitHub and Outlook backends and the dashboard. It needs `backend/.env`, see `backend/.env.example`.
 - `./scripts/start-cluster.sh` starts three nodes and refreshes on a loop. Leave it running and the Cluster page shows what each board is doing; the Assistant page runs its demo jobs on the same boards.
 - To watch failover, `./scripts/kill-worker.sh Q-02` while the cluster works. If it was the orchestrator the others elect a new one, and its step moves to another node.
 - `bash tests/local_tests.sh` runs the backend, integration and frontend tests. Pull requests run them on GitHub too.

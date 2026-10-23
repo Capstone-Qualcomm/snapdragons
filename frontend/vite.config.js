@@ -13,6 +13,8 @@ export default defineConfig({
       "/snapdragons/auth/slack": { target: "http://127.0.0.1:3002", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/api/github": { target: "http://127.0.0.1:3004", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/auth/github": { target: "http://127.0.0.1:3004", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/api/outlook": { target: "http://127.0.0.1:3005", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/auth/outlook": { target: "http://127.0.0.1:3005", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/api": { target: "http://127.0.0.1:3001", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/auth": { target: "http://127.0.0.1:3001", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
     },

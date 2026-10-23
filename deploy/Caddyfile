@@ -18,6 +18,11 @@
 		uri strip_prefix /snapdragons
 		reverse_proxy localhost:3004
 	}
+	@outlook path /snapdragons/api/outlook/* /snapdragons/auth/outlook/*
+	handle @outlook {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3005
+	}
 	@jira path /snapdragons/api/jira/* /snapdragons/auth/jira/*
 	handle @jira {
 		uri strip_prefix /snapdragons
