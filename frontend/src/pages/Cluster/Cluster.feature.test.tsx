@@ -219,5 +219,6 @@ describe("Cluster activity", () => {
       "Jira: Loaded 4 items",
       "Jira: Sign-in required",
     ]);
+    expect(screen.getByText("Slack activity could not be loaded. Showing what came in before.")).toBeTruthy();
   });
 });

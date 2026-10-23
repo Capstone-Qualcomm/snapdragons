@@ -18,30 +18,33 @@ function syncText(event: SyncEvent) {
 }
 
 // Each source backend's sync log, every 3 seconds. A source that can't be
-// reached keeps what it last answered.
+// reached keeps what it last answered, and is named in unreachable.
 function useSyncEvents() {
   const [events, setEvents] = useState<Partial<Record<SourceName, SyncEvent[]>>>({});
+  const [unreachable, setUnreachable] = useState<SourceName[]>([]);
   useEffect(() => {
     async function load() {
-      await Promise.all(sources.map(async (source) => {
+      const failed = await Promise.all(sources.map(async (source) => {
         try {
           const { events } = await api<{ events: SyncEvent[] }>(`/api/${source}/activity`);
           setEvents((current) => ({ ...current, [source]: events }));
+          return [];
         } catch {
-          // Shown again on the next answer.
+          return [source];
         }
       }));
+      setUnreachable(failed.flat());
     }
     void load();
     const timer = setInterval(load, 3000);
     return () => clearInterval(timer);
   }, []);
-  return events;
+  return { events, unreachable };
 }
 
 // What the cluster and the sources did, newest first, in plain sentences.
 export function Activity({ events, tasks, offset }: { events: ClusterEvent[]; tasks: Task[]; offset: number }) {
-  const syncs = useSyncEvents();
+  const { events: syncs, unreachable } = useSyncEvents();
   const entries: Entry[] = [
     // Cluster times are the gateway's clock; offset turns them into this browser's.
     ...events.map((event, index) => ({ key: `c${index}-${event.at}`, at: event.at - offset, text: describeEvent(event.text, tasks), source: null })),
@@ -53,6 +56,11 @@ export function Activity({ events, tasks, offset }: { events: ClusterEvent[]; ta
       <header className="panel-head">
         <h2 id="activity-title">Activity</h2>
       </header>
+      {unreachable.length > 0 && (
+        <p className="notice" role="status">
+          {unreachable.map((source) => titles[source]).join(", ")} activity could not be loaded. Showing what came in before.
+        </p>
+      )}
       {entries.length === 0 ? (
         <p className="panel-empty">Nothing has happened yet.</p>
       ) : (
