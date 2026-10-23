@@ -2,13 +2,14 @@ import { useState } from "react";
 import { postGitHubComment } from "./github";
 import type { GitHubIssue } from "./sources";
 
-export function GitHubCommentEditor({ issue, id, onClose }: { issue: GitHubIssue; id: string; onClose: () => void }) {
+export function GitHubCommentEditor({ issue, id, onClose, onPostingChange }: { issue: GitHubIssue; id: string; onClose: () => void; onPostingChange: (posting: boolean) => void }) {
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [message, setMessage] = useState({ text: "", isError: false });
 
   async function post() {
     setPosting(true);
+    onPostingChange(true);
     setMessage({ text: "", isError: false });
     try {
       await postGitHubComment(issue.repository, issue.number, body);
@@ -18,6 +19,7 @@ export function GitHubCommentEditor({ issue, id, onClose }: { issue: GitHubIssue
       setMessage({ text: (cause as Error).message, isError: true });
     } finally {
       setPosting(false);
+      onPostingChange(false);
     }
   }
 
@@ -29,7 +31,7 @@ export function GitHubCommentEditor({ issue, id, onClose }: { issue: GitHubIssue
         </div>
         <label className="jira-wide">
           Comment
-          <textarea value={body} rows={4} maxLength={65_536} onChange={(event) => setBody(event.target.value)} placeholder="Write a comment. Markdown is supported." />
+          <textarea value={body} rows={4} maxLength={65_536} disabled={posting} onChange={(event) => setBody(event.target.value)} placeholder="Write a comment. Markdown is supported." />
         </label>
       </div>
       <div className="jira-actions">

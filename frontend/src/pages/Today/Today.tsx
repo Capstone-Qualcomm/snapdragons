@@ -160,6 +160,7 @@ export function textOf(item: Item) {
 
 function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
+  const [githubPosting, setGithubPosting] = useState(false);
   const editorId = `edit-${item.key}`;
   const link = sample ? undefined : item.data.url;
 
@@ -168,7 +169,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
       <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)} hidden={hidden}>
         <td className="col-done">
           {!sample && (
-            <button className="done-button" type="button" aria-label="Done" title="Mark done" onClick={onDone}>
+            <button className="done-button" type="button" aria-label="Done" title="Mark done" disabled={githubPosting} onClick={onDone}>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
             </button>
           )}
@@ -191,7 +192,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
         <td className="col-updated num">{item.at > 0 ? <RelativeTime value={item.at} /> : "—"}</td>
         <td className="col-action">
           {sample ? null : item.source === "jira" || item.source === "github" ? (
-            <button className={editing ? "button small is-on" : "button small"} type="button" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
+            <button className={editing ? "button small is-on" : "button small"} type="button" disabled={item.source === "github" && githubPosting} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
               {item.source === "jira" ? "Edit" : "Comment"}
             </button>
           ) : (
@@ -204,7 +205,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
           <td colSpan={8}>
             {item.source === "jira"
               ? <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
-              : <GitHubCommentEditor issue={item.data} id={editorId} onClose={() => setEditing(false)} />}
+              : <GitHubCommentEditor issue={item.data} id={editorId} onClose={() => setEditing(false)} onPostingChange={setGithubPosting} />}
           </td>
         </tr>
       )}
