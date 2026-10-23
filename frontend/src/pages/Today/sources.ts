@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { JiraIssue } from "./jira";
 
@@ -69,28 +69,36 @@ export function useSource<N extends SourceName>(name: N): Source<ItemsOf[N]> {
   const items = lists[name];
   const [state, setState] = useState<State<T>>({ status: "loading", syncing: true, items: [], error: "", loadedAt: null, account: null });
 
+  // Only the newest sync may write, so a slow older one cannot bring back a list a Turn off or Disconnect cleared.
+  const latest = useRef(0);
+
   const reload = useCallback(async () => {
+    const sync = ++latest.current;
+    const write = (next: State<T> | ((current: State<T>) => State<T>)) => {
+      if (sync === latest.current) setState(next);
+    };
     setState((current) => ({ ...current, syncing: true }));
-    const settle = (status: SourceStatus) => setState({ status, syncing: false, items: [], error: "", loadedAt: null, account: null });
+    const settle = (status: SourceStatus) => write({ status, syncing: false, items: [], error: "", loadedAt: null, account: null });
     try {
       const connection = (await api<Record<SourceName, Connection>>(`/api/${name}/connection`))[name];
       if (!connection.configured && !connection.connected) return settle("unconfigured");
       if (!connection.connected) return settle("disconnected");
       if (!connection.enabled) return settle("disabled");
       const result = await api<Record<string, T[]>>(`/api/${name}/${items}`);
-      setState({ status: "ready", syncing: false, items: result[items], error: "", loadedAt: Date.now(), account: accountOf(connection) });
+      write({ status: "ready", syncing: false, items: result[items], error: "", loadedAt: Date.now(), account: accountOf(connection) });
     } catch (cause) {
       // A failed sync keeps the last list, and any edits open in it, beside the error.
-      setState((current) => ({ ...current, status: "error", syncing: false, error: (cause as Error).message }));
+      write((current) => ({ ...current, status: "error", syncing: false, error: (cause as Error).message }));
     }
   }, [name, items]);
 
   const post = useCallback(async (path: string, body: unknown = {}) => {
+    latest.current++;
     try {
       await api(`/api/${name}/connection/${path}`, body);
       await reload();
     } catch (cause) {
-      setState((current) => ({ ...current, status: "error", error: (cause as Error).message }));
+      setState((current) => ({ ...current, status: "error", syncing: false, error: (cause as Error).message }));
     }
   }, [name, reload]);
 
