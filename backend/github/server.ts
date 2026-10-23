@@ -4,7 +4,7 @@ import { createGitHubAuth } from "./github-auth.ts";
 import type { GitHubConnection } from "./github-auth.ts";
 import { createSourceActivity } from "../source-activity.mts";
 import { createSessions } from "../sessions.mts";
-import { createSourceServer } from "../source-server.mts";
+import { createSourceServer, readJson, send } from "../source-server.mts";
 
 type ServerOptions = {
   port?: number;
@@ -45,13 +45,35 @@ export function createGitHubServer(options: ServerOptions = {}) {
     }),
     items: "issues",
     loadItems: async ({ auth }) => githubApi.getAssignedOpenIssues(await auth.getAccessToken()),
-    async routes(req, res, url, { auth }) {
+    async routes(req, res, url, { auth, connection }) {
       if (req.method === "GET" && url.pathname === "/auth/github/start") {
         auth.startAuthorization(res);
         return true;
       }
       if (req.method === "GET" && url.pathname === "/auth/github/callback") {
         await auth.handleCallback(url, res);
+        return true;
+      }
+      const commentPath = req.method === "POST" && url.pathname.match(/^\/api\/github\/repos\/([^/]+)\/([^/]+)\/issues\/(\d+)\/comments$/);
+      if (commentPath) {
+        if (!connection.connected) {
+          send(res, 401, { error: "GitHub is not connected. Connect GitHub." });
+          return true;
+        }
+        try {
+          const body = (await readJson(req)).body;
+          const repository = `${decodeURIComponent(commentPath[1])}/${decodeURIComponent(commentPath[2])}`;
+          const issueNumber = Number(commentPath[3]);
+          const result = await githubApi.postComment(await auth.getAccessToken(), repository, issueNumber, body);
+          if ("error" in result) {
+            send(res, result.status, { error: result.error });
+            return true;
+          }
+          send(res, 200, result);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not post the GitHub comment.";
+          send(res, /not connected|authorization expired/i.test(message) ? 401 : 400, { error: message });
+        }
         return true;
       }
       return false;

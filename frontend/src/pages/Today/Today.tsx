@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { appPath } from "../../lib/urls";
 import { JiraEditor } from "./JiraEditor";
+import { GitHubCommentEditor } from "./GitHubCommentEditor";
 import { rank, score } from "./rank";
 import type { Item } from "./rank";
 import { titles } from "./sources";
@@ -179,25 +180,31 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
         <td className="col-item">
           {item.source === "jira" && (link ? <a className="jira-key" href={link} target="_blank" rel="noreferrer">{item.data.key}</a> : <span className="jira-key">{item.data.key}</span>)}
           {item.source === "github" && <span className="item-number">#{item.data.number}</span>}
-          <span className="what">{item.source === "slack" ? withMentions(item.data.text) : textOf(item)}</span>
+          <span className="what">
+            {item.source === "slack" ? withMentions(item.data.text) : item.source === "github" && link
+              ? <a className="github-title" href={link} target="_blank" rel="noreferrer">{item.data.title}</a>
+              : textOf(item)}
+          </span>
         </td>
         <td className="col-from">{fromOf(item)}</td>
         <td className="col-status"><Status item={item} /></td>
         <td className="col-updated num">{item.at > 0 ? <RelativeTime value={item.at} /> : "—"}</td>
         <td className="col-action">
-          {sample ? null : item.source === "jira" ? (
+          {sample ? null : item.source === "jira" || item.source === "github" ? (
             <button className={editing ? "button small is-on" : "button small"} type="button" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
-              Edit
+              {item.source === "jira" ? "Edit" : "Comment"}
             </button>
           ) : (
             <a className="button small" href={link} target="_blank" rel="noreferrer">{item.source === "slack" ? "Reply" : "Open"}</a>
           )}
         </td>
       </tr>
-      {item.source === "jira" && editing && (
+      {(item.source === "jira" || item.source === "github") && editing && (
         <tr className="editor-row" hidden={hidden}>
           <td colSpan={8}>
-            <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
+            {item.source === "jira"
+              ? <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
+              : <GitHubCommentEditor issue={item.data} id={editorId} onClose={() => setEditing(false)} />}
           </td>
         </tr>
       )}
