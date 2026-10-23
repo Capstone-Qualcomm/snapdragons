@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "../../components/Icon";
 import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { appPath } from "../../lib/urls";
 import { JiraEditor } from "./JiraEditor";
@@ -51,7 +52,7 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 // Today's work as a table: ranked, filterable by source, sortable by rank,
 // source or time. With nothing connected it shows sample rows, marked as such.
-export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved }: {
+export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply }: {
   items: Item[];
   cleared: Item[];
   loading: boolean;
@@ -61,6 +62,8 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
   onDone: (item: Item) => void;
   onUndo: (item: Item) => void;
   onSaved: () => Promise<void>;
+  onOutlookAction: (action: "read" | "delete", messageId: string) => Promise<void>;
+  onOutlookReply: (messageId: string, comment: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<SourceName | "all">("all");
   const [sort, setSort] = useState<Sort>("rank");
@@ -114,7 +117,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} />)}
+                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} onOutlookAction={onOutlookAction} onOutlookReply={onOutlookReply} />)}
               </tbody>
             </table>
           )}
@@ -162,10 +165,46 @@ export function textOf(item: Item) {
   }
 }
 
-function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
+function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (action: "read" | "delete", messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyStatus, setReplyStatus] = useState({ text: "", isError: false });
+  const [outlookBusy, setOutlookBusy] = useState(false);
+  const [outlookError, setOutlookError] = useState("");
   const editorId = `edit-${item.key}`;
   const link = sample ? undefined : item.data.url;
+
+  async function actOnOutlook(action: "read" | "delete") {
+    if (item.source !== "outlook") return;
+    if (action === "delete" && !window.confirm("Delete this email? You can find it in Outlook's Deleted Items.")) return;
+    setOutlookBusy(true);
+    setOutlookError("");
+    try {
+      await onOutlookAction(action, item.data.id);
+    } catch (cause) {
+      setOutlookError((cause as Error).message);
+    } finally {
+      setOutlookBusy(false);
+    }
+  }
+
+  async function sendOutlookReply() {
+    if (item.source !== "outlook" || !replyDraft.trim()) return;
+    setReplyBusy(true);
+    setReplyStatus({ text: "", isError: false });
+    try {
+      await onOutlookReply(item.data.id, replyDraft);
+      setReplyDraft("");
+      setReplying(false);
+      setReplyStatus({ text: "Reply sent.", isError: false });
+    } catch (cause) {
+      setReplyStatus({ text: (cause as Error).message, isError: true });
+    } finally {
+      setReplyBusy(false);
+    }
+  }
 
   return (
     <>
@@ -194,6 +233,19 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
             <button className={editing ? "button small is-on" : "button small"} type="button" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
               Edit
             </button>
+          ) : item.source === "outlook" ? (
+            <div className="outlook-row-actions">
+              <a className="button small" href={link} target="_blank" rel="noreferrer">Open</a>
+              <button className={replying ? "button small is-on" : "button small"} type="button" aria-expanded={replying} aria-controls={`${editorId}-reply`} disabled={outlookBusy || replyBusy} onClick={() => { setReplying(!replying); setReplyStatus({ text: "", isError: false }); }}>Reply</button>
+              <button className="button small outlook-icon-button" type="button" aria-label="Mark as read" title="Mark as read" disabled={outlookBusy} onClick={() => void actOnOutlook("read")}>
+                <Icon name="check" size={16} />
+              </button>
+              <button className="button small outlook-icon-button is-delete" type="button" aria-label="Delete email" title="Delete email" disabled={outlookBusy} onClick={() => void actOnOutlook("delete")}>
+                <Icon name="trash" size={15} />
+              </button>
+              {outlookError && <span className="outlook-action-error" role="alert">{outlookError}</span>}
+              {replyStatus.text && <span className={replyStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={replyStatus.isError ? "alert" : "status"}>{replyStatus.text}</span>}
+            </div>
           ) : (
             <a
               className="button small"
@@ -212,6 +264,22 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
         <tr className="editor-row" hidden={hidden}>
           <td colSpan={8}>
             <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
+          </td>
+        </tr>
+      )}
+      {item.source === "outlook" && replying && (
+        <tr className="editor-row outlook-reply-row" hidden={hidden}>
+          <td colSpan={8}>
+            <div className="jira-details outlook-reply-editor" id={`${editorId}-reply`}>
+              <label className="outlook-reply-label">
+                Reply to {item.data.from}
+                <textarea autoFocus rows={4} value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} placeholder="Write your reply…" disabled={replyBusy} />
+              </label>
+              <div className="jira-actions">
+                <button className="button small primary" type="button" disabled={replyBusy || !replyDraft.trim()} onClick={() => void sendOutlookReply()}>{replyBusy ? "Sending…" : "Send reply"}</button>
+                <button className="button small quiet" type="button" disabled={replyBusy} onClick={() => setReplying(false)}>Cancel</button>
+              </div>
+            </div>
           </td>
         </tr>
       )}

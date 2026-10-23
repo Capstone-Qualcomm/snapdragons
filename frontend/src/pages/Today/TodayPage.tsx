@@ -19,9 +19,11 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   const { isDone, markDone, undo } = useDone();
   const [jobId, setJobId] = useState<string | null>(null);
   const [signInErrors, setSignInErrors] = useState<string[]>([]);
+  const [handledOutlookIds, setHandledOutlookIds] = useState<Set<string>>(() => new Set());
   const lastRefreshAt = useRef(Date.now());
 
-  const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }));
+  const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }))
+    .filter((item) => item.source !== "outlook" || !handledOutlookIds.has(item.data.id));
   const open = ranked.filter((item) => !isDone(item));
   const cleared = ranked.filter(isDone);
   // A visitor with no source connected sees sample rows, never counted as real work.
@@ -52,6 +54,26 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     void github.reload();
     void outlook.reload();
   }, [busy, startJob, github.reload, jira.reload, outlook.reload, slack.reload]);
+
+  const actOnOutlook = useCallback(async (action: "read" | "delete", messageId: string) => {
+    await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/${action}`, {});
+    // Graph can briefly return a just-updated message in a list response. Hide it
+    // once the action succeeds and keep it hidden until a later sync confirms it is gone.
+    setHandledOutlookIds((current) => new Set(current).add(messageId));
+    await outlook.reload();
+  }, [outlook.reload]);
+
+  const replyToOutlook = useCallback(async (messageId: string, comment: string) => {
+    await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/reply`, { comment });
+  }, []);
+
+  useEffect(() => {
+    const currentIds = new Set(outlook.items.map((item) => item.id));
+    setHandledOutlookIds((current) => {
+      const remaining = new Set([...current].filter((id) => currentIds.has(id)));
+      return remaining.size === current.size ? current : remaining;
+    });
+  }, [outlook.items]);
 
   // Opening Today is a refresh too: the sources load on their own, and the
   // cluster gets a job, unless one is already running for Today to follow, or
@@ -137,7 +159,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       </ul>
 
       <div className="page-body">
-        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} />
+        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={actOnOutlook} onOutlookReply={replyToOutlook} />
       </div>
     </div>
   );

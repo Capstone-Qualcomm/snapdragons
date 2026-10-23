@@ -6,8 +6,23 @@
 .tasks-table .col-from { width: 140px; color: var(--ink-soft); }
 .tasks-table .col-status { width: 150px; }
 .tasks-table .col-updated { width: 96px; white-space: nowrap; }
-.tasks-table .col-action { width: 72px; }
+.tasks-table .col-action { width: 184px; }
 .tasks-table td.col-from { overflow: hidden; max-width: 140px; text-overflow: ellipsis; white-space: nowrap; }
+
+.outlook-row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.outlook-icon-button { width: 30px; padding: 0 !important; }
+.outlook-icon-button.is-delete { color: var(--fail); }
+.outlook-action-error,
+.outlook-action-status { flex-basis: 100%; max-width: 184px; font-size: 11px; white-space: normal; }
+.outlook-action-error { color: var(--fail); }
+.outlook-action-status { color: var(--live); }
 
 .source-cell {
   display: inline-flex;
@@ -85,6 +100,10 @@ a.jira-key:hover { color: var(--ember); }
   border-radius: var(--radius);
   background: var(--canvas);
 }
+
+.outlook-reply-editor { display: grid; gap: var(--s2); }
+.outlook-reply-label { display: grid; gap: var(--s1); color: var(--ink-faint); font-size: 12px; }
+.outlook-reply-label textarea { width: 100%; resize: vertical; }
 
 .jira-details[hidden] { display: none; }
 .tasks-table[hidden],

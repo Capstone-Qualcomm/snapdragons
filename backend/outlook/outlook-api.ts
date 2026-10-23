@@ -54,7 +54,51 @@ export function createOutlookApi({ outlookConnection, fetchImpl = globalThis.fet
     return items;
   }
 
-  return { getUnreadMessages };
+  async function markAsRead(messageId: string): Promise<void> {
+    await updateMessage(messageId, { isRead: true });
+  }
+
+  async function deleteMessage(messageId: string): Promise<void> {
+    await updateMessage(messageId, undefined, "DELETE");
+  }
+
+  async function replyToMessage(messageId: string, comment: string): Promise<void> {
+    if (!outlookConnection.connected) throw new Error("Outlook is not connected. Connect Outlook.");
+    if (!outlookConnection.enabled) throw new Error("Outlook is turned off. Turn it on.");
+    if (!messageId) throw new Error("An Outlook message ID is required.");
+    if (!comment.trim()) throw new Error("Write a reply before sending.");
+    const accessToken = await getAccessToken();
+    const response = await fetchImpl(`${graphOrigin}/v1.0/me/messages/${encodeURIComponent(messageId)}/reply`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ comment }),
+    });
+    if (response.status === 401) throw new Error("Outlook authorization expired. Reconnect Outlook.");
+    if (response.status === 403) throw new Error("Outlook denied permission to send mail. Check the delegated Mail.Send permission and reconnect.");
+    if (response.status === 404) throw new Error("This Outlook message could not be found. Refresh the list and try again.");
+    if (!response.ok) throw new Error(`Outlook could not send this reply (HTTP ${response.status}). Please try again.`);
+  }
+
+  async function updateMessage(messageId: string, changes?: Record<string, unknown>, method: "PATCH" | "DELETE" = "PATCH"): Promise<void> {
+    if (!outlookConnection.connected) throw new Error("Outlook is not connected. Connect Outlook.");
+    if (!outlookConnection.enabled) throw new Error("Outlook is turned off. Turn it on.");
+    if (!messageId) throw new Error("An Outlook message ID is required.");
+    const accessToken = await getAccessToken();
+    const response = await fetchImpl(`${graphOrigin}/v1.0/me/messages/${encodeURIComponent(messageId)}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(changes ? { "Content-Type": "application/json" } : {}),
+      },
+      ...(changes ? { body: JSON.stringify(changes) } : {}),
+    });
+    if (response.status === 401) throw new Error("Outlook authorization expired. Reconnect Outlook.");
+    if (response.status === 403) throw new Error("Outlook denied permission to change mail. Check the delegated Mail.ReadWrite permission and reconnect.");
+    if (response.status === 404) throw new Error("This Outlook message could not be found. Refresh the list and try again.");
+    if (!response.ok) throw new Error(`Outlook could not ${method === "DELETE" ? "delete" : "mark as read"} this message (HTTP ${response.status}). Please try again.`);
+  }
+
+  return { getUnreadMessages, markAsRead, deleteMessage, replyToMessage };
 }
 
 function isUnreadMessage(value: unknown): value is GraphMessage {

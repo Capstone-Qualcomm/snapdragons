@@ -24,6 +24,7 @@ const PATHS: Record<string, string> = {
   plug: "M9 2v5 M15 2v5 M6 7h12v4a6 6 0 0 1-12 0z M12 17v5",
   crown: "M3 18h18 M4 8l4 4 4-7 4 7 4-4-1.5 10h-13z",
   x: "M6 6l12 12 M18 6L6 18",
+  trash: "M3 6h18 M8 6V4h8v2 M6 6l1 15h10l1-15 M10 10v7 M14 10v7",
   check: "M5 12.5l4.5 4.5L19 7.5",
   more: "M5 12h.01 M12 12h.01 M19 12h.01",
   menu: "M4 7h16 M4 12h16 M4 17h16",
