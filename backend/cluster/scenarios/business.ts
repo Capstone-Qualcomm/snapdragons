@@ -83,7 +83,7 @@ export const business: Scenario = {
       short: "Books + inbox",
       icon: "invoice",
       plan: () => [
-        ...groups(INVOICES.map((invoice) => invoice.number), 2).map((numbers, index) => ({ skill: "ledger", instruction: `Check invoices ${index ? "16–30" : "1–15"} against bank deposits and list what is unpaid`, label: `Invoices ${index ? "16–30" : "1–15"}`, icon: "invoice" as const, preview: listPreview("invoice", numbers.map((number): [string, string] => {
+        ...[INVOICES.slice(0, 15), INVOICES.slice(15)].map((slice) => slice.map((invoice) => invoice.number)).map((numbers, index) => ({ skill: "ledger", instruction: `Check invoices ${index ? "16–30" : "1–15"} against bank deposits and list what is unpaid`, label: `Invoices ${index ? "16–30" : "1–15"}`, icon: "invoice" as const, preview: listPreview("invoice", numbers.map((number): [string, string] => {
           const invoice = INVOICES.find((entry) => entry.number === number)!;
           return [invoice.number, `${invoice.customer} · ${money(invoice.amount)}`];
         })), params: { numbers }, ms: 6000, meter: { verb: "Checked", noun: "invoices", total: numbers.length } })),
