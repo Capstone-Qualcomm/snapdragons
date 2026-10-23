@@ -4,7 +4,6 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file-if-exists=../.env server.ts",
-    "worker": "node --env-file-if-exists=../.env worker.ts",
     "test": "node --test *.test.ts",
     "typecheck": "tsc --noEmit"
   },
