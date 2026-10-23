@@ -107,7 +107,7 @@ function App() {
 
       <main className="content">
         {page === "assistant" && <AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} />}
-        {page === "today" && <TodayPage sources={sources} cluster={cluster} offset={serverNow() - Date.now()} />}
+        <TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} />
         {page === "cluster" && <ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} />}
         {page === "connections" && <ConnectionsPage sources={sources} counts={counts} />}
       </main>

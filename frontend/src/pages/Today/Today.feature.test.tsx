@@ -29,7 +29,7 @@ const node = (id: string, fields: Record<string, unknown> = {}) => ({ id, up: tr
 let clusterState: Record<string, unknown>;
 let connections: Record<"jira" | "slack" | "github", Connection>;
 let lists: Record<string, unknown>;
-let jiraIssues: () => Response;
+let jiraIssues: () => Response | Promise<Response>;
 let posts: Array<{ path: string; body: unknown }>;
 
 function idleCluster(fields: Record<string, unknown> = {}) {
@@ -168,6 +168,28 @@ describe("Today connections", () => {
     expect(await screen.findByText("Nothing waiting. You are all caught up.")).toBeTruthy();
     expect(screen.queryByText("Sample data")).toBeNull();
   });
+
+  it("gives the all-clear only once every connected source has loaded", async () => {
+    lists = { slack: { messages: [] }, github: { issues: [] } };
+    jiraIssues = () => Response.json({ error: "Jira is down." }, { status: 502 });
+    renderToday();
+    expect(await screen.findByText("Nothing to show, but a source could not be loaded.")).toBeTruthy();
+    expect(screen.queryByText("Nothing waiting. You are all caught up.")).toBeNull();
+  });
+
+  it("does not show sample data for a connected source that is still loading or failed", async () => {
+    connections.slack = { configured: true, connected: false, enabled: false };
+    connections.github = { configured: false, connected: false, enabled: false };
+    let fail = () => {};
+    jiraIssues = () => new Promise((resolve) => (fail = () => resolve(Response.json({ error: "Jira is down." }, { status: 502 }))));
+    renderToday();
+    await waitFor(() => expect(sourceGets("jira")).toBe(1));
+    await act(async () => {});
+    expect(screen.queryByText("Sample data")).toBeNull();
+    await act(async () => fail());
+    expect(await screen.findByText("Jira: Jira is down.")).toBeTruthy();
+    expect(screen.queryByText("Sample data")).toBeNull();
+  });
 });
 
 describe("Today refresh", () => {
@@ -232,6 +254,42 @@ describe("Today refresh", () => {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     fireEvent(document, new Event("visibilitychange"));
     await waitFor(() => expect(posts).toHaveLength(2));
+  });
+});
+
+describe("Today across pages", () => {
+  const go = (name: string) => fireEvent.click(within(screen.getByRole("navigation", { name: "Pages" })).getByRole("link", { name }));
+
+  it("keeps an open Jira edit after a visit to another page", async () => {
+    await openToday();
+    fireEvent.click(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Half written" } });
+    go("Cluster");
+    go("Today");
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Half written");
+  });
+
+  it("refreshes on coming back after five minutes away", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await openToday();
+    await waitFor(() => expect(posts).toHaveLength(1));
+    clusterState = idleCluster({ jobs: [{ id: "J-7", name: "Morning refresh", queuedAt: now, doneAt: now + 1, nodes: 2 }] });
+    go("Cluster");
+    await act(async () => { await vi.advanceTimersByTimeAsync(300_000); });
+    const before = sourceGets("slack");
+    expect(posts).toHaveLength(1);
+    go("Today");
+    await waitFor(() => expect(posts).toHaveLength(2));
+    expect(sourceGets("slack")).toBe(before + 1);
+  });
+
+  it("keeps syncing the sources while the cluster is unreachable", async () => {
+    clusterState = idleCluster({ jobs: [{ id: "J-3", name: "Morning refresh", queuedAt: now, doneAt: null, nodes: null }] });
+    await openToday();
+    await screen.findByRole("button", { name: "Refreshing" });
+    clusterState = { error: "down" };
+    expect(await screen.findByRole("button", { name: "Refresh" })).toBeTruthy();
+    expect(screen.getByText("Cluster not reachable")).toBeTruthy();
   });
 });
 

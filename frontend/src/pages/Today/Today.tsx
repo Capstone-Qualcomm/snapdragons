@@ -51,11 +51,13 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 // Today's work as a table: ranked, filterable by source, sortable by rank,
 // source or time. With nothing connected it shows sample rows, marked as such.
-export function TasksPanel({ items, cleared, loading, sample, onDone, onUndo, onSaved }: {
+export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved }: {
   items: Item[];
   cleared: Item[];
   loading: boolean;
   sample: boolean;
+  // Every source that is on loaded, so an empty list really is empty.
+  checked: boolean;
   onDone: (item: Item) => void;
   onUndo: (item: Item) => void;
   onSaved: () => Promise<void>;
@@ -95,7 +97,7 @@ export function TasksPanel({ items, cleared, loading, sample, onDone, onUndo, on
       {loading ? (
         <SkeletonRows count={5} />
       ) : rows.length === 0 ? (
-        <p className="panel-empty">{items.length ? "Nothing from this source." : "Nothing waiting. You are all caught up."}</p>
+        <p className="panel-empty">{items.length ? "Nothing from this source." : checked ? "Nothing waiting. You are all caught up." : "Nothing to show, but a source could not be loaded."}</p>
       ) : (
         <table className="table tasks-table" aria-label={sample ? "Sample tasks" : "Today"}>
           <thead>

@@ -10,8 +10,11 @@ import type { Source, SourceName } from "./sources";
 import { titles } from "./sources";
 import { isWaiting, TasksPanel, useDone } from "./Today";
 
+const off = (source: Source<any>) => ["unconfigured", "disconnected", "disabled"].includes(source.status);
+
 // Today: your Slack, Jira and GitHub work in one ranked table, with the numbers that matter above it.
-export function TodayPage({ sources, cluster, offset }: { sources: Source<any>[]; cluster: ClusterState | null; offset: number }) {
+// It stays mounted while another page is open, so an open Jira edit survives; active is whether it is on screen.
+export function TodayPage({ sources, cluster, failed, offset, active }: { sources: Source<any>[]; cluster: ClusterState | null; failed: boolean; offset: number; active: boolean }) {
   const [slack, jira, github] = sources;
   const { isDone, markDone, undo } = useDone();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -21,16 +24,18 @@ export function TodayPage({ sources, cluster, offset }: { sources: Source<any>[]
   const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items }));
   const open = ranked.filter((item) => !isDone(item));
   const cleared = ranked.filter(isDone);
-  const loading = sources.every((source) => source.status === "loading");
   // A visitor with no source connected sees sample rows, never counted as real work.
-  const ready = sources.some((source) => source.status === "ready");
-  const sample = !loading && !ready && open.length === 0;
+  const sample = sources.every(off);
+  const loading = !sample && open.length === 0 && sources.some((source) => source.status === "loading");
+  // The all-clear needs every source that is on to have answered.
+  const checked = sources.every((source) => off(source) || source.status === "ready");
 
   // The refresh this page asked the cluster for, and how far along it is.
   const job = cluster?.jobs.find((candidate) => candidate.id === jobId);
   const steps = cluster?.tasks.filter((task) => task.job === jobId) ?? [];
   const jobProgress = steps.length ? steps.reduce((sum, task) => sum + task.progress, 0) / steps.length : 0;
-  const jobRunning = Boolean(job && job.doneAt === null && cluster?.orchestrator);
+  // An unreachable cluster leaves its last state behind; it must not hold up the sources' own syncs.
+  const jobRunning = Boolean(job && job.doneAt === null && cluster?.orchestrator && !failed);
   const busy = sources.some((source) => source.syncing) || jobRunning;
 
   const startJob = useCallback(() => {
@@ -52,12 +57,12 @@ export function TodayPage({ sources, cluster, offset }: { sources: Source<any>[]
   // the boards are busy with an Assistant job.
   const followed = useRef(false);
   useEffect(() => {
-    if (followed.current || !cluster) return;
+    if (followed.current || !cluster || !active) return;
     followed.current = true;
     const running = refreshes(cluster.jobs).find((candidate) => candidate.doneAt === null);
     if (running) setJobId(running.id);
     else if (!cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) startJob();
-  }, [cluster, startJob]);
+  }, [cluster, active, startJob]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -66,27 +71,30 @@ export function TodayPage({ sources, cluster, offset }: { sources: Source<any>[]
     setSignInErrors(errors);
   }, []);
 
-  // Refresh again after five minutes, but only while someone is looking.
+  // Refresh again after five minutes, but only while someone is looking, and on coming back to Today.
   useEffect(() => {
+    if (!active) return;
     function refreshIfDue() {
       if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current >= 5 * 60_000) refresh();
     }
+    refreshIfDue();
     const timer = setInterval(refreshIfDue, 30_000);
     document.addEventListener("visibilitychange", refreshIfDue);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshIfDue);
     };
-  }, [refresh]);
+  }, [active, refresh]);
 
   useEffect(() => {
+    if (!active) return;
     function onKey(event: KeyboardEvent) {
       const typing = event.target instanceof HTMLElement && event.target.closest("input, textarea, select");
       if (event.key === "r" && !typing && !event.metaKey && !event.ctrlKey) refresh();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [refresh]);
+  }, [active, refresh]);
 
   const items = sample || loading ? null : open;
   const waiting = items?.filter(isWaiting).length ?? 0;
@@ -95,7 +103,7 @@ export function TodayPage({ sources, cluster, offset }: { sources: Source<any>[]
   const now = Date.now() + offset;
 
   return (
-    <div className="page">
+    <div className="page" hidden={!active}>
       <header className="page-head">
         <div className="page-title">
           <h1>Today</h1>
@@ -123,12 +131,12 @@ export function TodayPage({ sources, cluster, offset }: { sources: Source<any>[]
         <Stat
           label="Last refresh"
           value={last ? `${((last.doneAt! - last.queuedAt) / 1000).toFixed(1)} s` : "—"}
-          note={jobRunning ? `Refreshing now, ${Math.round(jobProgress * 100)}% done` : last ? `On ${last.nodes} ${last.nodes === 1 ? "board" : "boards"}, ${ago(now - last.doneAt!)}` : "None finished yet"}
+          note={failed ? "Cluster not reachable" : jobRunning ? `Refreshing now, ${Math.round(jobProgress * 100)}% done` : last ? `On ${last.nodes} ${last.nodes === 1 ? "board" : "boards"}, ${ago(now - last.doneAt!)}` : "None finished yet"}
         />
       </ul>
 
       <div className="page-body">
-        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} onDone={markDone} onUndo={undo} onSaved={jira.reload} />
+        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} />
       </div>
     </div>
   );
