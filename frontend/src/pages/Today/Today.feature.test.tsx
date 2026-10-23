@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TodayPage } from "./Today";
+import App from "../../App";
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -29,7 +29,7 @@ const node = (id: string, fields: Record<string, unknown> = {}) => ({ id, up: tr
 let clusterState: Record<string, unknown>;
 let connections: Record<"jira" | "slack" | "github", Connection>;
 let lists: Record<string, unknown>;
-let jiraIssues: () => Response;
+let jiraIssues: () => Response | Promise<Response>;
 let posts: Array<{ path: string; body: unknown }>;
 
 function idleCluster(fields: Record<string, unknown> = {}) {
@@ -69,13 +69,21 @@ afterEach(() => {
   window.history.replaceState({}, "", "/");
 });
 
-const rows = () => [...screen.getByRole("list", { name: "Today" }).children] as HTMLElement[];
-const row = (text: string) => screen.getByRole("listitem", { name: text });
+// Goes to the Connections page the way a person would, from the top bar.
+const openConnections = () => fireEvent.click(within(screen.getByRole("navigation", { name: "Pages" })).getByRole("link", { name: "Connections" }));
+const rows = () => [...screen.getByRole("table", { name: "Today" }).querySelectorAll("tbody .task-row:not([hidden])")] as HTMLElement[];
+const row = (text: string) => screen.getByRole("row", { name: text });
 const sourceGets = (source: string) => vi.mocked(fetch).mock.calls.filter(([url, init]) => !init?.method && String(url).endsWith(`/api/${source}/connection`)).length;
 
+// Today is one page of the app; a test that set its own address keeps it.
+function renderToday() {
+  if (!/today/.test(window.location.pathname)) window.history.replaceState({}, "", "/today");
+  render(<App />);
+}
+
 async function openToday() {
-  render(<TodayPage />);
-  await screen.findByRole("listitem", { name: "Worker hands back its task" });
+  renderToday();
+  await screen.findByRole("row", { name: "Worker hands back its task" });
 }
 
 describe("Today list", () => {
@@ -91,7 +99,7 @@ describe("Today list", () => {
     await openToday();
     fireEvent.click(within(row("Can you look at the demo?")).getByRole("button", { name: "Done" }));
     expect(rows()).toHaveLength(3);
-    expect(screen.getByText("Done").closest("details")?.textContent).toContain("Can you look at the demo?");
+    expect(screen.getByText(/Done today/).closest("details")?.textContent).toContain("Can you look at the demo?");
 
     cleanup();
     await openToday();
@@ -114,14 +122,16 @@ describe("Today connections", () => {
     connections.slack = { configured: true, connected: false, enabled: false };
     connections.github = { configured: false, connected: false, enabled: false };
     await openToday();
+    expect(rows()).toHaveLength(1);
+    openConnections();
     expect(screen.getByRole("link", { name: "Connect Slack" }).getAttribute("href")).toBe("/auth/slack/start");
     expect(screen.getByRole("button", { name: "Connect GitHub" }).hasAttribute("disabled")).toBe(true);
-    expect(rows()).toHaveLength(1);
   });
 
   it("turns a turned-off source back on", async () => {
     connections.github = { configured: true, connected: true, enabled: false };
     await openToday();
+    openConnections();
     fireEvent.click(screen.getByRole("button", { name: "Turn on GitHub" }));
     await waitFor(() => expect(posts).toContainEqual({ path: "/api/github/connection/enabled", body: { enabled: true } }));
   });
@@ -133,26 +143,52 @@ describe("Today connections", () => {
     expect(window.location.search).toBe("");
   });
 
-  it("shows a sample dashboard and connection buttons when no source is connected", async () => {
+  it("shows sample rows, marked as such and never counted, and the connect buttons when no source is connected", async () => {
     connections = {
       jira: { configured: true, connected: false, enabled: false },
       slack: { configured: true, connected: false, enabled: false },
       github: { configured: false, connected: false, enabled: false },
     };
-    render(<TodayPage />);
-    const sample = await screen.findByRole("region", { name: /What Today looks like/ });
-    expect(within(sample).getByText("Sample")).toBeTruthy();
-    expect(within(sample).getAllByRole("listitem")).toHaveLength(3);
-    expect(within(sample).getByRole("link", { name: "Connect Slack" }).getAttribute("href")).toBe("/auth/slack/start");
-    expect(within(sample).getByRole("button", { name: "Connect GitHub" }).hasAttribute("disabled")).toBe(true);
+    renderToday();
+    const sample = await screen.findByRole("table", { name: "Sample tasks" });
+    expect(screen.getByText("Sample data")).toBeTruthy();
+    expect(sample.querySelectorAll("tbody .task-row")).toHaveLength(4);
+    expect(within(screen.getByRole("list", { name: "Summary" })).getAllByText("No source connected yet")).toHaveLength(2);
+    // The note under the sample links to the Connections page, where each source has its button.
+    fireEvent.click(screen.getByRole("link", { name: "Connect Slack, Jira or GitHub" }));
+    expect(screen.getByRole("heading", { name: "Connections", level: 1 })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Connect Slack" }).getAttribute("href")).toBe("/auth/slack/start");
+    expect(screen.getByRole("button", { name: "Connect GitHub" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("shows an all-clear, not sample data, when a connected source has nothing", async () => {
     lists = { slack: { messages: [] }, github: { issues: [] } };
     jiraIssues = () => Response.json({ issues: [] });
-    render(<TodayPage />);
+    renderToday();
     expect(await screen.findByText("Nothing waiting. You are all caught up.")).toBeTruthy();
-    expect(screen.queryByText(/What Today looks like/)).toBeNull();
+    expect(screen.queryByText("Sample data")).toBeNull();
+  });
+
+  it("gives the all-clear only once every connected source has loaded", async () => {
+    lists = { slack: { messages: [] }, github: { issues: [] } };
+    jiraIssues = () => Response.json({ error: "Jira is down." }, { status: 502 });
+    renderToday();
+    expect(await screen.findByText("Nothing to show, but a source could not be loaded.")).toBeTruthy();
+    expect(screen.queryByText("Nothing waiting. You are all caught up.")).toBeNull();
+  });
+
+  it("does not show sample data for a connected source that is still loading or failed", async () => {
+    connections.slack = { configured: true, connected: false, enabled: false };
+    connections.github = { configured: false, connected: false, enabled: false };
+    let fail = () => {};
+    jiraIssues = () => new Promise((resolve) => (fail = () => resolve(Response.json({ error: "Jira is down." }, { status: 502 }))));
+    renderToday();
+    await waitFor(() => expect(sourceGets("jira")).toBe(1));
+    await act(async () => {});
+    expect(screen.queryByText("Sample data")).toBeNull();
+    await act(async () => fail());
+    expect(await screen.findByText("Jira: Jira is down.")).toBeTruthy();
+    expect(screen.queryByText("Sample data")).toBeNull();
   });
 });
 
@@ -221,18 +257,84 @@ describe("Today refresh", () => {
   });
 });
 
+describe("Today across pages", () => {
+  const go = (name: string) => fireEvent.click(within(screen.getByRole("navigation", { name: "Pages" })).getByRole("link", { name }));
+
+  it("keeps an open Jira edit after a visit to another page", async () => {
+    await openToday();
+    fireEvent.click(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Half written" } });
+    go("Cluster");
+    go("Today");
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Half written");
+  });
+
+  it("keeps an open Jira edit while the list is filtered to another source", async () => {
+    await openToday();
+    fireEvent.click(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Half written" } });
+    fireEvent.click(screen.getByRole("button", { name: /^GitHub/ }));
+    expect(screen.queryByRole("textbox")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^All/ }));
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Half written");
+  });
+
+  it("refreshes on coming back after five minutes away", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await openToday();
+    await waitFor(() => expect(posts).toHaveLength(1));
+    clusterState = idleCluster({ jobs: [{ id: "J-7", name: "Morning refresh", queuedAt: now, doneAt: now + 1, nodes: 2 }] });
+    go("Cluster");
+    await act(async () => { await vi.advanceTimersByTimeAsync(300_000); });
+    const before = sourceGets("slack");
+    expect(posts).toHaveLength(1);
+    go("Today");
+    await waitFor(() => expect(posts).toHaveLength(2));
+    expect(sourceGets("slack")).toBe(before + 1);
+  });
+
+  it("keeps syncing the sources while the cluster is unreachable", async () => {
+    clusterState = idleCluster({ jobs: [{ id: "J-3", name: "Morning refresh", queuedAt: now, doneAt: null, nodes: null }] });
+    await openToday();
+    await screen.findByRole("button", { name: "Refreshing" });
+    clusterState = { error: "down" };
+    expect(await screen.findByRole("button", { name: "Refresh" })).toBeTruthy();
+    expect(screen.getByText("Cluster not reachable")).toBeTruthy();
+  });
+});
+
+describe("Today summary", () => {
+  it("counts open tasks and the ones waiting on you", async () => {
+    await openToday();
+    const stats = screen.getByRole("list", { name: "Summary" });
+    expect(within(stats).getByText("Open tasks").parentElement?.textContent).toContain("4");
+    expect(within(stats).getByText("Waiting on you").parentElement?.textContent).toContain("2");
+  });
+
+  it("filters the table by source and sorts it by time", async () => {
+    await openToday();
+    fireEvent.click(screen.getByRole("button", { name: /^Slack/ }));
+    expect(rows().map((item) => item.getAttribute("aria-label"))).toEqual(["Can you look at the demo?", "@you the deploy failed"]);
+    fireEvent.click(screen.getByRole("button", { name: /^All/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Sort by updated" }));
+    expect(rows().map((item) => item.getAttribute("aria-label"))).toEqual(["@you the deploy failed", "Can you look at the demo?", "Worker hands back its task", "Snapshot the queue"]);
+  });
+});
+
 describe("Today boards", () => {
-  it("shows which node holds which step, and a step carried on from a dead node", async () => {
+  it("shows which board holds which step in words, and a step carried on from a dead board", async () => {
     const run = (worker: string, fields: Record<string, unknown>) => ({ worker, start: now - 4000, heardAt: now - 1000, end: null, from: 0, to: 0.5, outcome: "running", ...fields });
     clusterState = idleCluster({
       nodes: [node("Q-01", { role: "orchestrator" }), node("Q-02", { up: false, role: undefined })],
       tasks: [{ id: "T-2", input: "Fetch Slack messages", status: "claimed", worker: "Q-01", lostBy: ["Q-02"], job: "J-7", after: [], progress: 0.6, runs: [run("Q-02", { end: now - 3000, to: 0.4, outcome: "lost" }), run("Q-01", { from: 0.4, to: 0.6 })] }],
     });
-    await openToday();
-    const board = await screen.findByRole("group", { name: "Q-01" });
-    expect(within(board).getByText("Slack messages")).toBeTruthy();
-    expect(within(board).getByText("from Q-02")).toBeTruthy();
-    expect(screen.getByRole("group", { name: "Q-02" }).className).toContain("is-dead");
+    window.history.replaceState({}, "", "/cluster");
+    render(<App />);
+    const board = await screen.findByRole("row", { name: "Board 1" });
+    expect(within(board).getByText("Orchestrator")).toBeTruthy();
+    expect(within(board).getByText("Fetching Slack")).toBeTruthy();
+    expect(within(board).getByText("Taken over from Board 2")).toBeTruthy();
+    expect(within(screen.getByRole("row", { name: "Board 2" })).getByText("Down")).toBeTruthy();
   });
 });
 
@@ -269,7 +371,7 @@ describe("Today Jira edits", () => {
     jiraIssues = () => Response.json({ error: "Jira is down." }, { status: 502 });
     await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
-    expect(await screen.findByText("Jira is down.")).toBeTruthy();
+    expect(await screen.findByText("Jira: Jira is down.")).toBeTruthy();
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("New description");
     expect(rows()).toHaveLength(4);
   });

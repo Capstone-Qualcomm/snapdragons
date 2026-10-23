@@ -1,68 +1,164 @@
-/* The shell: top bar, page header and the page area. */
+/* The shell: a left sidebar with the pages and the cluster's health, and the
+   page in a centered column. On a phone the sidebar becomes a top bar with a menu. */
 
-.topbar {
+.app-shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 224px minmax(0, 1fr);
+}
+
+.sidebar {
   position: sticky;
-  z-index: 5;
   top: 0;
   display: flex;
-  min-height: 52px;
-  align-items: center;
-  gap: var(--s2) var(--s5);
-  padding: var(--s2) var(--gutter);
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
+  height: 100vh;
+  flex-direction: column;
+  gap: var(--s5);
+  padding: var(--s5) var(--s3) var(--s4);
+  border-right: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 55%, var(--canvas));
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: 10px;
+  padding: 0 var(--s2);
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
 .brand-mark {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--ember);
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ff7a45, var(--ember));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 20%);
 }
 
-.topbar .subtabs { width: min(440px, 100%); }
+.nav {
+  display: grid;
+  gap: 2px;
+}
 
-.topbar .header-button { margin-left: auto; }
+.nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background var(--snappy), color var(--snappy);
+}
+
+.nav a:hover { background: var(--wash); color: var(--ink); }
+.nav a[aria-current="page"] { background: var(--paper); box-shadow: var(--shadow), 0 0 0 1px var(--rule); color: var(--ink); }
+.nav a[aria-current="page"] .icon { color: var(--ember); }
+
+.sidebar-foot {
+  display: grid;
+  gap: var(--s2);
+  margin-top: auto;
+}
+
+.health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--rule);
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.health:hover { color: var(--ink); }
+.health strong { color: var(--ink); font-weight: 600; }
+
+.sidebar .about-button { justify-content: flex-start; padding: 7px 10px; }
+
+.menu-button { display: none; }
+
+.content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--s6) 40px 64px;
+}
 
 .page-head {
   display: flex;
   flex-wrap: wrap;
-  min-height: 56px;
-  align-items: center;
-  gap: var(--s2) var(--s4);
-  padding: var(--s2) var(--gutter);
+  align-items: flex-end;
+  gap: var(--s3) var(--s4);
+  margin-bottom: var(--s5);
 }
 
+.page-title { display: grid; gap: 6px; }
+
 .page-head h1 {
-  font-size: 18px;
+  font-size: 28px;
   font-weight: 600;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
+
+.page-head > .button,
+.page-head > .page-actions { margin-left: auto; }
 
 .page-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s3);
-  margin-left: auto;
+  gap: var(--s2);
 }
 
-.view-content { padding-bottom: var(--s5); }
+@media (max-width: 860px) {
+  .app-shell { grid-template-columns: minmax(0, 1fr); }
 
-#cluster { padding-top: var(--s2); }
+  .sidebar {
+    position: sticky;
+    z-index: 10;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2);
+    padding: 10px var(--s4);
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(8px);
+  }
 
-@media (max-width: 640px) {
-  .topbar { flex-wrap: wrap; }
-  .topbar .header-button { order: 2; }
-  .topbar .subtabs { order: 3; width: 100%; }
+  .menu-button {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .menu-button:hover { background: var(--wash); }
+  .sidebar .nav,
+  .sidebar .sidebar-foot { display: none; width: 100%; }
+  .sidebar.is-open .nav,
+  .sidebar.is-open .sidebar-foot { display: grid; }
+  .sidebar.is-open .sidebar-foot { margin-top: var(--s2); }
+  .health { order: -1; }
+
+  .content { padding: var(--s5) var(--s4) var(--s6); }
+  .page-head h1 { font-size: 24px; }
 }

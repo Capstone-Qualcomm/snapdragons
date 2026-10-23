@@ -15,33 +15,6 @@ export function SourceLogo({ name }: { name: "jira" | "slack" | "github" }) {
   return <img className={`logo logo-${name}`} src={appPath(`${name}-logo.png`)} alt="" />;
 }
 
-// Equal segments on a quiet track; the selected one sits raised.
-export function SubTabs<T extends string>({ items, value, onChange, label, nav }: {
-  items: Array<{ value: T; label: string }>;
-  value: T;
-  onChange: (value: T) => void;
-  label: string;
-  // Main navigation marks the current page; other switchers mark the pressed segment.
-  nav?: boolean;
-}) {
-  return (
-    <nav className="subtabs" aria-label={label}>
-      {items.map((item) => (
-        <button
-          className={item.value === value ? "subtab is-on" : "subtab"}
-          type="button"
-          key={item.value}
-          aria-current={nav && item.value === value ? "page" : undefined}
-          aria-pressed={nav ? undefined : item.value === value}
-          onClick={() => onChange(item.value)}
-        >
-          {item.label}
-        </button>
-      ))}
-    </nav>
-  );
-}
-
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="error-banner" role="alert">
@@ -81,4 +54,21 @@ export function relative(time: string | number, now = Date.now()) {
 export function RelativeTime({ value }: { value: string | number }) {
   const now = useNow();
   return <time dateTime={new Date(value).toISOString()} title={new Date(value).toLocaleString()}>{relative(value, now)}</time>;
+}
+
+// A stat card: a plain label, one big value with its unit, and a line saying what it counts.
+export function Stat({ label, value, note, tone = "" }: { label: string; value: string; note: string; tone?: string }) {
+  return (
+    <li className={`stat ${tone}`}>
+      <span className="stat-label">{label}</span>
+      <strong className="stat-value">{value}</strong>
+      <span className="stat-note">{note}</span>
+    </li>
+  );
+}
+
+// "12 s ago", "3 min ago".
+export function ago(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `${s} s ago` : s < 3600 ? `${Math.floor(s / 60)} min ago` : `${Math.floor(s / 3600)} h ago`;
 }

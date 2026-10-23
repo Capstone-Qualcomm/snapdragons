@@ -1,0 +1,31 @@
+# The live site's routing: the same as the proxy in frontend/vite.config.js, on one public address.
+# tests/deploy.test.ts fails when the frontend calls a path that no rule here sends to a backend.
+:80 {
+	redir / /snapdragons/
+
+	@cluster path /snapdragons/api/cluster/* /snapdragons/api/assistant/*
+	handle @cluster {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3003
+	}
+	@slack path /snapdragons/api/slack/* /snapdragons/auth/slack/*
+	handle @slack {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3002
+	}
+	@github path /snapdragons/api/github/* /snapdragons/auth/github/*
+	handle @github {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3004
+	}
+	@jira path /snapdragons/api/jira/* /snapdragons/auth/jira/*
+	handle @jira {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3001
+	}
+	handle_path /snapdragons/* {
+		root * /app/frontend/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

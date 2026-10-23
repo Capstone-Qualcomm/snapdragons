@@ -1,4 +1,4 @@
-/* Boards, steps and their progress, shared by Cluster and Today. */
+/* The boards table: one row per board, its step with a progress bar, and Kill or Restart. */
 
 .crown {
   width: 15px;
@@ -14,34 +14,52 @@
   stroke-width: 1.8;
 }
 
-.check {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  margin-left: auto;
-  fill: none;
-  stroke: var(--live);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-}
+.boards-table .col-board { width: 110px; }
+.boards-table .col-status { width: 100px; }
+.boards-table .col-role { width: 150px; }
+.boards-table .col-done-count { width: 90px; }
+.boards-table .col-heartbeat { width: 110px; color: var(--ink-soft); }
+.boards-table .col-action { width: 170px; }
+.boards-table .col-task { min-width: 200px; }
 
-/* A board's head and its work: the step and its bar, the last step done, or nothing. */
-.board-head {
-  display: flex;
-  min-width: 0;
+.board-toggle {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-}
-
-.board-head strong {
-  font-family: var(--mono);
-  font-size: 12px;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.is-dead .board-head strong,
-.is-left .board-head strong { color: var(--ink-faint); text-decoration: line-through; }
+.board-toggle .chevron { width: 12px; height: 12px; fill: none; stroke: var(--ink-faint); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.board-toggle:hover .chevron { stroke: var(--ink); }
+.board-row.is-dead .board-toggle,
+.board-row.is-left .board-toggle { color: var(--ink-faint); }
+.board-row.is-dead td { background: color-mix(in srgb, var(--fail) 4%, var(--paper)); }
+
+td.col-role { color: var(--ink-soft); }
+td.col-role.is-orchestrator { color: var(--ember); font-weight: 600; }
+td.col-role .crown { margin-right: 6px; vertical-align: -1px; }
+
+.detail-row td {
+  padding-top: 6px;
+  padding-bottom: 8px;
+  background: var(--canvas);
+}
+
+.raft {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s4);
+  padding-left: 16px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+}
 
 .step-progress {
   display: grid;
@@ -54,13 +72,11 @@
   min-width: 0;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
 }
 
-.step-title .logo,
-.work-last .logo { width: 14px; height: 14px; }
+.step-title .logo { width: 14px; height: 14px; }
 
 .step-name {
   min-width: 0;
@@ -68,16 +84,15 @@
   text-overflow: ellipsis;
 }
 
-.step-meta {
-  margin-left: auto;
-  color: var(--ink-faint);
-  font-family: var(--mono);
-  font-size: 11px;
+.took-over {
+  color: var(--fail);
+  font-size: 12px;
 }
 
-.step-meta em {
-  color: var(--fail);
-  font-style: normal;
+.step-meta {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 12px;
 }
 
 .bar {
@@ -95,11 +110,11 @@
   transition: left 0.5s linear, width 0.5s linear;
 }
 
-/* The part a dead node had already done before this one carried on. */
+/* The part a dead board had already done before this one carried on. */
 .bar-before {
   left: 0;
   width: calc(var(--from) * 100%);
-  background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--ember) 55%, var(--paper)) 0 3px, color-mix(in srgb, var(--ember) 25%, var(--paper)) 3px 6px);
+  background: color-mix(in srgb, var(--ember) 35%, var(--paper));
 }
 
 .bar-now {
@@ -108,48 +123,48 @@
   background: var(--ember);
 }
 
-.work-last {
-  display: flex;
-  min-width: 0;
-  height: 26px;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink-faint);
-  font-size: 12px;
-  white-space: nowrap;
-}
+/* Phone: each board is a small card: name, status and actions, then role, task and numbers. */
+@media (max-width: 720px) {
+  .boards-table thead { display: none; }
+  .boards-table tbody,
+  .boards-table tr { display: block; }
 
-.work-last .logo { opacity: 0.6; }
-.work-none { height: 26px; }
+  .boards-table .board-row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "board status action"
+      "role role role"
+      "task task task"
+      "done beat beat";
+    align-items: center;
+    gap: 6px var(--s3);
+    padding: var(--s3) var(--s4);
+    border-bottom: 1px solid var(--rule);
+  }
 
-/* The compact boards on Today: six columns, like the rack on Cluster, however many boards there are. */
-.strip-boards {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--s2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+  .boards-table .board-row td {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+  }
 
-.mini {
-  display: grid;
-  min-width: 0;
-  min-height: 62px;
-  align-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--paper);
-  transition: border-color var(--snappy);
-}
-
-.mini.is-working { border-color: color-mix(in srgb, var(--ember) 35%, var(--rule)); }
-.mini.is-dead { background: var(--wash); }
-
-@media (max-width: 860px) {
-  .strip-boards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .boards-table .col-board { grid-area: board; }
+  .boards-table .col-status { grid-area: status; }
+  .boards-table .col-role { grid-area: role; }
+  .boards-table .col-task { grid-area: task; }
+  .boards-table td.col-done-count { grid-area: done; color: var(--ink-soft); font-size: 12px; }
+  .boards-table td.col-done-count::before { content: "Tasks done: "; }
+  .boards-table td.col-heartbeat { grid-area: beat; font-size: 12px; text-align: right; }
+  .boards-table td.col-heartbeat::before { content: "Heartbeat: "; }
+  .boards-table td.col-action { grid-area: action; text-align: right; }
+  .boards-table .board-row.is-dead .col-role,
+  .boards-table .board-row.is-dead .col-task,
+  .boards-table .board-row.is-left .col-role,
+  .boards-table .board-row.is-left .col-task { display: none; }
+  .boards-table .detail-row { display: block; }
+  .boards-table .detail-row td { display: block; }
 }

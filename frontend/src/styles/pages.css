@@ -1,0 +1,103 @@
+/* Every page: stat cards across the top, then a wide main column and a narrow side column. */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--s3);
+  margin: 0 0 var(--s5);
+  padding: 0;
+  list-style: none;
+}
+
+.stat {
+  display: grid;
+  gap: 4px;
+  padding: var(--s4) var(--s5);
+  border: 1px solid var(--rule);
+  border-radius: var(--card-radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.stat-label {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.stat-note {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.stat.is-ember .stat-value { color: var(--ember-ink); }
+.stat.is-bad .stat-note { color: var(--fail); }
+.stat.is-warn .stat-note { color: var(--waiting); }
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: var(--s5);
+}
+
+.column-main,
+.column-side {
+  display: grid;
+  min-width: 0;
+  gap: var(--s5);
+}
+
+.page-body { display: grid; gap: var(--s5); }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--s5); }
+@media (max-width: 1000px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+
+/* While the cluster works on the refresh, the button fills as its steps finish. */
+.refresh-button {
+  position: relative;
+  min-width: 120px;
+  overflow: hidden;
+}
+
+.refresh-button::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--done) * 100%);
+  background: color-mix(in srgb, var(--ember) 30%, var(--paper));
+  content: "";
+  transition: width 0.5s linear;
+}
+
+.refresh-button span { position: relative; }
+.refresh-button:not(.is-busy)::before { display: none; }
+
+.refresh-button.is-busy:disabled {
+  border-color: var(--rule);
+  background: var(--wash);
+  color: var(--ink);
+  cursor: progress;
+  opacity: 1;
+}
+
+.stats.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+@media (max-width: 1100px) {
+  .stats, .stats.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .columns { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Phone: two stat cards a row, and one column. */
+@media (max-width: 640px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+  .stats .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .stat { padding: 10px var(--s3) var(--s3); }
+  .stat-value { font-size: 24px; }
+  .columns { gap: var(--s3); }
+  .column-main, .column-side { gap: var(--s3); }
+}
