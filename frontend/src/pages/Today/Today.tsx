@@ -4,6 +4,7 @@ import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { api } from "../../lib/api";
 import { appPath } from "../../lib/urls";
 import { JiraEditor } from "./JiraEditor";
+import { GitHubCommentEditor } from "./GitHubCommentEditor";
 import { rank, score } from "./rank";
 import type { Item } from "./rank";
 import { titles } from "./sources";
@@ -170,6 +171,7 @@ type OutlookThreadMessage = { id: string; from: string; subject: string; receive
 
 function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
+  const [githubPosting, setGithubPosting] = useState(false);
   const [replying, setReplying] = useState(false);
   const [replyDraft, setReplyDraft] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
@@ -233,7 +235,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
       <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)} hidden={hidden}>
         <td className="col-done">
           {!sample && (
-            <button className="done-button" type="button" aria-label="Done" title="Mark done" onClick={onDone}>
+            <button className="done-button" type="button" aria-label="Done" title="Mark done" disabled={githubPosting} onClick={onDone}>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
             </button>
           )}
@@ -245,15 +247,19 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
         <td className="col-item">
           {item.source === "jira" && (link ? <a className="jira-key" href={link} target="_blank" rel="noreferrer">{item.data.key}</a> : <span className="jira-key">{item.data.key}</span>)}
           {item.source === "github" && <span className="item-number">#{item.data.number}</span>}
-          <span className="what">{item.source === "slack" ? withMentions(item.data.text) : textOf(item)}</span>
+          <span className="what">
+            {item.source === "slack" ? withMentions(item.data.text) : item.source === "github" && link
+              ? <a className="github-title" href={link} target="_blank" rel="noreferrer">{item.data.title}</a>
+              : textOf(item)}
+          </span>
         </td>
         <td className="col-from">{fromOf(item)}</td>
         <td className="col-status"><Status item={item} /></td>
         <td className="col-updated num">{item.at > 0 ? <RelativeTime value={item.at} /> : "—"}</td>
         <td className="col-action">
-          {sample ? null : item.source === "jira" ? (
-            <button className={editing ? "button small is-on" : "button small"} type="button" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
-              Edit
+          {sample ? null : item.source === "jira" || item.source === "github" ? (
+            <button className={editing ? "button small is-on" : "button small"} type="button" disabled={item.source === "github" && githubPosting} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
+              {item.source === "jira" ? "Edit" : "Comment"}
             </button>
           ) : item.source === "outlook" ? (
             <div className="outlook-row-actions">
@@ -278,10 +284,12 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
           )}
         </td>
       </tr>
-      {item.source === "jira" && editing && (
+      {(item.source === "jira" || item.source === "github") && editing && (
         <tr className="editor-row" hidden={hidden}>
           <td colSpan={8}>
-            <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
+            {item.source === "jira"
+              ? <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
+              : <GitHubCommentEditor issue={item.data} id={editorId} onClose={() => setEditing(false)} onPostingChange={setGithubPosting} />}
           </td>
         </tr>
       )}

@@ -27,6 +27,53 @@ const apiUrl = "https://api.github.com/issues";
 const apiVersion = "2026-03-10";
 
 export function createGitHubApi({ fetchImpl = globalThis.fetch }: GitHubApiOptions = {}) {
+  async function postComment(accessToken: string, repository: string, issueNumber: number, body: unknown): Promise<{ status: number; error: string } | { ok: true }> {
+    if (!accessToken) throw new Error("GitHub is not connected. Connect GitHub.");
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) throw new Error("Choose a valid GitHub repository.");
+    if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) throw new Error("Choose a valid GitHub issue or pull request.");
+    if (typeof body !== "string" || !body.trim()) throw new Error("Comment cannot be empty.");
+    if (body.length > 65_536) throw new Error("Comment must be 65,536 characters or fewer.");
+
+    const [owner, repo] = repository.split("/");
+    const response = await fetchImpl(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`, {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${accessToken}`,
+        "X-GitHub-Api-Version": apiVersion,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ body }),
+    });
+
+    if (response.status === 401) return { status: 401, error: "GitHub authorization expired. Reconnect GitHub." };
+    if (response.status === 403 || response.status === 429) return { status: response.status, error: await commentFailure(response) };
+    if (!response.ok) return { status: response.status === 404 ? 404 : 502, error: `GitHub could not post the comment (HTTP ${response.status}). Please try again.` };
+    return { ok: true };
+  }
+
+  async function commentFailure(response: Response): Promise<string> {
+    const message = await response.clone().json().then((result: unknown) => {
+      if (result && typeof result === "object" && "message" in result && typeof result.message === "string") return result.message;
+      return "";
+    }).catch(() => "");
+    const remaining = response.headers.get("X-RateLimit-Remaining");
+    const reset = response.headers.get("X-RateLimit-Reset");
+    const retryAfter = response.headers.get("Retry-After");
+    if (response.status === 429 || remaining === "0" || /rate limit|secondary rate limit|abuse detection/i.test(message)) {
+      if (retryAfter && Number.isFinite(Number(retryAfter))) return `GitHub rate limit reached. Try again in ${retryAfter} seconds.`;
+      if (remaining === "0" && reset && Number.isFinite(Number(reset))) return `GitHub rate limit reached. Try again after ${new Date(Number(reset) * 1000).toUTCString()}.`;
+      return "GitHub rate limit reached. Wait a minute, then try again.";
+    }
+
+    const accepted = response.headers.get("X-Accepted-GitHub-Permissions");
+    if (/resource not accessible|insufficient|permission/i.test(message) || accepted) {
+      const required = accepted ? ` GitHub reports the required permission as ${accepted}.` : "";
+      return `GitHub rejected the comment because this authorization cannot write to that repository. Check the GitHub App's repository permissions and that the repository is included in its installation, then reconnect GitHub.${required}${message ? ` GitHub said: ${message}` : ""}`;
+    }
+    return message ? `GitHub denied the comment: ${message}` : "GitHub denied the comment (HTTP 403). Check the GitHub App's repository permissions and try again.";
+  }
+
   // Requests open issues assigned to signed-in user. Each result converted into small, consistent item.
   async function getAssignedOpenIssues(accessToken: string): Promise<GitHubWorkItem[]> {
     if (!accessToken) throw new Error("GitHub is not connected. Connect GitHub.");
@@ -70,7 +117,7 @@ export function createGitHubApi({ fetchImpl = globalThis.fetch }: GitHubApiOptio
     return url.toString();
   }
 
-  return { getAssignedOpenIssues };
+  return { getAssignedOpenIssues, postComment };
 }
 
 function isOpenAssignedItem(item: GitHubApiIssue): boolean {

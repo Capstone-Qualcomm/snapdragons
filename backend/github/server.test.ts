@@ -50,6 +50,24 @@ async function connectGitHub(base: string) {
   return fetch(base + `/auth/github/callback?state=${state}&code=test`, { redirect: "manual" });
 }
 
+async function submitComment(base: string, repository = "team/repo", number = 7, body = "Looks good") {
+  return fetch(`${base}/api/github/repos/${repository.split("/").map(encodeURIComponent).join("/")}/issues/${number}/comments`, {
+    method: "POST",
+    headers: { Origin: "http://localhost:5173", "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+}
+
+function githubWithCommentResponse(commentResponse: (input: string | URL | Request, init?: RequestInit) => Response): typeof fetch {
+  return async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/login/oauth/access_token") return Response.json({ access_token: "private-token", expires_in: 3600 });
+    if (url.pathname === "/user") return Response.json({ id: 1, login: "tester" });
+    if (url.pathname === "/repos/team/repo/issues/7/comments") return commentResponse(input, init);
+    throw new Error(`Unexpected GitHub request: ${url}`);
+  };
+}
+
 const connectingGitHub: typeof fetch = async (input) => {
   const url = new URL(String(input));
   if (url.pathname === "/login/oauth/access_token") return Response.json({ access_token: "private-token", expires_in: 3600 });
@@ -96,6 +114,58 @@ test("accepts same-origin requests far enough to validate their payload", async 
     body: "{invalid",
   });
   assert.equal(response.status, 400);
+});
+
+test("posts a GitHub issue or pull request comment with the connected user's token", async () => {
+  let request: RequestInit | undefined;
+  const base = await startServer(githubWithCommentResponse((_input, init) => {
+    request = init;
+    return Response.json({ id: 42, html_url: "https://github.com/team/repo/issues/7#issuecomment-42" });
+  }));
+  await connectGitHub(base);
+
+  const response = await submitComment(base);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+  assert.equal(request?.method, "POST");
+  assert.equal(new Headers(request?.headers).get("Authorization"), "Bearer private-token");
+  assert.deepEqual(JSON.parse(String(request?.body)), { body: "Looks good" });
+});
+
+test("rejects GitHub comments when disconnected or when the comment is blank", async () => {
+  const base = await startServer(connectingGitHub);
+  assert.equal((await submitComment(base)).status, 401);
+
+  await connectGitHub(base);
+  const blank = await submitComment(base, "team/repo", 7, "  ");
+  assert.equal(blank.status, 400);
+  assert.match((await blank.json() as { error: string }).error, /cannot be empty/i);
+});
+
+test("explains GitHub comment permission failures", async () => {
+  const base = await startServer(githubWithCommentResponse(() => Response.json(
+    { message: "Resource not accessible by integration" },
+    { status: 403, headers: { "X-Accepted-GitHub-Permissions": "issues=write" } },
+  )));
+  await connectGitHub(base);
+
+  const response = await submitComment(base);
+  assert.equal(response.status, 403);
+  const result = await response.json() as { error: string };
+  assert.match(result.error, /issues=write/);
+  assert.match(result.error, /Resource not accessible by integration/);
+});
+
+test("distinguishes a GitHub comment rate limit from permission failures", async () => {
+  const base = await startServer(githubWithCommentResponse(() => Response.json(
+    { message: "API rate limit exceeded" },
+    { status: 403, headers: { "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 120) } },
+  )));
+  await connectGitHub(base);
+
+  const response = await submitComment(base);
+  assert.equal(response.status, 403);
+  assert.match((await response.json() as { error: string }).error, /rate limit reached/i);
 });
 
 test("records a disconnected GitHub fetch as a failed sync", async () => {

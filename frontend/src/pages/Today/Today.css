@@ -58,6 +58,8 @@
 
 .item-number { color: var(--ink-soft); }
 a.jira-key:hover { color: var(--ember); }
+a.github-title { color: inherit; text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 2px; }
+a.github-title:hover { color: var(--ember); text-decoration-color: currentColor; }
 
 .task-row.is-waiting .col-rank { color: var(--ember); font-weight: 700; }
 .task-row.is-sample td { color: var(--ink-soft); }

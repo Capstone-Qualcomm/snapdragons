@@ -30,6 +30,7 @@ let clusterState: Record<string, unknown>;
 let connections: Record<"jira" | "slack" | "github", Connection>;
 let lists: Record<string, unknown>;
 let jiraIssues: () => Response | Promise<Response>;
+let githubComment: (() => Promise<Response>) | undefined;
 let posts: Array<{ path: string; body: unknown }>;
 
 function idleCluster(fields: Record<string, unknown> = {}) {
@@ -43,12 +44,14 @@ beforeEach(() => {
   connections = { jira: on, slack: on, github: on };
   lists = { slack: { messages: [mention, dm] }, github: { issues: [pr] } };
   jiraIssues = () => Response.json({ issues: [issue] });
+  githubComment = undefined;
   posts = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const path = String(url).replace(/^\/snapdragons/, "");
     if (init?.method === "POST") {
       posts.push({ path, body: JSON.parse(String(init.body)) });
       if (path === "/api/cluster/refresh") return Response.json({ job: { id: "J-7" } }, { status: 201 });
+      if (path.endsWith("/comments") && githubComment) return githubComment();
       return Response.json({ ok: true });
     }
     if (path === "/api/cluster/state") return Response.json(clusterState);
@@ -91,7 +94,8 @@ describe("Today list", () => {
     await openToday();
     expect(rows().map((item) => item.getAttribute("aria-label"))).toEqual(["Can you look at the demo?", "Snapshot the queue", "Worker hands back its task", "@you the deploy failed"]);
     expect(within(row("Can you look at the demo?")).getByRole("link", { name: "Reply" }).getAttribute("href")).toBe("https://slack.test/dm");
-    expect(within(row("Snapshot the queue")).getByRole("link", { name: "Open" }).getAttribute("href")).toBe("https://github.test/15");
+    expect(within(row("Snapshot the queue")).getByRole("link", { name: "Snapshot the queue" }).getAttribute("href")).toBe("https://github.test/15");
+    expect(within(row("Snapshot the queue")).getByRole("button", { name: "Comment" })).toBeTruthy();
     expect(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" })).toBeTruthy();
   });
 
@@ -114,6 +118,28 @@ describe("Today list", () => {
     lists.slack = { messages: [mention, { ...dm, sentAt: minutesAgo(0) }] };
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(rows()).toHaveLength(4));
+  });
+
+  it("keeps the GitHub comment draft and editor locked while a post is pending", async () => {
+    let finishPost!: (response: Response) => void;
+    githubComment = () => new Promise((resolve) => { finishPost = resolve; });
+    await openToday();
+
+    const githubRow = within(row("Snapshot the queue"));
+    fireEvent.click(githubRow.getByRole("button", { name: "Comment" }));
+    const textarea = screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Please check this change." } });
+    fireEvent.click(screen.getByRole("button", { name: "Post comment to GitHub" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Posting…" }).hasAttribute("disabled")).toBe(true));
+    expect(textarea.disabled).toBe(true);
+    expect(githubRow.getByRole("button", { name: "Comment" }).hasAttribute("disabled")).toBe(true);
+    expect(githubRow.getByRole("button", { name: "Done" }).hasAttribute("disabled")).toBe(true);
+
+    await act(async () => finishPost(Response.json({ ok: true })));
+    expect(await screen.findByText("Comment posted to GitHub.")).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement).value).toBe("");
+    expect(githubRow.getByRole("button", { name: "Comment" }).hasAttribute("disabled")).toBe(false);
   });
 });
 
