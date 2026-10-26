@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { createSourceActivity } from "../source-activity.mts";
 import { createSessions } from "../sessions.mts";
-import { createSourceServer } from "../source-server.mts";
+import { createSourceServer, readJson, send } from "../source-server.mts";
 import { createOutlookApi } from "./outlook-api.ts";
 import { createOutlookAuth } from "./outlook-auth.ts";
 import type { OutlookConnection } from "./outlook-auth.ts";
@@ -48,13 +48,68 @@ export function createOutlookServer(options: ServerOptions = {}) {
     }),
     items: "messages",
     loadItems: ({ outlookApi }) => outlookApi.getUnreadMessages(),
-    async routes(req, res, url, { auth }) {
+    async routes(req, res, url, { auth, outlookApi }) {
       if (req.method === "GET" && url.pathname === "/auth/outlook/start") {
         auth.startAuthorization(res);
         return true;
       }
       if (req.method === "GET" && url.pathname === "/auth/outlook/callback") {
         await auth.handleCallback(url, res);
+        return true;
+      }
+      const messageThread = url.pathname.match(/^\/api\/outlook\/messages\/([^/]+)\/thread$/);
+      if (req.method === "GET" && messageThread) {
+        let messageId: string;
+        try {
+          messageId = decodeURIComponent(messageThread[1]);
+        } catch {
+          send(res, 400, { error: "Invalid Outlook message ID." });
+          return true;
+        }
+        try {
+          send(res, 200, { messages: await outlookApi.getConversation(messageId) });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Outlook could not load this conversation.";
+          const status = message.includes("not connected") || message.includes("Reconnect Outlook")
+            ? 401
+            : message.includes("turned off") || message.includes("denied read access")
+              ? 403
+              : 502;
+          send(res, status, { error: message });
+        }
+        return true;
+      }
+      const messageAction = url.pathname.match(/^\/api\/outlook\/messages\/([^/]+)\/(delete|reply)$/);
+      if (req.method === "POST" && messageAction) {
+        let messageId: string;
+        try {
+          messageId = decodeURIComponent(messageAction[1]);
+        } catch {
+          send(res, 400, { error: "Invalid Outlook message ID." });
+          return true;
+        }
+        try {
+          if (messageAction[2] === "delete") await outlookApi.deleteMessage(messageId);
+          else {
+            const body = await readJson(req);
+            if (typeof body.comment !== "string" || !body.comment.trim()) {
+              send(res, 400, { error: "Write a reply before sending." });
+              return true;
+            }
+            const markedRead = await outlookApi.replyToMessage(messageId, body.comment);
+            send(res, 200, { ok: true, markedRead });
+            return true;
+          }
+          send(res, 200, { ok: true });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Outlook could not update this message.";
+          const status = message.includes("not connected") || message.includes("Reconnect Outlook")
+            ? 401
+            : message.includes("turned off") || message.includes("denied permission")
+              ? 403
+              : 502;
+          send(res, status, { error: message });
+        }
         return true;
       }
       return false;

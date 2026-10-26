@@ -30,7 +30,6 @@ export type OutlookMessage = {
   id: string;
   from: string;
   subject: string;
-  preview: string;
   receivedAt: string;
   url: string;
 };

@@ -1,24 +1,26 @@
-import type { GitHubIssue, ItemsOf, SlackMessage } from "./sources";
+import type { GitHubIssue, ItemsOf, OutlookMessage, SlackMessage } from "./sources";
 import type { JiraIssue } from "./jira";
 
 // One thing on today's list, from any source.
 export type Item =
   | { key: string; source: "slack"; at: number; data: SlackMessage }
   | { key: string; source: "jira"; at: number; data: JiraIssue }
-  | { key: string; source: "github"; at: number; data: GitHubIssue };
+  | { key: string; source: "github"; at: number; data: GitHubIssue }
+  | { key: string; source: "outlook"; at: number; data: OutlookMessage };
 
 const time = (value: string | null) => (value ? new Date(value).getTime() || 0 : 0);
 
-export function toItems(lists: { [N in keyof ItemsOf]: ItemsOf[N][] }): Item[] {
+export function toItems(lists: { [N in Exclude<keyof ItemsOf, "outlook">]: ItemsOf[N][] } & { outlook?: ItemsOf["outlook"][] }): Item[] {
   return [
     ...lists.slack.map((data): Item => ({ key: `slack:${data.id}`, source: "slack", at: time(data.sentAt), data })),
     ...lists.jira.map((data): Item => ({ key: `jira:${data.key}`, source: "jira", at: time(data.updated), data })),
     ...lists.github.map((data): Item => ({ key: `github:${data.id}`, source: "github", at: time(data.updatedAt), data })),
+    ...(lists.outlook ?? []).map((data): Item => ({ key: `outlook:${data.id}`, source: "outlook", at: time(data.receivedAt), data })),
   ];
 }
 
-// Higher is more urgent. Someone waiting on you comes first, then work you
-// have started, then work planned for this sprint, then mentions, then the backlog.
+// Higher is more urgent. Unread email and direct requests come first, followed
+// by active work, sprint work, mentions and the backlog.
 export function score(item: Item): number {
   switch (item.source) {
     case "slack":
@@ -28,6 +30,8 @@ export function score(item: Item): number {
     case "jira":
       if (/progress|review/i.test(item.data.status)) return 3;
       return item.data.sprints.length ? 2 : 0;
+    case "outlook":
+      return 4;
   }
 }
 

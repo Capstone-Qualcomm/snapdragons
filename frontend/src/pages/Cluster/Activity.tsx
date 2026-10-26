@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { SourceLogo } from "../../components/ui";
 import { api } from "../../lib/api";
 import { titles } from "../Today/sources";
+import type { SourceName } from "../Today/sources";
 import { describeEvent } from "./cluster";
 import type { ClusterEvent, Task } from "./cluster";
 
-type SourceName = "jira" | "slack" | "github";
 type SyncEvent = { id: number; timestamp: string; status: number; count: number | null };
 type Entry = { key: string; at: number; text: string; source: SourceName | null };
-const sources: SourceName[] = ["jira", "slack", "github"];
+const sources: SourceName[] = ["jira", "slack", "github", "outlook"];
 
 function syncText(event: SyncEvent) {
   if (event.status === 200) return `Loaded ${event.count} ${event.count === 1 ? "item" : "items"}`;

@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Icon } from "../../components/Icon";
 import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
+import { api } from "../../lib/api";
 import { appPath } from "../../lib/urls";
 import { JiraEditor } from "./JiraEditor";
 import { GitHubCommentEditor } from "./GitHubCommentEditor";
@@ -40,7 +42,7 @@ export function useDone() {
   };
 }
 
-// Someone is waiting on you: a direct message or a pull request.
+// Someone is waiting on you: a direct message, pull request or unread email.
 export const isWaiting = (item: Item) => score(item) >= 4;
 
 type Sort = "rank" | "source" | "updated";
@@ -52,7 +54,7 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 // Today's work as a table: ranked, filterable by source, sortable by rank,
 // source or time. With nothing connected it shows sample rows, marked as such.
-export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved }: {
+export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply }: {
   items: Item[];
   cleared: Item[];
   loading: boolean;
@@ -62,6 +64,8 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
   onDone: (item: Item) => void;
   onUndo: (item: Item) => void;
   onSaved: () => Promise<void>;
+  onOutlookAction: (messageId: string) => Promise<void>;
+  onOutlookReply: (messageId: string, comment: string) => Promise<boolean>;
 }) {
   const [filter, setFilter] = useState<SourceName | "all">("all");
   const [sort, setSort] = useState<Sort>("rank");
@@ -82,7 +86,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
           <button className="chip-button" type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
             All <span className="count">{shown.length}</span>
           </button>
-          {(["slack", "jira", "github"] as SourceName[]).map((name) => (
+          {(["slack", "jira", "github", "outlook"] as SourceName[]).map((name) => (
             <button className="chip-button" type="button" key={name} aria-pressed={filter === name} onClick={() => setFilter(name)}>
               <SourceLogo name={name} />
               {titles[name]} <span className="count">{count(name)}</span>
@@ -92,7 +96,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
       </header>
       {sample && (
         <p className="panel-note">
-          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira or GitHub</a> to see your own.
+          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira, GitHub or Outlook</a> to see your own.
         </p>
       )}
 
@@ -115,7 +119,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} />)}
+                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} onOutlookAction={onOutlookAction} onOutlookReply={onOutlookReply} />)}
               </tbody>
             </table>
           )}
@@ -155,14 +159,76 @@ function SortHeader({ column, sort, setSort }: { column: { value: Sort; label: s
 }
 
 export function textOf(item: Item) {
-  return item.source === "slack" ? item.data.text : item.source === "jira" ? item.data.summary : item.data.title;
+  switch (item.source) {
+    case "slack": return item.data.text;
+    case "jira": return item.data.summary;
+    case "github": return item.data.title;
+    case "outlook": return item.data.subject;
+  }
 }
 
-function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void> }) {
+type OutlookThreadMessage = { id: string; from: string; subject: string; receivedAt: string; content: string };
+
+function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
   const [githubPosting, setGithubPosting] = useState(false);
+  const [replying, setReplying] = useState(false);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyStatus, setReplyStatus] = useState({ text: "", isError: false });
+  const [thread, setThread] = useState<{ messages: OutlookThreadMessage[] | null; loading: boolean; error: string }>({ messages: null, loading: false, error: "" });
+  const [outlookBusy, setOutlookBusy] = useState(false);
+  const [outlookError, setOutlookError] = useState("");
   const editorId = `edit-${item.key}`;
-  const link = sample ? undefined : item.data.url;
+  const link = sample || item.source === "outlook" ? undefined : item.data.url;
+
+  async function deleteOutlook() {
+    if (item.source !== "outlook") return;
+    if (!window.confirm("Delete this email? You can find it in Outlook's Deleted Items.")) return;
+    setOutlookBusy(true);
+    setOutlookError("");
+    try {
+      await onOutlookAction(item.data.id);
+    } catch (cause) {
+      setOutlookError((cause as Error).message);
+    } finally {
+      setOutlookBusy(false);
+    }
+  }
+
+  async function sendOutlookReply() {
+    if (item.source !== "outlook" || !replyDraft.trim()) return;
+    setReplyBusy(true);
+    setReplyStatus({ text: "", isError: false });
+    try {
+      const markedRead = await onOutlookReply(item.data.id, replyDraft);
+      setReplyDraft("");
+      setReplying(false);
+      setReplyStatus({ text: markedRead ? "Reply sent." : "Reply sent, but Outlook could not mark the email as read.", isError: !markedRead });
+    } catch (cause) {
+      setReplyStatus({ text: (cause as Error).message, isError: true });
+    } finally {
+      setReplyBusy(false);
+    }
+  }
+
+  async function loadOutlookThread() {
+    if (item.source !== "outlook" || thread.loading || thread.messages) return;
+    setThread({ messages: null, loading: true, error: "" });
+    try {
+      const result = await api<{ messages: OutlookThreadMessage[] }>(`/api/outlook/messages/${encodeURIComponent(item.data.id)}/thread`);
+      setThread({ messages: result.messages, loading: false, error: "" });
+    } catch (cause) {
+      setThread({ messages: null, loading: false, error: (cause as Error).message });
+    }
+  }
+
+  function toggleReply() {
+    const open = !replying;
+    setReplying(open);
+    setReplyStatus({ text: "", isError: false });
+    if (open) void loadOutlookThread();
+  }
 
   return (
     <>
@@ -195,8 +261,26 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
             <button className={editing ? "button small is-on" : "button small"} type="button" disabled={item.source === "github" && githubPosting} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
               {item.source === "jira" ? "Edit" : "Comment"}
             </button>
+          ) : item.source === "outlook" ? (
+            <div className="outlook-row-actions">
+              <button className={replying ? "button small is-on" : "button small"} type="button" aria-expanded={replying} aria-controls={`${editorId}-reply`} disabled={outlookBusy || replyBusy} onClick={toggleReply}>Reply</button>
+              <button className="button small outlook-icon-button is-delete" type="button" aria-label="Delete email" title="Delete email" disabled={outlookBusy} onClick={() => void deleteOutlook()}>
+                <Icon name="trash" size={15} />
+              </button>
+              {outlookError && <span className="outlook-action-error" role="alert">{outlookError}</span>}
+              {replyStatus.text && <span className={replyStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={replyStatus.isError ? "alert" : "status"}>{replyStatus.text}</span>}
+            </div>
           ) : (
-            <a className="button small" href={link} target="_blank" rel="noreferrer">{item.source === "slack" ? "Reply" : "Open"}</a>
+            <a
+              className="button small"
+              href={link}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={item.source === "outlook" ? "Open in Outlook" : undefined}
+              title={item.source === "outlook" ? "Open in Outlook" : undefined}
+            >
+              {item.source === "slack" ? "Reply" : "Open"}
+            </a>
           )}
         </td>
       </tr>
@@ -206,6 +290,37 @@ function Row({ item, rank, sample, hidden, onDone, onSaved }: { item: Item; rank
             {item.source === "jira"
               ? <JiraEditor issue={item.data} id={editorId} onSaved={onSaved} onClose={() => setEditing(false)} />
               : <GitHubCommentEditor issue={item.data} id={editorId} onClose={() => setEditing(false)} onPostingChange={setGithubPosting} />}
+          </td>
+        </tr>
+      )}
+      {item.source === "outlook" && replying && (
+        <tr className="editor-row outlook-reply-row" hidden={hidden}>
+          <td colSpan={8}>
+            <div className="jira-details outlook-reply-editor" id={`${editorId}-reply`}>
+              <section className="outlook-thread" aria-label="Email conversation">
+                <h3>Email conversation</h3>
+                {thread.loading && <p className="outlook-thread-note" role="status">Loading conversation…</p>}
+                {thread.error && <p className="outlook-thread-error" role="alert">{thread.error} <button className="button small" type="button" onClick={() => void loadOutlookThread()}>Retry</button></p>}
+                {thread.messages?.map((message) => (
+                  <article className="outlook-thread-message" key={message.id}>
+                    <header className="outlook-thread-head">
+                      <strong>{message.from}</strong>
+                      <time dateTime={message.receivedAt}>{new Date(message.receivedAt).toLocaleString()}</time>
+                      <span>{message.subject}</span>
+                    </header>
+                    <div className="outlook-thread-content">{message.content || "(No message content)"}</div>
+                  </article>
+                ))}
+              </section>
+              <label className="outlook-reply-label">
+                Reply to {item.data.from}
+                <textarea autoFocus rows={4} value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} placeholder="Write your reply…" disabled={replyBusy} />
+              </label>
+              <div className="jira-actions">
+                <button className="button small primary" type="button" disabled={replyBusy || !replyDraft.trim()} onClick={() => void sendOutlookReply()}>{replyBusy ? "Sending…" : "Send reply"}</button>
+                <button className="button small quiet" type="button" disabled={replyBusy} onClick={() => setReplying(false)}>Cancel</button>
+              </div>
+            </div>
           </td>
         </tr>
       )}
@@ -221,6 +336,8 @@ function fromOf(item: Item) {
       return item.data.reporter;
     case "github":
       return <span title={item.data.repository}>{item.data.repository.split("/").at(-1)}</span>;
+    case "outlook":
+      return item.data.from;
   }
 }
 
@@ -232,6 +349,8 @@ function Status({ item }: { item: Item }) {
       return <span className={/progress|review/i.test(item.data.status) ? "badge is-ok" : "badge"}>{item.data.status}</span>;
     case "github":
       return <span className="badge">{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>;
+    case "outlook":
+      return <span className="badge">Unread email</span>;
   }
 }
 

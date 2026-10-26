@@ -35,7 +35,7 @@ type OutlookAuthOptions = {
 };
 
 const refreshBeforeExpiryMs = 60_000;
-const defaultScopes = "openid profile email offline_access User.Read Mail.Read";
+const defaultScopes = "openid profile email offline_access User.Read Mail.ReadWrite Mail.Send";
 
 export function createOutlookAuth({
   clientId,
