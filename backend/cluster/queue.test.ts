@@ -180,3 +180,11 @@ test("a saved copy loads into another queue unchanged", () => {
 
   assert.deepEqual(copy.state(), q.queue.state());
 });
+
+test("a new cluster's first membership entry, which has no time, adds no event", () => {
+  const queue = createQueue();
+  queue.apply({ type: "config", members: ["Q-01", "Q-02"] });
+  queue.apply({ type: "config", members: ["Q-01", "Q-02", "Q-03"], at: 5 });
+
+  assert.deepEqual(queue.state().events, [{ at: 5, text: "Members are now Q-01, Q-02, Q-03" }]);
+});

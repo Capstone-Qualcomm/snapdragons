@@ -49,7 +49,11 @@ export function Activity({ events, tasks, offset }: { events: ClusterEvent[]; ta
     // Cluster times are the gateway's clock; offset turns them into this browser's.
     ...events.map((event, index) => ({ key: `c${index}-${event.at}`, at: event.at - offset, text: describeEvent(event.text, tasks), source: null })),
     ...sources.flatMap((source) => (syncs[source] ?? []).map((event) => ({ key: `${source}${event.id}`, at: new Date(event.timestamp).getTime(), text: syncText(event), source }))),
-  ].sort((a, b) => b.at - a.at).slice(0, 40);
+  ]
+    // An entry without a usable time would make toISOString throw and blank the whole app.
+    .filter((entry) => Number.isFinite(entry.at))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, 40);
 
   return (
     <section className="panel activity" aria-labelledby="activity-title">
