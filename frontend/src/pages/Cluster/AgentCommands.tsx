@@ -20,7 +20,9 @@ const words: Record<ReturnType<typeof boardOf>["state"], string> = { dead: "down
 // more before it kills, since a killed board stays down until it is restarted.
 export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; run: Run }) {
   const [picked, setPicked] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
+  // The board a Terminate is waiting to be confirmed for. Holding its id, not a
+  // yes/no, means the confirming click can only ever kill the board it named.
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
@@ -42,7 +44,7 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
   const canRemove = board ? board.state === "dead" || (Boolean(target?.up) && board.state !== "leaving") : false;
 
   async function command(path: string, done: string, body?: unknown) {
-    setConfirming(false);
+    setConfirming(null);
     setBusy(true);
     const error = await run(path, body);
     setBusy(false);
@@ -51,11 +53,22 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
 
   function pick(id: string) {
     setPicked(id);
-    setConfirming(false);
+    setConfirming(null);
   }
 
   const nodePath = (action: string) => `/api/cluster/nodes/${target!.id}/${action}`;
-  const afterTerminate = board?.isOrchestrator ? "The other boards will elect a new orchestrator." : board?.task ? "Its step moves to another board once its 2 s lease runs out." : "It had no step, so no work moves.";
+  // Raft needs a majority of the members up to elect an orchestrator or commit
+  // anything. If this terminate leaves fewer, nothing recovers until a board restarts.
+  const members = cluster?.members.length ?? 0;
+  const needed = Math.floor(members / 2) + 1;
+  const upAfter = nodes.filter((node) => node.up && node.member && node.id !== target?.id).length;
+  const breaksQuorum = Boolean(target?.member) && upAfter < needed;
+  const stall = `Only ${upAfter} of ${members} boards would be up and Raft needs ${needed}, so the cluster stops until you restart a board.`;
+  const afterTerminate = breaksQuorum
+    ? stall.replace("would be", "are")
+    : board?.isOrchestrator ? "The other boards will elect a new orchestrator." : board?.task ? "Its step moves to another board once its 2 s lease runs out." : "It had no step, so no work moves.";
+  // Confirm only while the board it was opened for is still the target and still up.
+  const confirmed = confirming !== null && confirming === target?.id && canTerminate;
 
   return (
     <section className="panel agent-commands" aria-labelledby="commands-title">
@@ -106,18 +119,18 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
             </div>
           </div>
           <div className="command-row">
-            {confirming && canTerminate ? (
+            {confirmed ? (
               <>
-                <button className="button small is-danger" type="button" disabled={busy} onClick={() => void command(nodePath("kill"), `Terminated ${name}. ${afterTerminate}`)}>
+                <button className="button small is-danger" type="button" disabled={busy} onClick={() => void command(`/api/cluster/nodes/${confirming}/kill`, `Terminated ${name}. ${afterTerminate}`)}>
                   <Icon name="power" size={14} />
                   Confirm Terminate
                 </button>
-                <button className="button small quiet" type="button" onClick={() => setConfirming(false)}>Cancel</button>
-                <span className="command-hint">{name} stops at once, like a board losing power.</span>
+                <button className="button small quiet" type="button" onClick={() => setConfirming(null)}>Cancel</button>
+                <span className={`command-hint${breaksQuorum ? " is-warn" : ""}`}>{breaksQuorum ? stall : `${name} stops at once, like a board losing power.`}</span>
               </>
             ) : (
               <>
-                <button className="button small is-kill" type="button" disabled={!canTerminate || busy} onClick={() => setConfirming(true)}>
+                <button className="button small is-kill" type="button" disabled={!canTerminate || busy} onClick={() => setConfirming(target!.id)}>
                   <Icon name="power" size={14} />
                   Terminate Agent
                 </button>

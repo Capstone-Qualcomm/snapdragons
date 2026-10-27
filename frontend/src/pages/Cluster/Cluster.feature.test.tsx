@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../App";
 import { titles } from "../Today/sources";
@@ -176,6 +176,36 @@ describe("Agent Commands", () => {
     await act(async () => {});
 
     expect(commands().getByRole("status").textContent).toBe("Terminated Board 2. The other boards will elect a new orchestrator.");
+  });
+
+  it("warns before, and says after, when a terminate leaves too few boards for Raft to elect an orchestrator", async () => {
+    mockCluster(cluster({ nodes: [node("Q-01", { up: false }), node("Q-02", { role: "orchestrator" }), node("Q-03")] }));
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 2"));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    expect(commands().getByText("Only 1 of 3 boards would be up and Raft needs 2, so the cluster stops until you restart a board.")).toBeTruthy();
+    fireEvent.click(commands().getByRole("button", { name: "Confirm Terminate" }));
+    await act(async () => {});
+
+    expect(commands().getByRole("status").textContent).toBe("Terminated Board 2. Only 1 of 3 boards are up and Raft needs 2, so the cluster stops until you restart a board.");
+  });
+
+  it("drops a pending confirm when its board disappears, instead of terminating another board", async () => {
+    const state = cluster();
+    const posts = mockCluster(state);
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 3"));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    // Someone else removes Board 3 before the second click; the next poll no longer has it.
+    state.nodes = state.nodes.filter((board) => board.id !== "Q-03");
+    await waitFor(() => expect(screen.queryByRole("row", { name: "Board 3" })).toBeNull());
+
+    expect(commands().queryByRole("button", { name: "Confirm Terminate" })).toBeNull();
+    expect(posts()).toEqual([]);
   });
 
   it("offers restart for a down agent and remove for a live one, each for the picked board", async () => {

@@ -48,6 +48,7 @@
 .target-chips .crown-icon { color: var(--ember); }
 
 .command-hint { color: var(--ink-soft); font-size: 13px; }
+.command-hint.is-warn { color: var(--waiting); font-weight: 600; }
 
 .command-status {
   margin: 0 var(--s5) var(--s3);
