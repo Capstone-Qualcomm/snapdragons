@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { About } from "./components/About/About";
 import { Icon } from "./components/Icon";
+import { PageBoundary } from "./components/PageBoundary";
 import { appPath } from "./lib/urls";
 import { AssistantPage } from "./pages/Assistant/Assistant";
 import { useCluster } from "./pages/Cluster/cluster";
@@ -109,10 +110,11 @@ function App() {
       {aboutOpen && <About onClose={() => setAboutOpen(false)} />}
 
       <main className="content">
-        {page === "assistant" && <AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} />}
-        <TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} />
-        {page === "cluster" && <ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} />}
-        {page === "connections" && <ConnectionsPage sources={sources} counts={counts} />}
+        {/* Each page has its own boundary, so a crash in one leaves the sidebar and the others working. */}
+        {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} /></PageBoundary>}
+        <PageBoundary active={page === "today"}><TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} /></PageBoundary>
+        {page === "cluster" && <PageBoundary><ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} /></PageBoundary>}
+        {page === "connections" && <PageBoundary><ConnectionsPage sources={sources} counts={counts} /></PageBoundary>}
       </main>
     </div>
   );
