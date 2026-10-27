@@ -1,6 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../App";
+import { titles } from "../Today/sources";
+
+// A source request for any source the app knows, so one added to the app is mocked here too.
+const sourceRoute = (url: string) => {
+  const match = String(url).match(/\/api\/(\w+)\/(connection|activity)$/);
+  return match && match[1] in titles ? { name: match[1], route: match[2] } : null;
+};
+const notSetUp = (name: string) => Response.json({ [name]: { configured: false, connected: false, enabled: false } });
 
 const now = 1_000_000;
 const node = (id: string, fields: Record<string, unknown> = {}) => ({ id, up: true, member: true, role: "worker", term: 3, votes: [], members: ["Q-01", "Q-02", "Q-03"], commitIndex: 40, lastIndex: 41, electionIn: 1800, quietFor: 100, ...fields });
@@ -29,10 +37,12 @@ function cluster(fields: Record<string, unknown> = {}) {
 // and records every POST to the cluster except the refresh the page starts on its own.
 function mockCluster(state: unknown, postReply: () => Response = () => Response.json({ ok: true })) {
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    const source = String(url).match(/\/api\/(jira|slack|github)\/(connection|activity)$/);
-    if (source?.[2] === "connection") return Response.json({ [source[1]]: { configured: false, connected: false, enabled: false } });
+    const source = sourceRoute(url);
+    if (source?.route === "connection") return notSetUp(source.name);
     if (source) return Response.json({ events: [] });
-    return init?.method === "POST" ? postReply() : Response.json(state);
+    if (init?.method === "POST") return postReply();
+    // Anything else is a 404, so a request the mock does not know fails loudly instead of getting the cluster state.
+    return String(url).endsWith("/api/cluster/state") ? Response.json(state) : Response.json({ error: "Not found" }, { status: 404 });
   });
   vi.stubGlobal("fetch", fetch);
   return () => fetch.mock.calls.filter(([, init]) => init?.method === "POST").map(([url, init]) => [url, JSON.parse(String(init?.body))]);
@@ -194,11 +204,12 @@ describe("Cluster summary and charts", () => {
 describe("Cluster activity", () => {
   function mockActivity(sources: Record<string, unknown[]>, events: unknown[] = []) {
     vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-      const source = String(url).match(/\/api\/(jira|slack|github)\/(activity|connection)$/);
-      if (source?.[2] === "connection") return Response.json({ [source[1]]: { configured: false, connected: false, enabled: false } });
-      if (source?.[1] === "slack") return Response.json({}, { status: 503 });
-      if (source) return Response.json({ events: sources[source[1]] ?? [] });
+      const source = sourceRoute(url);
+      if (source?.route === "connection") return notSetUp(source.name);
+      if (source?.name === "slack") return Response.json({}, { status: 503 });
+      if (source) return Response.json({ events: sources[source.name] ?? [] });
       if (init?.method === "POST") return Response.json({ ok: true });
+      if (!String(url).endsWith("/api/cluster/state")) return Response.json({ error: "Not found" }, { status: 404 });
       return Response.json(cluster({ now: Date.now(), events, tasks: [task("T-4", "Fetch Slack messages")] }));
     }));
   }

@@ -1,6 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../App";
+import { titles } from "./sources";
+import type { SourceName } from "./sources";
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -19,15 +21,20 @@ const issue = {
 };
 const dm = { id: "s1", kind: "dm", from: "Maya Chen", where: "Direct message", text: "Can you look at the demo?", sentAt: minutesAgo(10), url: "https://slack.test/dm" };
 const mention = { id: "s2", kind: "mention", from: "Priya Raman", where: "#dev", text: "@you the deploy failed", sentAt: minutesAgo(1), url: "https://slack.test/m" };
+const email = { id: "o1", from: "Jordan Lee", subject: "Demo slot moved to Thursday", receivedAt: minutesAgo(5), url: "https://outlook.test/o1" };
 const pr = { id: "g1", kind: "pull_request", repository: "team/snapdragons", number: 15, title: "Snapshot the queue", state: "open", updatedAt: minutesAgo(60), url: "https://github.test/15" };
 
 type Connection = { configured: boolean; connected: boolean; enabled: boolean };
 const on: Connection = { configured: true, connected: true, enabled: true };
+const off: Connection = { configured: false, connected: false, enabled: false };
+// Every source the app knows, so one added to the app is mocked here too instead of failing as a 404.
+const sourceNames = Object.keys(titles) as SourceName[];
+const everySource = (connection: Connection) => Object.fromEntries(sourceNames.map((name) => [name, connection])) as Record<SourceName, Connection>;
 
 const now = 1_000_000;
 const node = (id: string, fields: Record<string, unknown> = {}) => ({ id, up: true, member: true, role: "worker", term: 2, votes: [], members: ["Q-01", "Q-02"], commitIndex: 9, lastIndex: 9, ...fields });
 let clusterState: Record<string, unknown>;
-let connections: Record<"jira" | "slack" | "github", Connection>;
+let connections: Record<SourceName, Connection>;
 let lists: Record<string, unknown>;
 let jiraIssues: () => Response | Promise<Response>;
 let githubComment: (() => Promise<Response>) | undefined;
@@ -41,8 +48,8 @@ beforeEach(() => {
   localStorage.clear();
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   clusterState = idleCluster();
-  connections = { jira: on, slack: on, github: on };
-  lists = { slack: { messages: [mention, dm] }, github: { issues: [pr] } };
+  connections = everySource(on);
+  lists = { slack: { messages: [mention, dm] }, github: { issues: [pr] }, outlook: { messages: [] } };
   jiraIssues = () => Response.json({ issues: [issue] });
   githubComment = undefined;
   posts = [];
@@ -55,12 +62,13 @@ beforeEach(() => {
       return Response.json({ ok: true });
     }
     if (path === "/api/cluster/state") return Response.json(clusterState);
-    const source = path.match(/^\/api\/(jira|slack|github)\/connection$/)?.[1] as keyof typeof connections | undefined;
-    if (source) return Response.json({ [source]: connections[source] });
+    const source = path.match(/^\/api\/(\w+)\/connection$/)?.[1] as SourceName | undefined;
+    if (source && sourceNames.includes(source)) return Response.json({ [source]: connections[source] });
     if (path === "/api/jira/issues") return jiraIssues();
     if (path === "/api/jira/issues/QT1S-31/transitions") return Response.json({ transitions: [{ id: "41", name: "Done", status: "Done" }] });
     if (path === "/api/slack/messages") return Response.json(lists.slack);
     if (path === "/api/github/issues") return Response.json(lists.github);
+    if (path === "/api/outlook/messages") return Response.json(lists.outlook);
     return Response.json({ error: "Not found" }, { status: 404 });
   }));
 });
@@ -97,6 +105,14 @@ describe("Today list", () => {
     expect(within(row("Snapshot the queue")).getByRole("link", { name: "Snapshot the queue" }).getAttribute("href")).toBe("https://github.test/15");
     expect(within(row("Snapshot the queue")).getByRole("button", { name: "Comment" })).toBeTruthy();
     expect(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" })).toBeTruthy();
+  });
+
+  it("ranks unread email with the direct requests, answered from the row with Reply and Delete", async () => {
+    lists.outlook = { messages: [email] };
+    await openToday();
+    expect(rows().map((item) => item.getAttribute("aria-label"))).toEqual(["Demo slot moved to Thursday", "Can you look at the demo?", "Snapshot the queue", "Worker hands back its task", "@you the deploy failed"]);
+    expect(within(row("Demo slot moved to Thursday")).getByRole("button", { name: "Reply" })).toBeTruthy();
+    expect(within(row("Demo slot moved to Thursday")).getByRole("button", { name: "Delete email" })).toBeTruthy();
   });
 
   it("clears an item with Done, keeps it cleared after a reload, and brings it back with Undo", async () => {
@@ -173,7 +189,8 @@ describe("Today connections", () => {
     connections = {
       jira: { configured: true, connected: false, enabled: false },
       slack: { configured: true, connected: false, enabled: false },
-      github: { configured: false, connected: false, enabled: false },
+      github: off,
+      outlook: off,
     };
     renderToday();
     const sample = await screen.findByRole("table", { name: "Sample tasks" });
@@ -181,14 +198,15 @@ describe("Today connections", () => {
     expect(sample.querySelectorAll("tbody .task-row")).toHaveLength(4);
     expect(within(screen.getByRole("list", { name: "Summary" })).getAllByText("No source connected yet")).toHaveLength(2);
     // The note under the sample links to the Connections page, where each source has its button.
-    fireEvent.click(screen.getByRole("link", { name: "Connect Slack, Jira or GitHub" }));
+    fireEvent.click(screen.getByRole("link", { name: "Connect Slack, Jira, GitHub or Outlook" }));
     expect(screen.getByRole("heading", { name: "Connections", level: 1 })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Connect Slack" }).getAttribute("href")).toBe("/auth/slack/start");
     expect(screen.getByRole("button", { name: "Connect GitHub" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Connect Outlook" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("shows an all-clear, not sample data, when a connected source has nothing", async () => {
-    lists = { slack: { messages: [] }, github: { issues: [] } };
+    lists = { slack: { messages: [] }, github: { issues: [] }, outlook: { messages: [] } };
     jiraIssues = () => Response.json({ issues: [] });
     renderToday();
     expect(await screen.findByText("Nothing waiting. You are all caught up.")).toBeTruthy();
@@ -196,7 +214,7 @@ describe("Today connections", () => {
   });
 
   it("gives the all-clear only once every connected source has loaded", async () => {
-    lists = { slack: { messages: [] }, github: { issues: [] } };
+    lists = { slack: { messages: [] }, github: { issues: [] }, outlook: { messages: [] } };
     jiraIssues = () => Response.json({ error: "Jira is down." }, { status: 502 });
     renderToday();
     expect(await screen.findByText("Nothing to show, but a source could not be loaded.")).toBeTruthy();
