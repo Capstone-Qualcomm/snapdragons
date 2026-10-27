@@ -176,7 +176,7 @@ export function createQueue() {
     if (stage >= scenario.stages.length) return finishPlan(job, at);
     let specs;
     try {
-      specs = scenario.stages[stage].plan(doneSteps(job));
+      specs = scenario.stages[stage].plan(doneSteps(job), plan.prompt);
     } catch (cause) {
       plan.error = `Stage ${stage + 1} could not be planned: ${(cause as Error).message}`;
       return finishPlan(job, at);

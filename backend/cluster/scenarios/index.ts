@@ -4,14 +4,15 @@ import { engineer } from "./engineer.ts";
 import { hiring } from "./hiring.ts";
 import { research } from "./research.ts";
 import { student } from "./student.ts";
+import { ask } from "./ask.ts";
 
 // Every scenario the Assistant can run, in the order the page offers them.
-export const SCENARIOS: Scenario[] = [student, engineer, hiring, business, research];
+export const SCENARIOS: Scenario[] = [ask, student, engineer, hiring, business, research];
 
 export const scenarioById = (id: string) => SCENARIOS.find((scenario) => scenario.id === id);
 
 // Runs one step's skill on its scenario's demo data.
-export function runSkill(scenario: string, skill: string, params: unknown): StepOutput {
+export function runSkill(scenario: string, skill: string, params: unknown): StepOutput | Promise<StepOutput> {
   const run = scenarioById(scenario)?.skills[skill];
   if (!run) throw new Error(`No skill ${skill} in scenario ${scenario}.`);
   return run(params);

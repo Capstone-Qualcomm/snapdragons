@@ -4,7 +4,11 @@ import type { Result } from "./plan.ts";
 import { book, freeSlots, groups } from "./plan.ts";
 import { createQueue } from "./queue.ts";
 import type { ClaimResult, Job, Task } from "./queue.ts";
+import { ask } from "./scenarios/ask.ts";
 import { runSkill, SCENARIOS } from "./scenarios/index.ts";
+
+// The demo scenarios run offline on canned data; the live one calls the model, so it is tested on its own below.
+const DEMOS = SCENARIOS.filter((scenario) => scenario !== ask);
 
 // A queue fed commands the way Raft feeds it, with boards that run each step's
 // real skill on the scenario's demo data. Q-01 starts as the orchestrator.
@@ -199,7 +203,7 @@ test("research: dedupes ten results to six papers, reads one per board, and comp
 
 test("every scenario's plan shape is different", () => {
   // "3 | 3+2 | 1": steps per stage, split by kind of step.
-  const shapes = SCENARIOS.map((scenario) => {
+  const shapes = DEMOS.map((scenario) => {
     const c = cluster(scenario.id);
     c.toEnd();
     return [...new Set(c.tasks().map((task) => task.stage))]
@@ -209,7 +213,7 @@ test("every scenario's plan shape is different", () => {
       })
       .join(" | ");
   });
-  assert.equal(new Set(shapes).size, SCENARIOS.length, shapes.join(" "));
+  assert.equal(new Set(shapes).size, DEMOS.length, shapes.join(" "));
 });
 
 test("Stop drops a plan's unfinished steps and ends it, and a board finishing one late changes nothing", () => {
@@ -225,7 +229,7 @@ test("Stop drops a plan's unfinished steps and ends it, and a board finishing on
 });
 
 test("every step has a 2–4 word label and an icon, and every result a short caption and stats", () => {
-  for (const scenario of SCENARIOS) {
+  for (const scenario of DEMOS) {
     const c = cluster(scenario.id);
     const result = c.toEnd();
     for (const task of c.tasks()) {
@@ -239,7 +243,7 @@ test("every step has a 2–4 word label and an icon, and every result a short ca
 });
 
 test("every board's step carries a picture of its real input, and its findings point into it", () => {
-  for (const scenario of SCENARIOS) {
+  for (const scenario of DEMOS) {
     const c = cluster(scenario.id);
     c.toEnd();
     for (const task of c.tasks().filter((entry) => entry.role !== "orchestrator")) {
@@ -278,4 +282,20 @@ test("calendar helpers find open time and never double-book it", () => {
   const second = book(open, 60)!;
   assert.ok(second.start >= first.end + 15);
   assert.deepEqual(groups([1, 2, 3, 4, 5], 2), [[1, 3, 5], [2, 4]]);
+});
+
+test("the live job works one part per board from the model's plan, and still answers when the plan fails", () => {
+  const [planStage, workStage, combineStage] = ask.stages;
+  const prompt = "Plan a weekend in Chicago";
+  assert.equal(planStage.plan([], prompt)[0].role, "orchestrator");
+  const parts = Array.from({ length: 7 }, (_, n) => ({ label: `Part ${n + 1}`, instruction: `Do part ${n + 1}` }));
+  const planned = { skill: "plan", stage: 0, params: { prompt }, worker: "q-a", output: { summary: "", short: "", data: { parts } } };
+  const steps = workStage.plan([planned], prompt);
+  assert.equal(steps.length, 5, "at most five parts, so the model is not swamped");
+  assert.ok(steps.every((step) => step.skill === "work" && !step.role && step.label.split(" ").length <= 4));
+  // A plan the model botched still leaves one part: the whole job.
+  const failed = { ...planned, output: { summary: "Failed", short: "Failed", data: null } };
+  assert.deepEqual(workStage.plan([failed], prompt).map((step) => step.instruction), [prompt]);
+  const worked = { skill: "work", stage: 1, params: null, worker: "q-b", output: { summary: "", short: "", data: { label: "Food", bullets: ["Deep dish"], text: "" } } };
+  assert.equal(combineStage.plan([planned, worked], prompt)[0].role, "orchestrator");
 });

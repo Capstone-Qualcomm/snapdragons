@@ -49,7 +49,8 @@ export type StepOutput = { summary: string; short: string; data: Json; found?: F
 // A finished step, as the next stage sees it.
 export type DoneStep = { skill: string; stage: number; params: Json; output: StepOutput; worker: string };
 
-export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[]) => StepSpec[] };
+// prompt is what the person asked for; only a scenario that works from it needs it.
+export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[], prompt: string) => StepSpec[] };
 
 // The result a scenario ends with, drawn the same way for every scenario.
 export type Section =
@@ -70,8 +71,8 @@ export type Scenario = {
   data: { label: string; items: string[] };
   stages: Stage[];
   // Each skill turns a step's params into its output. The final stage's single step returns a Result as its data.
-  // ponytail: skills read the scenario's canned dataset; swap a skill for an API or LLM call without touching the scheduler.
-  skills: Record<string, (params: any) => StepOutput>;
+  // Most skills read the scenario's canned dataset; the live one calls the model, so a skill may take its time.
+  skills: Record<string, (params: any) => StepOutput | Promise<StepOutput>>;
 };
 
 // The outputs of one skill, in the order the steps were made.

@@ -3,12 +3,12 @@ import type { StepOutput } from "./plan.ts";
 import type { ClaimResult, Task } from "./queue.ts";
 import { runSkill } from "./scenarios/index.ts";
 
-// What a plan step produced, from its skill on the scenario's demo data. A
+// What a plan step produced, from its skill on the scenario's demo data or the model. A
 // skill that throws still finishes the step, with the error as its result.
-function outputOf(task: Task): StepOutput | undefined {
+async function outputOf(task: Task): Promise<StepOutput | undefined> {
   if (!task.skill || !task.scenario) return undefined;
   try {
-    return runSkill(task.scenario, task.skill, task.params);
+    return await runSkill(task.scenario, task.skill, task.params);
   } catch (cause) {
     return { summary: `Failed: ${(cause as Error).message}`, short: "Failed", data: null };
   }
@@ -36,27 +36,28 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
         await sleep(pollMs, undefined, { signal });
         continue;
       }
-      // Stand-in for real work (an API request, an LLM call): it just takes time,
-      // somewhere between 75% and 125% of workMs so nodes finish at different times.
       // A step handed over from a node that died starts from that node's last checkpoint.
       // The checkpoint is read once: on the orchestrator, task is the queue's own copy and each heartbeat moves it.
       const from = task.progress;
-      // The skill runs on demo data, so its answer is ready at once; the step then
-      // takes its time so a person can watch, and its first heartbeat carries what
-      // it found so the page can light it up as the board goes.
-      const output = outputOf(task);
-      let foundSent = !output?.found;
       // A plan step says how long it should take, so a person can follow it; give or take 10%.
+      // Other steps stand in for real work and take 75% to 125% of workMs, so nodes finish at different times.
       const total = task.durationMs ? task.durationMs * (0.9 + Math.random() / 5) : workMs * (0.75 + Math.random() / 2);
       const startedAt = Date.now();
       const done = () => Math.min(0.99, from + (Date.now() - startedAt) / total);
-      // Each heartbeat carries a checkpoint, so the queue knows how far this node got.
+      // Each heartbeat carries a checkpoint, so the queue knows how far this node got. Beats start
+      // before the skill runs, since a model call takes seconds and silence would look like a dead board.
+      // The first beat after the skill answers carries what it found, so the page can light it up.
+      let output: StepOutput | undefined;
+      let foundSent = true;
       const beat = setInterval(() => {
-        const found = foundSent ? undefined : output!.found;
-        call({ type: "progress", worker: id, task: task.id, progress: done(), ...(found && { found }) }).then(() => (foundSent = true), () => {});
+        const found = foundSent ? undefined : output?.found;
+        call({ type: "progress", worker: id, task: task.id, progress: done(), ...(found && { found }) }).then(() => found && (foundSent = true), () => {});
       }, heartbeatMs);
       try {
-        await sleep(total * (1 - from), undefined, { signal });
+        output = await outputOf(task);
+        foundSent = !output?.found;
+        // Demo data answers at once, so the step then takes the rest of its time for a person to watch.
+        await sleep(Math.max(0, total * (1 - from) - (Date.now() - startedAt)), undefined, { signal });
       } finally {
         clearInterval(beat);
       }

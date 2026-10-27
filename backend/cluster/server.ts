@@ -1,11 +1,13 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { complete } from "./llm.ts";
+import type { Message } from "./llm.ts";
 import { fileStorage } from "./node.ts";
 import type { Persisted } from "./raft.ts";
 import { describeScenarios, scenarioById } from "./scenarios/index.ts";
@@ -14,6 +16,10 @@ import { describeScenarios, scenarioById } from "./scenarios/index.ts";
 // own: it starts and stops the node processes, asks each node for its Raft
 // status, reads the queue from whichever node is orchestrator, and passes the
 // app's requests on to the cluster.
+//
+// With CLUSTER_BOARDS set it runs the real Uno Q boards instead: it starts nothing,
+// finds the boards by name on their tailnet, powers them off and on rather than
+// killing processes, calls the model for them, and hands out the join script.
 
 // Six Uno Q boards, so six node names.
 export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
@@ -35,6 +41,10 @@ const PACES: Record<string, number> = { slow: 1.6, normal: 1, fast: 0.5 };
 
 type ServerOptions = {
   port?: number;
+  // Real boards: the names of boards to look for first (more are found as they join).
+  boards?: string[];
+  // The address people and boards reach this app at, for the join script.
+  appUrl?: string;
   // Q-01 listens on nodePort, Q-02 on nodePort + 1, and so on.
   nodePort?: number;
   dataDir?: string;
@@ -63,7 +73,14 @@ export function createClusterServer(options: ServerOptions = {}) {
   const nodePort = Number(options.nodePort ?? process.env.CLUSTER_NODE_PORT ?? 4101);
   const dataDir = options.dataDir ?? process.env.CLUSTER_DATA ?? join(tmpdir(), "continuum-cluster");
   const nodeFile = fileURLToPath(new URL("./node.ts", import.meta.url));
-  const address = (id: string) => `http://127.0.0.1:${nodePort + NODE_IDS.indexOf(id)}`;
+  const boards = options.boards ?? process.env.CLUSTER_BOARDS?.split(",").filter(Boolean);
+  const appUrl = (options.appUrl ?? process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  // Every board name seen so far: the ones given, then each member any board reports.
+  const known = new Set(boards ?? NODE_IDS);
+  const ids = () => [...known];
+  // A board answers from across the internet (the gateway may be an ocean away), so it gets longer.
+  const statusMs = boards ? 1500 : 400;
+  const address = (id: string) => (boards ? `http://${id}:${nodePort}` : `http://127.0.0.1:${nodePort + NODE_IDS.indexOf(id)}`);
   const peers = NODE_IDS.map((id) => `${id}=${address(id)}`).join(",");
   // Node processes this gateway started, so it can kill them.
   const children = new Map<string, ChildProcess>();
@@ -122,6 +139,8 @@ export function createClusterServer(options: ServerOptions = {}) {
   // Starts the members the saved logs name, each picking up where it was. Only a
   // cluster with nothing saved starts new, as the first `size` nodes.
   function startCluster(size: number): string[] {
+    // Boards start themselves.
+    if (boards) return [];
     const saved = savedMembers();
     if (saved.length) {
       for (const id of saved) if (!children.has(id)) startNode(id);
@@ -138,7 +157,7 @@ export function createClusterServer(options: ServerOptions = {}) {
     children.clear();
   }
 
-  async function nodeJson<T>(id: string, path: string, body?: unknown, timeoutMs = 400): Promise<T> {
+  async function nodeJson<T>(id: string, path: string, body?: unknown, timeoutMs = statusMs): Promise<T> {
     const response = await fetch(address(id) + path, {
       method: body === undefined ? "GET" : "POST",
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -150,8 +169,9 @@ export function createClusterServer(options: ServerOptions = {}) {
   }
 
   async function statuses(): Promise<NodeStatus[]> {
-    const all = await Promise.all(NODE_IDS.map((id) => nodeJson<NodeStatus>(id, "/status").catch(() => null)));
-    return all.filter((status): status is NodeStatus => status !== null);
+    const all = (await Promise.all(ids().map((id) => nodeJson<NodeStatus>(id, "/status").catch(() => null)))).filter((status): status is NodeStatus => status !== null);
+    for (const status of all) for (const member of status.members) known.add(member);
+    return all;
   }
 
   // A node cut off from the rest may still think it leads an old term, so the highest term wins.
@@ -186,11 +206,11 @@ export function createClusterServer(options: ServerOptions = {}) {
     if (source) lastMembers = orchestrator?.members ?? source.members;
     const queue = lastQueue;
     const members = lastMembers;
-    const raft = NODE_IDS.filter((id) => members.includes(id) || nodes.some((node) => node.id === id) || children.has(id)).map((id) => {
+    const raft = ids().filter((id) => members.includes(id) || nodes.some((node) => node.id === id) || children.has(id)).map((id) => {
       const status = nodes.find((node) => node.id === id);
       return status ? { ...status, up: true, member: members.includes(id) } : { id, up: false, member: members.includes(id) };
     });
-    return { ...queue, now: Date.now(), auto, maxNodes: NODE_IDS.length, orchestrator: orchestrator?.id ?? null, term: orchestrator?.term ?? null, members, nodes: raft };
+    return { ...queue, now: Date.now(), auto, maxNodes: boards ? 99 : NODE_IDS.length, orchestrator: orchestrator?.id ?? null, term: orchestrator?.term ?? null, members, nodes: raft, ...(boards && { boards: true, join: joinCommand }) };
   }
 
   async function autoRefresh(): Promise<void> {
@@ -221,6 +241,7 @@ export function createClusterServer(options: ServerOptions = {}) {
   }
 
   async function addNode(): Promise<[number, unknown]> {
+    if (boards) return [409, { error: `A board joins by itself. On the board, run: ${joinCommand}` }];
     const nodes = await statuses();
     // With nothing running at all, the saved members come back as they were. Only
     // with nothing saved does the new node start a cluster of one.
@@ -237,9 +258,10 @@ export function createClusterServer(options: ServerOptions = {}) {
 
   async function removeNode(id: string): Promise<[number, unknown]> {
     const last: [number, unknown] = [409, { error: "The last node cannot be removed." }];
-    const members = orchestratorOf(await statuses())?.members ?? [];
+    const nodes = await statuses();
+    const members = orchestratorOf(nodes)?.members ?? [];
     if (members.length === 1 && members[0] === id) return last;
-    if (children.has(id)) {
+    if (boards ? nodes.some((node) => node.id === id) : children.has(id)) {
       // The node finishes its current step, leaves the queue, then takes itself out of the members.
       // The queue refuses when no other node would be left working, which also catches two removals at once.
       return (await clusterRequest({ type: "leave", worker: id })) === false ? last : [200, { id }];
@@ -247,12 +269,27 @@ export function createClusterServer(options: ServerOptions = {}) {
     // A dead node is taken out right away.
     await clusterRequest({ members: { remove: id } });
     await clusterRequest({ type: "leave", worker: id });
-    rmSync(join(dataDir, `${id}.json`), { force: true });
+    if (!boards) rmSync(join(dataDir, `${id}.json`), { force: true });
     return [200, { id }];
   }
 
+  // A board's power, from the dashboard: off is a board losing power mid-step, on is it booting back.
+  const power = (id: string, on: boolean) => nodeJson(id, "/power", { on }, 3000);
+
+  // What a new board runs, once, to join: it sets up its own tailnet container and node container.
+  const joinCommand = `curl -fsSL ${appUrl}/api/cluster/join.sh | sh -s -- <your name> <tailnet auth key>`;
+  const joinScript = () => readFileSync(new URL("./join.sh", import.meta.url), "utf8").replaceAll("__APP_URL__", appUrl);
+  // The node's code for a board: this folder without tests or dependencies, which a node does not need.
+  const code = () => execFileSync("tar", ["-cz", "--exclude=node_modules", "--exclude=*.test.ts", "-C", fileURLToPath(new URL(".", import.meta.url)), "."]);
+
   // Every node goes down at once, then comes back from what it saved to disk.
-  function restartAll(): void {
+  async function restartAll(): Promise<void> {
+    if (boards) {
+      const up = (await statuses()).map((node) => node.id);
+      await Promise.all(up.map((id) => power(id, false).catch(() => {})));
+      setTimeout(() => up.forEach((id) => power(id, true).catch(() => {})), 1500);
+      return;
+    }
     const ids = [...children.keys()];
     stopNodes();
     setTimeout(() => {
@@ -266,6 +303,14 @@ export function createClusterServer(options: ServerOptions = {}) {
       const post = req.method === "POST";
 
       if (req.method === "GET" && url.pathname === "/api/cluster/state") return send(res, 200, await clusterState());
+      if (req.method === "GET" && url.pathname === "/api/cluster/join.sh") {
+        res.writeHead(200, { "Content-Type": "text/x-shellscript; charset=utf-8", "Cache-Control": "no-store" });
+        return res.end(joinScript());
+      }
+      if (req.method === "GET" && url.pathname === "/api/cluster/code.tgz") {
+        res.writeHead(200, { "Content-Type": "application/gzip", "Cache-Control": "no-store" });
+        return res.end(code());
+      }
       if (post && url.pathname === "/api/cluster/refresh") return send(res, 201, { job: await clusterRequest({ type: "job", ...REFRESH }) });
       if (req.method === "GET" && url.pathname === "/api/assistant/scenarios") return send(res, 200, { scenarios: describeScenarios() });
       if (post && url.pathname === "/api/assistant/run") {
@@ -289,14 +334,18 @@ export function createClusterServer(options: ServerOptions = {}) {
         return send(res, status, data);
       }
       if (post && url.pathname === "/api/cluster/restart") {
-        restartAll();
+        await restartAll();
         return send(res, 200, { ok: true });
       }
 
       const nodePath = url.pathname.match(/^\/api\/cluster\/nodes\/([^/]+)\/(start|kill|remove)$/);
       if (post && nodePath) {
         const [, id, action] = nodePath;
-        if (!NODE_IDS.includes(id)) return send(res, 404, { error: "No such node." });
+        if (!known.has(id)) return send(res, 404, { error: "No such node." });
+        if (boards && action !== "remove") {
+          await power(id, action === "start");
+          return send(res, 200, { id });
+        }
         if (action === "start") {
           if (children.has(id)) return send(res, 409, { error: `${id} is already running.` });
           startNode(id);
@@ -326,11 +375,25 @@ export function createClusterServer(options: ServerOptions = {}) {
     stopNodes();
   });
 
-  return { server, port, startNode, startCluster, stopNodes, clusterState };
+  // Boards have no model key, so they ask the gateway, over their tailnet only.
+  const llmServer = createServer(async (req, res) => {
+    try {
+      if (req.method !== "POST" || req.url !== "/llm") return send(res, 404, { error: "Not found." });
+      const { messages, maxTokens } = (await readBody(req)) as { messages: Message[]; maxTokens?: number };
+      send(res, 200, { text: await complete(messages, Math.min(Number(maxTokens) || 800, 2000)) });
+    } catch (cause) {
+      send(res, 502, { error: cause instanceof Error ? cause.message : "The model call failed." });
+    }
+  });
+
+  return { server, llmServer, port, startNode, startCluster, stopNodes, clusterState };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const { server, port, startCluster, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" });
+  // Real boards start with auto refresh off, so they are not busy all night; the page can turn it on.
+  const { server, llmServer, port, startCluster, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" && !process.env.CLUSTER_BOARDS });
+  // With real boards, the model proxy listens where the boards reach this gateway: its tailnet.
+  if (process.env.CLUSTER_BOARDS) llmServer.listen(Number(process.env.CLUSTER_LLM_PORT ?? 4100), process.env.CLUSTER_LLM_HOST ?? "0.0.0.0");
   // The gateway can kill nodes and has no login, so it stays on loopback. Set HOST to listen somewhere else.
   const host = process.env.HOST ?? "127.0.0.1";
   server.listen(port, host, () => {

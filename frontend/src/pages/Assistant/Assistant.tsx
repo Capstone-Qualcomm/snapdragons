@@ -34,6 +34,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   useEffect(() => {
     api<{ scenarios: ScenarioInfo[] }>("/api/assistant/scenarios").then(({ scenarios }) => {
       setScenarios(scenarios);
+      // The first scenario is picked to start with, its prompt in the box.
+      if (scenarios[0]) setSelected(scenarios[0].id);
       setPrompt((current) => current || scenarios[0]?.prompt || "");
     }, (cause: Error) => setError(cause.message));
   }, []);
@@ -160,12 +162,17 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
               <strong>{entry.audience}</strong>
               <span>{entry.title}</span>
             </span>
-            <span className="badge is-sample">Demo data</span>
+            <DataBadge scenario={entry} />
           </button>
         ))}
       </div>
     </div>
   );
+}
+
+// Says what a job runs on: canned demo data, or the model live.
+function DataBadge({ scenario }: { scenario: ScenarioInfo }) {
+  return /^Live/.test(scenario.data.label) ? <span className="badge is-ok">Live AI</span> : <span className="badge is-sample">Demo data</span>;
 }
 
 function RunHeader({ job, scenario, onStop, onAgain }: { job: Job; scenario?: ScenarioInfo; onStop: () => void; onAgain: () => void }) {
@@ -179,7 +186,7 @@ function RunHeader({ job, scenario, onStop, onAgain }: { job: Job; scenario?: Sc
           <span>“{job.plan!.prompt}”</span>
         </div>
       </div>
-      <span className="badge is-sample">Demo data</span>
+      {scenario && <DataBadge scenario={scenario} />}
       {done ? (
         <button className="button primary" type="button" onClick={onAgain}>
           Run another job

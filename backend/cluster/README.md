@@ -40,6 +40,15 @@ Kill a node from a terminal the way a board loses power:
 - **Add.** A new node starts empty and the orchestrator adds it to the members through the log, then sends it everything.
 - **Every node restarts.** Each one reloads what it saved; they elect an orchestrator, which replays the log once its first entry commits.
 
+## Real boards
+
+With `CLUSTER_BOARDS` set (say `q-sanyam`), the gateway runs the real Uno Q boards instead of starting its own nodes. The boards and the gateway share a private tailnet, so each board is reached by name, `http://q-<name>:4101`.
+
+- **Joining.** A board runs one command, shown under **Connect a board** on the Cluster page: `curl -fsSL <app>/api/cluster/join.sh | sh -s -- <name> <tailnet auth key>`. The script needs only Docker, which App Lab already runs. It starts the board's own Tailscale container and a `node:24-slim` container running `node.ts` in that container's network, so the node is reachable only on the tailnet. A board with nothing saved asks the app who is in the cluster and joins them, or starts the cluster if nobody is there. A board with a saved log rejoins as it was.
+- **Kill and Restart** power a board off and on (`POST /power` on the node). It stops answering and drops its step, as if unplugged, and comes back from what it saved. Pulling the real plug works the same way.
+- **The live job** (`scenarios/ask.ts`, the Assistant's first card) runs anything a person types on DeepSeek-V4.1-Flash. The orchestrator splits the job into up to five parts, each board works one part, and the orchestrator combines them. Boards have no model key: they call the gateway's model proxy on port 4100 (`LLM_URL`), reachable only over the tailnet.
+- Raft needs a majority, so a failover needs at least three boards.
+
 ## Gateway routes
 
 | Method | Path | Purpose |
