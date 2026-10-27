@@ -61,7 +61,7 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
     <section className="panel agent-commands" aria-labelledby="commands-title">
       <header className="panel-head">
         <h2 id="commands-title">Agent Commands</h2>
-        <span className="panel-meta">For the whole cluster, or one agent at a time</span>
+        <span className="panel-meta">Manage your agents</span>
       </header>
 
       <div className="command-groups">
