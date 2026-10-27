@@ -107,9 +107,11 @@ export function entriesOf(reply: string): Array<Partial<Seen>> {
 }
 
 async function readBatch(role: Role, ids: number[], tries = 3): Promise<Seen[]> {
-  const emails = await Promise.all(ids.map((id) => query<Email>(`/mail/messages/${id}`)));
+  let emails: Email[] = [];
   for (let attempt = 1; ; attempt++) {
     try {
+      // Fetched inside the retries, so a mail server that times out once does not lose the batch.
+      if (!emails.length) emails = await Promise.all(ids.map((id) => query<Email>(`/mail/messages/${id}`)));
       const reply = await hedge(() => complete([{ role: "system", content: readSystem(role) }, { role: "user", content: emails.map(asText).join("\n\n") }], 2400), 20_000);
       const read = entriesOf(reply);
       // The model sometimes skips an email in a batch; those get read again on their own.
@@ -120,7 +122,10 @@ async function readBatch(role: Role, ids: number[], tries = 3): Promise<Seen[]> 
         return { ...seen, id: email.id, date: email.date, from: email.from.name, sender: email.from.email, kind: (seen.kind ?? "other") as Kind, availability: (seen.availability ?? []).map(toCentral).filter(validWindow(role)) };
       });
     } catch (cause) {
-      if (attempt >= tries) return emails.map((email) => ({ id: email.id, kind: "unread" as const, date: email.date, from: email.from.name, sender: email.from.email, why: (cause as Error).message }));
+      if (attempt >= tries) return ids.map((id) => {
+        const email = emails.find((entry) => entry.id === id);
+        return { id, kind: "unread" as const, date: email?.date ?? "", from: email?.from.name ?? `email ${id}`, sender: email?.from.email, why: (cause as Error).message };
+      });
     }
   }
 }
@@ -249,11 +254,15 @@ async function draft({ pick, prompt, role }: { pick: Pick; prompt: string; role:
 
 // ---- The report.
 
-function writeReport({ seen, applicants, drafts, picks, role }: { seen: Seen[]; applicants: Applicant[]; drafts: Draft[]; picks: Pick[]; role: Role }) {
+function writeReport({ seen, applicants, drafts, picks, role, total, failed }: { seen: Seen[]; applicants: Applicant[]; drafts: Draft[]; picks: Pick[]; role: Role; total: number; failed: string[] }) {
   const booked = picks.filter((pick) => pick.slot);
   const unread = seen.filter((entry) => entry.kind === "unread");
   const undrafted = picks.filter((pick) => !drafts.some((entry) => entry.name === pick.applicant.name));
+  const missing = total - seen.length;
+  const incomplete = Boolean(unread.length || missing || failed.length);
   const attention = [
+    ...failed.map((step) => `A step failed: ${step}. This report is incomplete.`),
+    ...(missing > 0 ? [`${plural(missing, "email")} were never read because a board's share failed, so this list may be missing applicants or withdrawals.`] : []),
     ...(unread.length ? [`${plural(unread.length, "email")} could not be read (${unread.map((entry) => `${entry.id} from ${entry.from}`).join(", ")}), so this list may be missing someone or a withdrawal.`] : []),
     ...undrafted.map((pick) => `The invite to ${pick.applicant.name}${pick.slot ? ` for ${when(pick.slot)}` : ""} could not be written; send it yourself.`),
     ...applicants.filter((applicant) => applicant.withdrew).map((applicant) => `${applicant.name} withdrew, so they are not on the list.`),
@@ -264,7 +273,7 @@ function writeReport({ seen, applicants, drafts, picks, role }: { seen: Seen[]; 
     ...seen.filter((entry) => entry.kind === "suspicious").map((entry) => `Email ${entry.id} from ${entry.from} looks like phishing: ${entry.why ?? "do not click its links"}.`),
   ];
   const result: Result = {
-    headline: `Read ${unread.length ? `${seen.length - unread.length} of ${seen.length}` : plural(seen.length, "email")}, found ${plural(applicants.length, "applicant")} and booked ${plural(booked.length, "interview")}${picks.length > booked.length ? `; ${picks.length - booked.length} still ${picks.length - booked.length === 1 ? "needs" : "need"} times` : ""}.`,
+    headline: `${incomplete ? "Incomplete: read" : "Read"} ${seen.length - unread.length === total ? plural(total, "email") : `${seen.length - unread.length} of ${total} emails`}, found ${plural(applicants.length, "applicant")} and booked ${plural(booked.length, "interview")}${picks.length > booked.length ? `; ${picks.length - booked.length} still ${picks.length - booked.length === 1 ? "needs" : "need"} times` : ""}.`,
     stats: [
       { value: String(seen.length - unread.length), label: "emails read" },
       { value: String(applicants.length), label: "applicants found" },
@@ -351,7 +360,7 @@ export const interviews: Scenario = {
       label: "Report back",
       short: "Report",
       icon: "doc",
-      plan: (done) => [{ skill: "report", instruction: "Put the schedule, the drafts and what needs a decision in one report", label: "Write report", icon: "doc", params: { seen: seenIn(done), applicants: outputsOf<{ applicants: Applicant[] } | null>(done, "book")[0]?.applicants ?? [], picks: outputsOf<{ picks: Pick[] } | null>(done, "book")[0]?.picks ?? [], drafts: outputsOf<Draft | null>(done, "draft").filter(Boolean), role: opened(done).role } as unknown as Json, ms: 2000, role: "orchestrator" }],
+      plan: (done) => [{ skill: "report", instruction: "Put the schedule, the drafts and what needs a decision in one report", label: "Write report", icon: "doc", params: { seen: seenIn(done), applicants: outputsOf<{ applicants: Applicant[] } | null>(done, "book")[0]?.applicants ?? [], picks: outputsOf<{ picks: Pick[] } | null>(done, "book")[0]?.picks ?? [], drafts: outputsOf<Draft | null>(done, "draft").filter(Boolean), role: opened(done).role, total: opened(done).messages.length, failed: done.filter((step) => step.output.data === null).map((step) => `${step.skill} on ${step.worker} (${step.output.summary})`) } as unknown as Json, ms: 2000, role: "orchestrator" }],
     },
   ],
   skills: {

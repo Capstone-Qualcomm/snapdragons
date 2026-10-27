@@ -193,6 +193,18 @@ test("a failed step leaves the rest of the job standing", () => {
   assert.deepEqual((report.plan([opened, lostRead, { ...lostRead, skill: "draft", stage: 3 }], "")[0].params as { drafts: unknown[] }).drafts, []);
 });
 
+test("a report with a share that failed says it is incomplete and how many emails nobody read", async () => {
+  const role = { company: "Lumen Labs", role: "Intern", job: "", deadline: "2026-10-24T23:59:59-05:00", manager: { name: "Dana Whitfield", email: "dana@lumen.example", title: "EM" }, panel: ["Dana Whitfield"], week: ["2026-11-02"] };
+  const seen = [{ id: 1, kind: "other", date: "", from: "Jira" }, { id: 2, kind: "unread", date: "", from: "Ada", why: "timeout" }];
+  const out = await interviews.skills.report({ seen, applicants: [], drafts: [], picks: [], role, total: 5, failed: ["read on q-b (Failed: mail timed out)"] }, { partial: null, report: () => {} });
+  const result = out.data as unknown as Result;
+  assert.match(result.headline, /^Incomplete: read 1 of 5 emails/);
+  const attention = (result.sections.find((section) => section.title === "Needs your attention") as { items: string[] }).items.join(" ");
+  assert.match(attention, /A step failed: read on q-b/);
+  assert.match(attention, /3 emails were never read/);
+  assert.match(attention, /1 email could not be read \(2 from Ada\)/);
+});
+
 test("a slow model call is sent again, and the first answer wins", async () => {
   let calls = 0;
   const slowThenFast = () => (++calls === 1 ? new Promise<string>((resolve) => setTimeout(() => resolve("slow"), 300)) : Promise.resolve("fast"));

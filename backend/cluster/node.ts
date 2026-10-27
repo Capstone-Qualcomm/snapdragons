@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
@@ -19,8 +19,9 @@ type NodeOptions = {
   port?: number;
   // 127.0.0.1 on one laptop; on a board, every address in its network, which is only its tailnet.
   host?: string;
-  // Members of a running cluster to ask for a place in it, for a node starting with nothing saved.
-  join?: string[];
+  // Members of a running cluster to ask for a place in it, for a node starting with nothing saved;
+  // or a way to ask again each round, so a board told to join a founder that died finds another.
+  join?: string[] | (() => Promise<string[]>);
   dataDir: string;
   bootstrap?: string[];
   workMs?: number;
@@ -189,8 +190,9 @@ export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join
 
   // A new board asks the cluster's members for a place, until the orchestrator has added it.
   void (async () => {
-    const others = seeds.filter((seed) => seed !== id);
-    while (!stopped && others.length && !raft.status().members.length) {
+    while (!stopped && !raft.status().members.length) {
+      const others = (typeof seeds === "function" ? await seeds().catch(() => []) : seeds).filter((seed) => seed !== id);
+      if (!others.length && typeof seeds !== "function") return;
       for (const seed of others) {
         try {
           await post(`${peer(seed)}/client`, { members: { add: id } }, 4000);
@@ -225,23 +227,38 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const list = (value?: string) => (value ? value.split(",").filter(Boolean) : undefined);
   const dataDir = env.CLUSTER_DATA ?? "data";
   // A board starting with nothing saved asks the gateway where to go: the cluster's members to
-  // join, or, when there is no cluster yet and it asked first, to start one. A board with a saved log rejoins as it was.
-  let seeds = list(env.CLUSTER_JOIN);
+  // join, or, when there is no cluster yet and it asked first, to start one. While it waits to be
+  // added it asks again each round; told to start a cluster after all (the founder it was sent to
+  // never did), it restarts so it can. A board with a saved log rejoins as it was.
+  let seeds: string[] | (() => Promise<string[]>) | undefined = list(env.CLUSTER_JOIN);
   let bootstrap = list(env.CLUSTER_BOOTSTRAP);
-  if (env.CLUSTER_JOIN_URL && !fileStorage(join(dataDir, `${id}.json`)).load()) {
+  const joinUrl = env.CLUSTER_JOIN_URL;
+  if (joinUrl && !fileStorage(join(dataDir, `${id}.json`)).load()) {
+    const target = async () => (await (await fetch(`${joinUrl}?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) })).json()) as { join?: string[]; bootstrap?: boolean };
     for (;;) {
       try {
-        const target = (await (await fetch(`${env.CLUSTER_JOIN_URL}?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) })).json()) as { join?: string[]; bootstrap?: boolean };
-        if (target.bootstrap) bootstrap = [id];
-        else if (target.join?.length) seeds = target.join;
-        else throw new Error("no answer");
+        const first = await target();
+        if (first.bootstrap) bootstrap = [id];
+        else if (!first.join?.length) throw new Error("no answer");
         break;
       } catch (cause) {
-        console.error(`Cannot reach ${env.CLUSTER_JOIN_URL} (${(cause as Error).message}). Trying again.`);
+        console.error(`Cannot reach ${joinUrl} (${(cause as Error).message}). Trying again.`);
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
     }
-    console.log(bootstrap ? `${id} starts a new cluster.` : `${id} joins ${seeds!.join(", ")}.`);
+    if (!bootstrap) {
+      seeds = async () => {
+        const next = await target();
+        if (next.bootstrap) {
+          // It was never a member, so its log holds nothing; cleared, the restart starts the cluster.
+          console.log(`${id} is to start the cluster after all; restarting to do it.`);
+          rmSync(join(dataDir, `${id}.json`), { force: true });
+          process.exit(75);
+        }
+        return next.join ?? [];
+      };
+    }
+    console.log(bootstrap ? `${id} starts a new cluster.` : `${id} asks the cluster for a place.`);
   }
   startNode({
     id,

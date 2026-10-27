@@ -61,7 +61,8 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
         call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes }).catch(() => (pending = { ...changes, ...pending }));
       }, heartbeatMs);
       // A board losing power mid-step stops reporting at once, so its lease runs out and the step moves.
-      signal?.addEventListener("abort", () => clearInterval(beat), { once: true });
+      const silence = () => clearInterval(beat);
+      signal?.addEventListener("abort", silence, { once: true });
       try {
         output = await outputOf(task, { partial: (task.partial as Json) ?? null, report });
         if (output?.found && !real) pending.found = output.found;
@@ -69,6 +70,7 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
         await sleep(Math.max(0, total * (1 - from) - (Date.now() - startedAt)), undefined, { signal });
       } finally {
         clearInterval(beat);
+        signal?.removeEventListener("abort", silence);
       }
       // The finished step must not be lost to a leader election, so keep trying until the queue answers.
       while (true) {
