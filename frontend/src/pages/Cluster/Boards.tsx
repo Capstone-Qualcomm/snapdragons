@@ -24,11 +24,10 @@ const status: Record<BoardState, { label: string; tone: string }> = {
   idle: { label: "Online", tone: "is-ok" },
 };
 
-type Act = (path: string, body?: unknown) => void;
-
-// One row per board: whether it is up, its role, what it is doing, how much it
-// has done, and Kill or Restart. Its Raft numbers open under it on a click.
-export function BoardsTable({ cluster, act }: { cluster: ClusterState; act: Act }) {
+// One row per board: whether it is up, its role, what it is doing and how much
+// it has done. Its Raft numbers open under it on a click. Commands for a board
+// are in Agent Commands.
+export function BoardsTable({ cluster }: { cluster: ClusterState }) {
   const [open, setOpen] = useState<string | null>(null);
 
   return (
@@ -41,16 +40,15 @@ export function BoardsTable({ cluster, act }: { cluster: ClusterState; act: Act 
           <th>Current task</th>
           <th className="num">Tasks done</th>
           <th className="num">Last heartbeat</th>
-          <th className="col-action">Actions</th>
         </tr>
       </thead>
       <tbody>
         {cluster.nodes.map((node) => (
           <Fragment key={node.id}>
-            <BoardRow node={node} cluster={cluster} open={open === node.id} onToggle={() => setOpen(open === node.id ? null : node.id)} act={act} />
+            <BoardRow node={node} cluster={cluster} open={open === node.id} onToggle={() => setOpen(open === node.id ? null : node.id)} />
             {open === node.id && (
               <tr className="detail-row">
-                <td colSpan={7}>
+                <td colSpan={6}>
                   <span className="raft">
                     <span>Network id {node.id}</span>
                     {node.up && (
@@ -71,9 +69,8 @@ export function BoardsTable({ cluster, act }: { cluster: ClusterState; act: Act 
   );
 }
 
-function BoardRow({ node, cluster, open, onToggle, act }: { node: RaftNode; cluster: ClusterState; open: boolean; onToggle: () => void; act: Act }) {
+function BoardRow({ node, cluster, open, onToggle }: { node: RaftNode; cluster: ClusterState; open: boolean; onToggle: () => void }) {
   const { task, state, worker, isOrchestrator } = boardOf(node, cluster);
-  const path = (action: string) => `/api/cluster/nodes/${node.id}/${action}`;
   const needed = Math.floor((node.members?.length ?? 0) / 2) + 1;
   // While there is no orchestrator, each worker counts down its own random
   // timeout; the first to reach zero asks the others for their votes.
@@ -103,16 +100,6 @@ function BoardRow({ node, cluster, open, onToggle, act }: { node: RaftNode; clus
       </td>
       <td className="col-done-count num">{worker?.done ?? 0}</td>
       <td className="col-heartbeat num">{heartbeat(node, isOrchestrator)}</td>
-      <td className="col-action">
-        {state === "dead" ? (
-          <button className="button small" type="button" onClick={() => act(path("start"))}>Restart</button>
-        ) : node.up ? (
-          <button className="button small is-kill" type="button" onClick={() => act(path("kill"))}>Kill</button>
-        ) : null}
-        {(state === "dead" || (node.up && state !== "leaving")) && (
-          <button className="button small quiet" type="button" onClick={() => act(path("remove"))}>Remove</button>
-        )}
-      </td>
     </tr>
   );
 }
