@@ -265,7 +265,7 @@ function Log({ events, offset }: { events: StoryEvent[]; offset: number }) {
     <ol className="log-rows" aria-label="Log">
       {events.map((event) => (
         <li key={event.key} title={event.task?.input}>
-          <span className="avatar">{event.board ? boardName(event.board).replace("Board ", "") : <Icon name="crown" size={11} />}</span>
+          <span className="avatar">{event.board ? boardName(event.board).replace("Board ", "").slice(0, 2) : <Icon name="crown" size={11} />}</span>
           <span className="log-text">{event.text}</span>
           <time className="muted">{ago(Date.now() - (event.at - offset))}</time>
         </li>
