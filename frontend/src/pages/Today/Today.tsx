@@ -271,16 +271,8 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
               {replyStatus.text && <span className={replyStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={replyStatus.isError ? "alert" : "status"}>{replyStatus.text}</span>}
             </div>
           ) : (
-            <a
-              className="button small"
-              href={link}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={item.source === "outlook" ? "Open in Outlook" : undefined}
-              title={item.source === "outlook" ? "Open in Outlook" : undefined}
-            >
-              {item.source === "slack" ? "Reply" : "Open"}
-            </a>
+            // Only Slack is left here: it is answered in Slack itself.
+            <a className="button small" href={link} target="_blank" rel="noreferrer">Reply</a>
           )}
         </td>
       </tr>
