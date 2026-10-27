@@ -236,12 +236,20 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   let seeds: string[] | (() => Promise<string[]>) | undefined = list(env.CLUSTER_JOIN);
   let bootstrap = list(env.CLUSTER_BOOTSTRAP);
   const joinUrl = env.CLUSTER_JOIN_URL;
-  if (joinUrl && !fileStorage(join(dataDir, `${id}.json`)).load()) {
+  // A board is in a cluster only if its saved log names members. One that heard from the
+  // orchestrator while waiting to be added has saved a log without any, and still has to ask.
+  const saved = fileStorage(join(dataDir, `${id}.json`)).load();
+  const member = !!saved && (saved.snapshot.members.length > 0 || saved.log.some((entry) => entry.command.type === "config"));
+  if (joinUrl && !member) {
     const target = async () => (await (await fetch(`${joinUrl}?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) })).json()) as { join?: string[]; bootstrap?: boolean };
     for (;;) {
       try {
         const first = await target();
-        if (first.bootstrap) bootstrap = [id];
+        if (first.bootstrap) {
+          // Raft only starts a new cluster from nothing, so a log without members is cleared first.
+          rmSync(join(dataDir, `${id}.json`), { force: true });
+          bootstrap = [id];
+        }
         else if (!first.join?.length) throw new Error("no answer");
         break;
       } catch (cause) {
