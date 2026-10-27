@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { complete } from "./llm.ts";
 import type { Message } from "./llm.ts";
 import { fileStorage } from "./node.ts";
+import { demoSample, serveDemo } from "./services.ts";
 import type { Persisted } from "./raft.ts";
 import { describeScenarios, scenarioById } from "./scenarios/index.ts";
 
@@ -19,7 +20,10 @@ import { describeScenarios, scenarioById } from "./scenarios/index.ts";
 //
 // With CLUSTER_BOARDS set it runs the real Uno Q boards instead: it starts nothing,
 // finds the boards by name on their tailnet, powers them off and on rather than
-// killing processes, calls the model for them, and hands out the join script.
+// killing processes, and hands out the join script.
+//
+// Either way it serves the boards what they query besides each other (services.ts):
+// the model, and the demo company's mail, calendar and hiring req.
 
 // Six Uno Q boards, so six node names.
 export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
@@ -280,7 +284,8 @@ export function createClusterServer(options: ServerOptions = {}) {
   const joinCommand = `curl -fsSL ${appUrl}/api/cluster/join.sh | sh -s -- <your name> <tailnet auth key>`;
   const joinScript = () => readFileSync(new URL("./join.sh", import.meta.url), "utf8").replaceAll("__APP_URL__", appUrl);
   // The node's code for a board: this folder without tests or dependencies, which a node does not need.
-  const code = () => execFileSync("tar", ["-cz", "--exclude=node_modules", "--exclude=*.test.ts", "-C", fileURLToPath(new URL(".", import.meta.url)), "."]);
+  // The demo data stays here: boards query it from the services instead.
+  const code = () => execFileSync("tar", ["-cz", "--exclude=node_modules", "--exclude=*.test.ts", "--exclude=./scenarios/data", "-C", fileURLToPath(new URL(".", import.meta.url)), "."]);
 
   // Every node goes down at once, then comes back from what it saved to disk.
   async function restartAll(): Promise<void> {
@@ -313,6 +318,11 @@ export function createClusterServer(options: ServerOptions = {}) {
       }
       if (post && url.pathname === "/api/cluster/refresh") return send(res, 201, { job: await clusterRequest({ type: "job", ...REFRESH }) });
       if (req.method === "GET" && url.pathname === "/api/assistant/scenarios") return send(res, 200, { scenarios: describeScenarios() });
+      const sample = url.pathname.match(/^\/api\/assistant\/scenarios\/([^/]+)\/sample$/);
+      if (req.method === "GET" && sample) {
+        const scenario = scenarioById(sample[1]);
+        return scenario?.sample ? send(res, 200, demoSample()) : send(res, 404, { error: "That scenario has no demo data to show." });
+      }
       if (post && url.pathname === "/api/assistant/run") {
         const body = await readBody(req);
         const scenario = scenarioById(String(body.scenario ?? ""));
@@ -375,25 +385,42 @@ export function createClusterServer(options: ServerOptions = {}) {
     stopNodes();
   });
 
-  // Boards have no model key, so they ask the gateway, over their tailnet only.
-  const llmServer = createServer(async (req, res) => {
+  // What every node can query: the model (boards have no key) and the demo company's systems.
+  // On real boards it listens on the tailnet only; on one laptop, on loopback.
+  const servicesServer = createServer(async (req, res) => {
     try {
-      if (req.method !== "POST" || req.url !== "/llm") return send(res, 404, { error: "Not found." });
-      const { messages, maxTokens } = (await readBody(req)) as { messages: Message[]; maxTokens?: number };
-      send(res, 200, { text: await complete(messages, Math.min(Number(maxTokens) || 800, 2000)) });
+      const url = new URL(req.url ?? "/", "http://localhost");
+      if (req.method === "GET" && serveDemo(url.pathname, url.searchParams, send, res)) return;
+      if (req.method !== "POST" || url.pathname !== "/llm") return send(res, 404, { error: "Not found." });
+      const { messages, maxTokens, stream } = (await readBody(req)) as { messages: Message[]; maxTokens?: number; stream?: boolean };
+      const tokens = Math.min(Number(maxTokens) || 800, 3000);
+      if (!stream) return send(res, 200, { text: await complete(messages, tokens) });
+      // Passed on as plain text as it comes, so the board can show the draft being written.
+      let sent = 0;
+      await complete(messages, tokens, (text) => {
+        if (!res.headersSent) res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+        res.write(text.slice(sent));
+        sent = text.length;
+      });
+      res.end();
     } catch (cause) {
+      if (res.headersSent) return void res.end();
       send(res, 502, { error: cause instanceof Error ? cause.message : "The model call failed." });
     }
   });
 
-  return { server, llmServer, port, startNode, startCluster, stopNodes, clusterState };
+  return { server, servicesServer, port, startNode, startCluster, stopNodes, clusterState };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   // Real boards start with auto refresh off, so they are not busy all night; the page can turn it on.
-  const { server, llmServer, port, startCluster, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" && !process.env.CLUSTER_BOARDS });
-  // With real boards, the model proxy listens where the boards reach this gateway: its tailnet.
-  if (process.env.CLUSTER_BOARDS) llmServer.listen(Number(process.env.CLUSTER_LLM_PORT ?? 4100), process.env.CLUSTER_LLM_HOST ?? "0.0.0.0");
+  const { server, servicesServer, port, startCluster, stopNodes } = createClusterServer({ auto: process.env.CLUSTER_AUTO === "1" && !process.env.CLUSTER_BOARDS });
+  // Real boards reach the services on this gateway's tailnet address; the nodes it starts itself, on loopback.
+  const servicesPort = Number(process.env.CLUSTER_SERVICES_PORT ?? 4100);
+  // A busy port (a second gateway on one machine) leaves this one without services rather than down.
+  servicesServer.on("error", (cause) => console.error(`Services not started on port ${servicesPort}: ${cause.message}`));
+  servicesServer.listen(servicesPort, process.env.CLUSTER_BOARDS ? "0.0.0.0" : "127.0.0.1");
+  process.env.SERVICES_URL ??= `http://127.0.0.1:${servicesPort}`;
   // The gateway can kill nodes and has no login, so it stays on loopback. Set HOST to listen somewhere else.
   const host = process.env.HOST ?? "127.0.0.1";
   server.listen(port, host, () => {

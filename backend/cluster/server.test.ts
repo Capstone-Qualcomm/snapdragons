@@ -57,7 +57,7 @@ test("auto mode turns on and off", async () => {
 test("the Assistant lists its scenarios, and refuses one it does not have", async () => {
   const base = await startGateway();
   const { scenarios } = await (await fetch(base + "/api/assistant/scenarios")).json();
-  assert.deepEqual(scenarios.map((scenario: { id: string }) => scenario.id), ["ask", "student", "engineer", "hiring", "business", "research"]);
+  assert.deepEqual(scenarios.map((scenario: { id: string }) => scenario.id), ["interviews", "ask", "student", "engineer", "business", "research"]);
   assert.ok(scenarios.every((scenario: { audience: string; prompt: string; stages: string[] }) => scenario.audience && scenario.prompt && scenario.stages.length >= 3));
   // Every scenario says plainly what it runs on: demo data, or the model live.
   assert.ok(scenarios.every((scenario: { id: string; data: { label: string } }) => (scenario.id === "ask" ? /^Live/ : /demo/i).test(scenario.data.label)));

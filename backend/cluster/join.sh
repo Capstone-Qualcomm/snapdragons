@@ -54,7 +54,7 @@ services:
       NODE_HOST: 0.0.0.0
       CLUSTER_DATA: /data
       CLUSTER_STATE_URL: $APP/api/cluster/state
-      LLM_URL: http://q-orsat:4100/llm
+      SERVICES_URL: http://q-orsat:4100
     volumes: [./code:/code:ro, node-data:/data]
 
 volumes:

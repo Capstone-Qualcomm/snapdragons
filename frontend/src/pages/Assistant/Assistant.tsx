@@ -4,13 +4,14 @@ import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
 import { boardName, send } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
+import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
 import { eventsOf, narrate } from "./story";
 import type { StoryEvent } from "./story";
 import "./Assistant.css";
 
 export type StageInfo = { label: string; short: string; icon: string };
-export type ScenarioInfo = { id: string; audience: string; icon: string; title: string; prompt: string; data: { label: string; items: string[] }; stages: StageInfo[] };
+export type ScenarioInfo = { id: string; audience: string; icon: string; title: string; prompt: string; data: { label: string; items: string[] }; hasSample?: boolean; stages: StageInfo[] };
 
 // The Assistant, one focus at a time: ask (an empty page with the prompt),
 // watch (the boards splitting the job), read (the report).
@@ -122,6 +123,7 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
   onPace: (pace: string) => void;
   onRun: () => void;
 }) {
+  const [browsing, setBrowsing] = useState(false);
   const scenario = scenarios.find((entry) => entry.id === selected);
   return (
     <div className="ask">
@@ -138,8 +140,14 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
             <span className="prompt-data" title={scenario.data.items.join("\n")}>
               <Icon name="info" size={14} />
               {scenario.data.label}
+              {scenario.hasSample && (
+                <button className="text-button" type="button" onClick={() => setBrowsing(true)}>
+                  Open the demo inbox
+                </button>
+              )}
             </span>
           )}
+          {browsing && scenario && <SampleData scenario={scenario.id} title={`${scenario.audience}: demo data`} onClose={() => setBrowsing(false)} />}
           <label className="pace">
             <span>Speed</span>
             <select value={pace} onChange={(event) => onPace(event.target.value)}>
@@ -232,7 +240,8 @@ function Watching({ job, tasks, cluster, events, now, offset, act }: { job: Job;
       <section className="panel stage-card" aria-label="Cluster">
         <header className="stage-head">
           <p className="narration" aria-live="polite">{narrate(job, tasks, cluster, events, now)}</p>
-          {job.doneAt === null && (
+          {/* Real boards fail for real: someone pulls a plug. */}
+          {job.doneAt === null && !cluster.boards && (
             <button className="button small" type="button" onClick={failure} title="Kill a random working board and watch its work move">
               <Icon name="bolt" size={14} />
               Simulate a failure

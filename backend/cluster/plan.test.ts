@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Result } from "./plan.ts";
 import { book, freeSlots, groups } from "./plan.ts";
 import { createQueue } from "./queue.ts";
 import type { ClaimResult, Job, Task } from "./queue.ts";
 import { ask } from "./scenarios/ask.ts";
+import { readFileSync } from "node:fs";
+import { entriesOf, hedge, shortlist, toCentral } from "./scenarios/interviews.ts";
+import type { Busy, Role } from "./services.ts";
 import { runSkill, SCENARIOS } from "./scenarios/index.ts";
 
-// The demo scenarios run offline on canned data; the live one calls the model, so it is tested on its own below.
-const DEMOS = SCENARIOS.filter((scenario) => scenario !== ask);
+// The demo scenarios run offline on canned data; the live ones call the model, so their pure parts are tested on their own below.
+const DEMOS = SCENARIOS.filter((scenario) => !/^Live/.test(scenario.data.label));
 
 // A queue fed commands the way Raft feeds it, with boards that run each step's
 // real skill on the scenario's demo data. Q-01 starts as the orchestrator.
@@ -168,16 +172,64 @@ test("engineer: ranks Priya's blocking review first and explains the failing CI"
   assert.deepEqual((result.sections.find((section) => section.title === "Drafted replies") as { cards: Array<{ title: string }> }).cards.map((card) => card.title).sort(), ["Alex Kim", "Jordan Lee", "Priya Raman"]);
 });
 
-test("hiring: scores all 60 in four batches, shortlists five, and books each a panel hour", () => {
-  const c = cluster("hiring");
-  assert.equal(c.tasks().length, 4);
-  const result = c.toEnd();
-  const shortlist = rows(result, "Shortlist");
-  assert.equal(shortlist.length, 5);
-  const scores = shortlist.map((row) => Number(row[2]));
-  assert.deepEqual(scores, [...scores].sort((a, b) => b - a));
-  assert.ok(rows(result, "Proposed interviews").every((row) => /Oct/.test(row[1])));
-  assert.equal(c.tasks().filter((task) => task.skill === "portfolio").length, 3);
+test("the model's answer counts in any of the shapes it uses", () => {
+  const one = { id: 77, kind: "application", candidate: "Maya Nasser" };
+  assert.deepEqual(entriesOf(JSON.stringify({ emails: [one] })), [one]);
+  assert.deepEqual(entriesOf(JSON.stringify(one)), [one], "one email, answered with its object alone");
+  assert.deepEqual(entriesOf("```json\n" + JSON.stringify([one]) + "\n```"), [one]);
+  assert.deepEqual(entriesOf("Here you go: " + JSON.stringify({ emails: [one] })), [one]);
+});
+
+test("a slow model call is sent again, and the first answer wins", async () => {
+  let calls = 0;
+  const slowThenFast = () => (++calls === 1 ? new Promise<string>((resolve) => setTimeout(() => resolve("slow"), 300)) : Promise.resolve("fast"));
+  assert.equal(await hedge(slowThenFast, 50), "fast");
+  calls = 0;
+  assert.equal(await hedge(() => Promise.resolve(`answer ${++calls}`), 50), "answer 1", "a quick answer is not sent twice");
+  await sleep(80);
+  assert.equal(calls, 1);
+  let tries = 0;
+  assert.equal(await hedge(() => (++tries === 1 ? Promise.reject(new Error("boom")) : Promise.resolve("retried")), 1000), "retried", "a failure is retried at once");
+});
+
+test("interviews: times given in another zone move to Central in code, day included", () => {
+  assert.deepEqual(toCentral({ day: "2026-11-04", start: "00:00", end: "02:00", utcOffset: 9 }), { day: "2026-11-03", start: "09:00", end: "11:00" });
+  assert.deepEqual(toCentral({ day: "2026-11-05", start: "23:00", end: "01:00", utcOffset: 9 }), { day: "2026-11-05", start: "08:00", end: "10:00" });
+  assert.deepEqual(toCentral({ day: "2026-11-03", start: "13:00", end: "17:00", utcOffset: -6 }), { day: "2026-11-03", start: "13:00", end: "17:00" });
+  assert.deepEqual(toCentral({ day: "2026-11-03", start: "13:00", end: "17:00" }), { day: "2026-11-03", start: "13:00", end: "17:00" }, "Central when the zone is not given");
+});
+
+test("interviews: merges what the boards read into applicants, and books the best inside their times and the panel's", () => {
+  const date = (day: number) => `2026-10-${day}T10:00:00-05:00`;
+  const app = (id: number, name: string, fit: number, day: number, availability: Array<{ day: string; start: string; end: string }> = []) =>
+    ({ id, kind: "application" as const, date: date(day), from: name, candidate: name, email: `${name.split(" ")[0].toLowerCase()}@school.edu`, school: "UW", year: "junior", skills: ["Go"], fit, why: "Go services", availability });
+  const seen = [
+    app(1, "Ada Byte", 9, 20, [{ day: "2026-11-03", start: "10:00", end: "12:00" }]),
+    app(2, "Ada Byte", 7, 22),
+    app(3, "Ben Late", 10, 26, [{ day: "2026-11-02", start: "10:00", end: "17:00" }]),
+    app(4, "Cy Quit", 9, 21, [{ day: "2026-11-02", start: "10:00", end: "17:00" }]),
+    // The model often leaves the student out of a withdrawal; the sender's address still says who it is.
+    { id: 5, kind: "withdrawal" as const, date: date(25), from: "C. Quit", sender: "cy@school.edu" },
+    app(6, "Di Reply", 8, 21),
+    { id: 7, kind: "availability" as const, date: date(25), from: "Di Reply", candidate: "Di Reply", email: "di@school.edu", availability: [{ day: "2026-11-04", start: "09:00", end: "11:00" }] },
+    { id: 8, kind: "referral" as const, date: date(22), from: "Marcus Lee", candidate: "Di Reply", email: "di@school.edu" },
+    app(9, "Eve Nofit", 3, 21),
+  ];
+  const { busy, emails: _emails, ...role } = JSON.parse(readFileSync(new URL("./scenarios/data/interviews.json", import.meta.url), "utf8")) as Role & { busy: Busy[]; emails: unknown[] };
+  const { applicants, picks } = shortlist(seen, role, busy);
+  assert.equal(applicants.length, 5, "Ada applied twice and counts once");
+  assert.ok(applicants.find((entry) => entry.name === "Ben Late")!.late);
+  assert.deepEqual(picks.map((pick) => pick.applicant.name), ["Ada Byte", "Di Reply", "Eve Nofit"], "the late and the withdrawn are left out, best first");
+  assert.deepEqual(picks[1].applicant.referredBy, ["Marcus Lee"]);
+  assert.equal(picks[2].slot, null, "no times given, so nothing is booked");
+  const minutes = (text: string) => Number(text.slice(0, 2)) * 60 + Number(text.slice(3));
+  for (const { applicant, slot } of picks.slice(0, 2)) {
+    assert.ok(slot, `${applicant.name} is booked`);
+    assert.ok(applicant.availability.some((window) => window.day === slot.day && minutes(window.start) <= slot.start && slot.end <= minutes(window.end)), "inside the student's times");
+    for (const who of ["Dana Whitfield", slot.with]) {
+      assert.ok(busy.filter((block) => block.who === who && block.day === slot.day).every((block) => slot.end <= minutes(block.start) || slot.start >= minutes(block.end)), `${who} is free`);
+    }
+  }
 });
 
 test("business: finds the five unpaid invoices and groups complaints by theme", () => {
@@ -266,12 +318,15 @@ test("every board's step carries a picture of its real input, and its findings p
   assert.deepEqual(first.output!.found!.chips, ["northwind-robotics.example"]);
 });
 
-test("a board's first heartbeat stores what it found, once", () => {
+test("a board's heartbeats keep what it has found and done so far, and a heartbeat without them keeps the last", () => {
   const c = cluster("student");
   const task = c.claim("Q-02")!;
-  c.run("progress", { worker: "Q-02", task: task.id, progress: 0.2, found: { marks: [[6, "Northwind · interview"]] } });
-  c.run("progress", { worker: "Q-02", task: task.id, progress: 0.4, found: { marks: [] } });
-  assert.deepEqual(c.tasks().find((entry) => entry.id === task.id)!.found, { marks: [[6, "Northwind · interview"]] });
+  c.run("progress", { worker: "Q-02", task: task.id, progress: 0.2, found: { marks: [[6, "Northwind · interview"]] }, partial: { read: [1] } });
+  c.run("progress", { worker: "Q-02", task: task.id, progress: 0.4, found: { marks: [[6, "Northwind · interview"], [8, "Lumen · offer"]] }, partial: { read: [1, 2] } });
+  c.run("progress", { worker: "Q-02", task: task.id, progress: 0.5 });
+  const stored = c.tasks().find((entry) => entry.id === task.id)!;
+  assert.deepEqual(stored.found, { marks: [[6, "Northwind · interview"], [8, "Lumen · offer"]] });
+  assert.deepEqual(stored.partial, { read: [1, 2] });
 });
 
 test("calendar helpers find open time and never double-book it", () => {

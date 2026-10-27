@@ -33,6 +33,8 @@ export type Task = {
   // Its real input in small, and what it has found, for the page to draw.
   preview?: Preview;
   found?: Found | null;
+  // What a live step has done so far (say, the emails it has read), so a board taking it over picks up after it.
+  partial?: Json;
   scenario?: string;
   params?: Json;
   output?: StepOutput | null;
@@ -271,10 +273,12 @@ export function createQueue() {
   }
 
   // A busy node reports how far it got. Returns false if the step is no longer its own.
-  function progress(worker: string, id: string, value: number, at: number, found?: Found): boolean {
+  function progress(worker: string, id: string, value: number, at: number, found?: Found, partial?: Json): boolean {
     const task = data.tasks.find((candidate) => candidate.id === id);
     if (!task || task.status !== "claimed" || task.worker !== worker) return false;
-    if (found && !task.found) task.found = found;
+    // A live step's findings grow as it reads, so each report replaces the last.
+    if (found) task.found = found;
+    if (partial !== undefined) task.partial = partial;
     task.progress = Math.min(Math.max(task.progress, value), 0.99);
     const run = currentRun(task);
     run.to = task.progress;
@@ -365,7 +369,7 @@ export function createQueue() {
       case "claim":
         return claim(worker, at);
       case "progress":
-        return progress(worker, command.task as string, command.progress as number, at, command.found as Found | undefined);
+        return progress(worker, command.task as string, command.progress as number, at, command.found as Found | undefined, command.partial as Json | undefined);
       case "complete":
         return complete(worker, command.task as string, at, command.output as StepOutput | undefined);
       case "expire":

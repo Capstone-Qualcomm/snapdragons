@@ -1,14 +1,14 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import type { StepOutput } from "./plan.ts";
+import type { Found, Json, SkillContext, StepOutput } from "./plan.ts";
 import type { ClaimResult, Task } from "./queue.ts";
 import { runSkill } from "./scenarios/index.ts";
 
 // What a plan step produced, from its skill on the scenario's demo data or the model. A
 // skill that throws still finishes the step, with the error as its result.
-async function outputOf(task: Task): Promise<StepOutput | undefined> {
+async function outputOf(task: Task, context: SkillContext): Promise<StepOutput | undefined> {
   if (!task.skill || !task.scenario) return undefined;
   try {
-    return await runSkill(task.scenario, task.skill, task.params);
+    return await runSkill(task.scenario, task.skill, task.params, context);
   } catch (cause) {
     return { summary: `Failed: ${(cause as Error).message}`, short: "Failed", data: null };
   }
@@ -46,16 +46,23 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
       const done = () => Math.min(0.99, from + (Date.now() - startedAt) / total);
       // Each heartbeat carries a checkpoint, so the queue knows how far this node got. Beats start
       // before the skill runs, since a model call takes seconds and silence would look like a dead board.
-      // The first beat after the skill answers carries what it found, so the page can light it up.
+      // A live skill says how far it really is and what it has found and done so far; the next beat
+      // carries whatever changed. A demo skill answers at once, and its first beat carries what it found.
       let output: StepOutput | undefined;
-      let foundSent = true;
+      let real: number | null = null;
+      let pending: { found?: Found; partial?: Json } = {};
+      const report = (progress: number, found?: Found, partial?: Json) => {
+        real = Math.max(real ?? 0, Math.min(progress, 0.99));
+        pending = { ...pending, ...(found && { found }), ...(partial !== undefined && { partial }) };
+      };
       const beat = setInterval(() => {
-        const found = foundSent ? undefined : output?.found;
-        call({ type: "progress", worker: id, task: task.id, progress: done(), ...(found && { found }) }).then(() => found && (foundSent = true), () => {});
+        const changes = pending;
+        pending = {};
+        call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes }).catch(() => (pending = { ...changes, ...pending }));
       }, heartbeatMs);
       try {
-        output = await outputOf(task);
-        foundSent = !output?.found;
+        output = await outputOf(task, { partial: (task.partial as Json) ?? null, report });
+        if (output?.found && !real) pending.found = output.found;
         // Demo data answers at once, so the step then takes the rest of its time for a person to watch.
         await sleep(Math.max(0, total * (1 - from) - (Date.now() - startedAt)), undefined, { signal });
       } finally {
