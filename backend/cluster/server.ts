@@ -172,8 +172,17 @@ export function createClusterServer(options: ServerOptions = {}) {
     return data as T;
   }
 
+  // How long each node took to answer its last status check, so the queue is read from the quickest.
+  const answeredIn = new Map<string, number>();
+
   async function statuses(): Promise<NodeStatus[]> {
-    const all = (await Promise.all(ids().map((id) => nodeJson<NodeStatus>(id, "/status").catch(() => null)))).filter((status): status is NodeStatus => status !== null);
+    const timed = async (id: string) => {
+      const started = Date.now();
+      const status = await nodeJson<NodeStatus>(id, "/status");
+      answeredIn.set(id, Date.now() - started);
+      return status;
+    };
+    const all = (await Promise.all(ids().map((id) => timed(id).catch(() => null)))).filter((status): status is NodeStatus => status !== null);
     for (const status of all) for (const member of status.members) known.add(member);
     return all;
   }
@@ -201,12 +210,20 @@ export function createClusterServer(options: ServerOptions = {}) {
     throw lastError;
   }
 
-  async function clusterState() {
+  // Polls from every open page share one read of the boards; a slow board must not stack them up.
+  let reading: Promise<Awaited<ReturnType<typeof readState>>> | null = null;
+  function clusterState() {
+    return (reading ??= readState().finally(() => (reading = null)));
+  }
+
+  async function readState() {
     const nodes = await statuses();
     const orchestrator = orchestratorOf(nodes);
-    // Without an orchestrator, show the copy that has the most committed entries.
-    const source = orchestrator ?? [...nodes].sort((a, b) => b.commitIndex - a.commitIndex)[0];
-    if (source) lastQueue = await nodeJson<QueueState>(source.id, "/state").catch(() => lastQueue);
+    // Every node that has applied as much as anyone has the same queue, so read the one that answers
+    // quickest: real boards reach the gateway through relays, some far slower than others.
+    const newest = Math.max(...nodes.map((node) => node.commitIndex));
+    const source = boards ? nodes.filter((node) => node.commitIndex === newest).sort((a, b) => (answeredIn.get(a.id) ?? Infinity) - (answeredIn.get(b.id) ?? Infinity))[0] : (orchestrator ?? [...nodes].sort((a, b) => b.commitIndex - a.commitIndex)[0]);
+    if (source) lastQueue = await nodeJson<QueueState>(source.id, "/state", undefined, boards ? 10_000 : statusMs).catch(() => lastQueue);
     if (source) lastMembers = orchestrator?.members ?? source.members;
     const queue = lastQueue;
     const members = lastMembers;

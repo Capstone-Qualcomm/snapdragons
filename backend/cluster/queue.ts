@@ -225,10 +225,23 @@ export function createQueue() {
     log(at, `${orchestrator() ?? "The orchestrator"} planned step ${stage + 1} of ${scenario.stages.length}, ${scenario.stages[stage].label.toLowerCase()}: ${specs.length} ${specs.length === 1 ? "task" : "tasks"}`);
   }
 
+  // A finished or stopped plan's steps keep what the page draws (summaries, findings, previews)
+  // and drop their working data: the inputs and outputs the next stage read, and checkpoints.
+  // That data is most of the queue, and boards on a slow link get the whole queue when they catch up.
+  function lighten(job: Job): void {
+    for (const task of data.tasks) {
+      if (task.job !== job.id) continue;
+      delete task.partial;
+      if (task.params !== undefined) task.params = null;
+      if (task.output) task.output = { ...task.output, data: null };
+    }
+  }
+
   function finishPlan(job: Job, at: number): void {
     const steps = data.tasks.filter((task) => task.job === job.id);
     const last = steps.filter((task) => task.stage === job.plan!.stage && task.output).at(-1);
     job.plan!.result = last?.output?.data ?? null;
+    lighten(job);
     job.doneAt = at;
     job.nodes = new Set(steps.flatMap((step) => step.runs.filter((run) => run.outcome === "done").map((run) => run.worker))).size;
     log(at, `Plan ${job.id} done in ${((at - job.queuedAt) / 1000).toFixed(1)} s on ${job.nodes} nodes`);
@@ -241,6 +254,7 @@ export function createQueue() {
     data.tasks = data.tasks.filter((task) => task.job !== id || task.status === "done");
     job.plan.error = "Stopped before it finished.";
     job.doneAt = at;
+    lighten(job);
     log(at, `Plan ${job.id} stopped`);
     return job;
   }
@@ -293,6 +307,8 @@ export function createQueue() {
     if (!task || task.status !== "claimed" || task.worker !== worker) return null;
     task.status = "done";
     task.progress = 1;
+    // The output holds everything the checkpoint did.
+    delete task.partial;
     if (task.skill) task.output = output ?? { summary: "Finished without a result", short: "Done", data: null };
     Object.assign(currentRun(task), { end: at, heardAt: at, to: 1, outcome: "done" });
     const entry = workerById(worker);
@@ -314,7 +330,8 @@ export function createQueue() {
     const plans = data.jobs.filter((entry) => entry.plan);
     const kept = new Set([...plans.slice(-KEEP_PLANS), ...plans.filter((entry) => entry.doneAt === null)].map((entry) => entry.id));
     const finished = data.tasks.filter((candidate) => candidate.status === "done" && !kept.has(candidate.job ?? ""));
-    if (finished.length > KEEP_DONE) data.tasks.splice(data.tasks.indexOf(finished[0]), 1);
+    // All the excess at once, so a burst of steps cannot leave old ones piling up.
+    for (const old of finished.slice(0, Math.max(0, finished.length - KEEP_DONE))) data.tasks.splice(data.tasks.indexOf(old), 1);
     return task;
   }
 
