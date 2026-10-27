@@ -205,6 +205,20 @@ test("a report with a share that failed says it is incomplete and how many email
   assert.match(attention, /1 email could not be read \(2 from Ada\)/);
 });
 
+test("a finished plan keeps its report and what the page draws, and drops its working data", () => {
+  const c = cluster("research");
+  const result = c.toEnd();
+  assert.ok(result.headline);
+  const job = c.plan();
+  assert.deepEqual(job.plan!.result, result, "the report stays");
+  for (const task of c.tasks()) {
+    assert.equal(task.partial, undefined);
+    assert.equal(task.params, null);
+    assert.equal(task.output!.data, null, `${task.skill} dropped its data`);
+    assert.ok(task.output!.summary && task.output!.short, "the summary and chip text stay");
+  }
+});
+
 test("a slow model call is sent again, and the first answer wins", async () => {
   let calls = 0;
   const slowThenFast = () => (++calls === 1 ? new Promise<string>((resolve) => setTimeout(() => resolve("slow"), 300)) : Promise.resolve("fast"));
