@@ -81,3 +81,37 @@ test("the gateway only listens on loopback", { skip: !lan && "no network address
     gateway.kill();
   }
 });
+
+test("with no cluster yet, only the first new board starts one and the next joins it", async () => {
+  // Board names nothing answers to, so there are no members.
+  const { server } = createClusterServer({ port: 0, boards: ["q-nobody-a"] });
+  servers.add(server);
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const base = `http://localhost:${(server.address() as AddressInfo).port}`;
+  const ask = async (id: string) => (await fetch(`${base}/api/cluster/join?id=${id}`)).json();
+  assert.deepEqual(await ask("q-nobody-a"), { bootstrap: true });
+  assert.deepEqual(await ask("q-nobody-b"), { join: ["q-nobody-a"] });
+  assert.deepEqual(await ask("q-nobody-a"), { bootstrap: true }, "the founder asking again is still told to start it");
+  assert.equal((await fetch(`${base}/api/cluster/join?id=../etc`)).status, 400);
+});
+
+test("the services answer the boards' mail and calendar, and refuse the model without a key instead of calling themselves", async () => {
+  const { server, servicesServer } = createClusterServer({ port: 0 });
+  servers.add(server);
+  servers.add(servicesServer);
+  await new Promise<void>((resolve) => servicesServer.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(servicesServer.address() as AddressInfo).port}`;
+  const inbox = await (await fetch(base + "/mail/inbox")).json();
+  assert.ok(inbox.messages.length > 50 && !("body" in inbox.messages[0]), "the inbox lists emails without their bodies");
+  assert.ok((await (await fetch(`${base}/mail/messages/${inbox.messages[0].id}`)).json()).body);
+  const saved = { endpoint: process.env.AZURE_AI_ENDPOINT, key: process.env.AZURE_AI_KEY };
+  delete process.env.AZURE_AI_ENDPOINT;
+  delete process.env.AZURE_AI_KEY;
+  try {
+    const response = await fetch(base + "/llm", { method: "POST", body: JSON.stringify({ messages: [] }), signal: AbortSignal.timeout(3000) });
+    assert.equal(response.status, 503);
+  } finally {
+    if (saved.endpoint) process.env.AZURE_AI_ENDPOINT = saved.endpoint;
+    if (saved.key) process.env.AZURE_AI_KEY = saved.key;
+  }
+});

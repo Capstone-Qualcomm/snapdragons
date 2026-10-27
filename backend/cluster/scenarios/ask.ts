@@ -48,7 +48,8 @@ export const ask: Scenario = {
       short: "Combine",
       icon: "merge",
       plan: (done, prompt) => {
-        const parts = outputsOf<Work>(done, "work");
+        // A part whose board failed has no data; the answer is combined from the rest.
+        const parts = outputsOf<Work | null>(done, "work").filter((part): part is Work => part !== null);
         return [{ skill: "combine", instruction: `Combine ${plural(parts.length, "part")} into one answer`, label: "Combine answer", icon: "merge", preview: pagePreview("doc", [{ url: "Answer", lines: parts.map((part) => part.label) }]), params: { prompt, parts }, ms: 3000, role: "orchestrator" }];
       },
     },

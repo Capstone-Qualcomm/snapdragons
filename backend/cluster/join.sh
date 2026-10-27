@@ -53,7 +53,7 @@ services:
       NODE_PORT: "4101"
       NODE_HOST: 0.0.0.0
       CLUSTER_DATA: /data
-      CLUSTER_STATE_URL: $APP/api/cluster/state
+      CLUSTER_JOIN_URL: $APP/api/cluster/join
       SERVICES_URL: http://q-orsat:4100
     volumes: [./code:/code:ro, node-data:/data]
 

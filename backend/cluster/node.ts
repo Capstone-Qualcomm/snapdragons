@@ -169,7 +169,9 @@ export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join
   // Powering off aborts it mid-step, so its step goes back to the queue as a crash would.
   function startWorker(): void {
     const controller = (worker = new AbortController());
-    void runWorker({ id, call: request, workMs, heartbeatMs: 500, signal: controller.signal }).then(async () => {
+    // A board without power sends nothing, not even the heartbeats of a step it was on.
+    const call = (body: Record<string, unknown>) => (off ? Promise.reject(new Error("Powered off.")) : request(body));
+    void runWorker({ id, call, workMs, heartbeatMs: 500, signal: controller.signal }).then(async () => {
       if (controller.signal.aborted) return;
       while (!stopped) {
         try {
@@ -216,25 +218,26 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const env = process.env;
   const id = env.NODE_ID ?? process.argv[2];
   if (!id || !(env.CLUSTER_PEERS || env.NODE_PORT)) {
-    console.error("Usage: NODE_ID=Q-01 CLUSTER_PEERS=Q-01=http://127.0.0.1:4101,... node node.ts\n   or, on a board: NODE_ID=q-name NODE_PORT=4101 NODE_HOST=0.0.0.0 CLUSTER_JOIN=q-other,... node node.ts");
+    console.error("Usage: NODE_ID=Q-01 CLUSTER_PEERS=Q-01=http://127.0.0.1:4101,... node node.ts\n   or, on a board: NODE_ID=q-name NODE_PORT=4101 NODE_HOST=0.0.0.0 CLUSTER_JOIN_URL=<app>/api/cluster/join node node.ts");
     process.exit(1);
   }
   const ms = (name: string, fallback: number) => Number(env[name] ?? fallback);
   const list = (value?: string) => (value ? value.split(",").filter(Boolean) : undefined);
   const dataDir = env.CLUSTER_DATA ?? "data";
-  // A board starting with nothing saved asks the app who is in the cluster: it joins them,
-  // or with nobody there it starts the cluster by itself. A board with a saved log rejoins as it was.
+  // A board starting with nothing saved asks the gateway where to go: the cluster's members to
+  // join, or, when there is no cluster yet and it asked first, to start one. A board with a saved log rejoins as it was.
   let seeds = list(env.CLUSTER_JOIN);
   let bootstrap = list(env.CLUSTER_BOOTSTRAP);
-  if (env.CLUSTER_STATE_URL && !fileStorage(join(dataDir, `${id}.json`)).load()) {
+  if (env.CLUSTER_JOIN_URL && !fileStorage(join(dataDir, `${id}.json`)).load()) {
     for (;;) {
       try {
-        const { members } = (await (await fetch(env.CLUSTER_STATE_URL, { signal: AbortSignal.timeout(10_000) })).json()) as { members: string[] };
-        if (members.length) seeds = members;
-        else bootstrap = [id];
+        const target = (await (await fetch(`${env.CLUSTER_JOIN_URL}?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) })).json()) as { join?: string[]; bootstrap?: boolean };
+        if (target.bootstrap) bootstrap = [id];
+        else if (target.join?.length) seeds = target.join;
+        else throw new Error("no answer");
         break;
       } catch (cause) {
-        console.error(`Cannot reach ${env.CLUSTER_STATE_URL} (${(cause as Error).message}). Trying again.`);
+        console.error(`Cannot reach ${env.CLUSTER_JOIN_URL} (${(cause as Error).message}). Trying again.`);
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
     }

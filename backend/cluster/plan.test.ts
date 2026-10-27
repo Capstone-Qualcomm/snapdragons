@@ -7,7 +7,7 @@ import { createQueue } from "./queue.ts";
 import type { ClaimResult, Job, Task } from "./queue.ts";
 import { ask } from "./scenarios/ask.ts";
 import { readFileSync } from "node:fs";
-import { entriesOf, hedge, shortlist, toCentral } from "./scenarios/interviews.ts";
+import { entriesOf, hedge, interviews, shortlist, toCentral } from "./scenarios/interviews.ts";
 import type { Busy, Role } from "./services.ts";
 import { runSkill, SCENARIOS } from "./scenarios/index.ts";
 
@@ -178,6 +178,19 @@ test("the model's answer counts in any of the shapes it uses", () => {
   assert.deepEqual(entriesOf(JSON.stringify(one)), [one], "one email, answered with its object alone");
   assert.deepEqual(entriesOf("```json\n" + JSON.stringify([one]) + "\n```"), [one]);
   assert.deepEqual(entriesOf("Here you go: " + JSON.stringify({ emails: [one] })), [one]);
+});
+
+test("a failed step leaves the rest of the job standing", () => {
+  const [, , combine] = ask.stages;
+  const worked = { skill: "work", stage: 1, params: null, worker: "q-b", output: { summary: "", short: "", data: { label: "Food", bullets: ["Deep dish"], text: "" } } };
+  const failed = { skill: "work", stage: 1, params: null, worker: "q-c", output: { summary: "Failed: boom", short: "Failed", data: null } };
+  assert.match(combine.plan([worked, failed], "Plan a weekend")[0].instruction, /1 part/);
+  const [, read, book, , report] = interviews.stages;
+  const opened = { skill: "open", stage: 0, params: null, worker: "q-a", output: { summary: "", short: "", data: { role: { week: [] }, messages: [{ id: 1, from: { name: "A", email: "a@x" }, subject: "Hi", date: "", attachments: [] }] } } };
+  assert.equal(read.plan([opened], "").length, 1);
+  const lostRead = { skill: "read", stage: 1, params: null, worker: "q-b", output: { summary: "Failed", short: "Failed", data: null } };
+  assert.deepEqual((book.plan([opened, lostRead], "")[0].params as { seen: unknown[] }).seen, []);
+  assert.deepEqual((report.plan([opened, lostRead, { ...lostRead, skill: "draft", stage: 3 }], "")[0].params as { drafts: unknown[] }).drafts, []);
 });
 
 test("a slow model call is sent again, and the first answer wins", async () => {

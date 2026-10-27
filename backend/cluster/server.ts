@@ -277,6 +277,17 @@ export function createClusterServer(options: ServerOptions = {}) {
     return [200, { id }];
   }
 
+  // Where a board with nothing saved should go: the cluster's members, or, with no cluster yet,
+  // whichever board asked first, so two new boards cannot each start a cluster of their own.
+  // A founder that has not started a cluster within a minute is passed over.
+  let founder: { id: string; at: number } | null = null;
+  async function joinTarget(id: string): Promise<{ join?: string[]; bootstrap?: boolean }> {
+    const { members } = await clusterState();
+    if (members.length) return { join: members };
+    if (!founder || (founder.id !== id && Date.now() - founder.at > 60_000)) founder = { id, at: Date.now() };
+    return founder.id === id ? { bootstrap: true } : { join: [founder.id] };
+  }
+
   // A board's power, from the dashboard: off is a board losing power mid-step, on is it booting back.
   const power = (id: string, on: boolean) => nodeJson(id, "/power", { on }, 3000);
 
@@ -308,6 +319,11 @@ export function createClusterServer(options: ServerOptions = {}) {
       const post = req.method === "POST";
 
       if (req.method === "GET" && url.pathname === "/api/cluster/state") return send(res, 200, await clusterState());
+      if (req.method === "GET" && url.pathname === "/api/cluster/join") {
+        const id = url.searchParams.get("id") ?? "";
+        if (!/^q-[a-z0-9-]+$/.test(id)) return send(res, 400, { error: "Give a board id like q-name." });
+        return send(res, 200, await joinTarget(id));
+      }
       if (req.method === "GET" && url.pathname === "/api/cluster/join.sh") {
         res.writeHead(200, { "Content-Type": "text/x-shellscript; charset=utf-8", "Cache-Control": "no-store" });
         return res.end(joinScript());
@@ -389,9 +405,16 @@ export function createClusterServer(options: ServerOptions = {}) {
   // On real boards it listens on the tailnet only; on one laptop, on loopback.
   const servicesServer = createServer(async (req, res) => {
     try {
+      // Only the boards (tailnet addresses, 100.64.0.0/10) and nodes on this machine may ask:
+      // other containers on the same Docker network could otherwise spend the model key.
+      const from = (req.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
+      const [a, b] = from.split(".").map(Number);
+      if (!(from === "127.0.0.1" || from === "::1" || (a === 100 && b >= 64 && b <= 127))) return send(res, 403, { error: "Only the boards can use this." });
       const url = new URL(req.url ?? "/", "http://localhost");
       if (req.method === "GET" && serveDemo(url.pathname, url.searchParams, send, res)) return;
       if (req.method !== "POST" || url.pathname !== "/llm") return send(res, 404, { error: "Not found." });
+      // Without a key of its own the gateway would forward the call to itself, over and over.
+      if (!process.env.AZURE_AI_ENDPOINT || !process.env.AZURE_AI_KEY) return send(res, 503, { error: "The model is not configured on the gateway. Set AZURE_AI_ENDPOINT and AZURE_AI_KEY." });
       const { messages, maxTokens, stream } = (await readBody(req)) as { messages: Message[]; maxTokens?: number; stream?: boolean };
       const tokens = Math.min(Number(maxTokens) || 800, 3000);
       if (!stream) return send(res, 200, { text: await complete(messages, tokens) });

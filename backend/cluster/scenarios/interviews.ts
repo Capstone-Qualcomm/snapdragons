@@ -13,7 +13,8 @@ import type { Busy, Email, Role } from "../services.ts";
 
 type Head = Omit<Email, "body" | "attachments"> & { attachments: string[] };
 type Window = { day: string; start: string; end: string };
-type Kind = "application" | "availability" | "followup" | "withdrawal" | "referral" | "suspicious" | "other";
+// "unread" is an email the model failed on every try: not finished, and never mistaken for noise.
+type Kind = "application" | "availability" | "followup" | "withdrawal" | "referral" | "suspicious" | "other" | "unread";
 // What a board took from one email.
 type Seen = { id: number; kind: Kind; date: string; from: string; sender?: string; candidate?: string; email?: string; school?: string; year?: string; skills?: string[]; fit?: number; why?: string; availability?: Window[] };
 type Applicant = { name: string; email: string; school: string; year: string; skills: string[]; fit: number; why: string; applied: string; emails: number[]; availability: Window[]; referredBy: string[]; withdrew: boolean; late: boolean };
@@ -119,7 +120,7 @@ async function readBatch(role: Role, ids: number[], tries = 3): Promise<Seen[]> 
         return { ...seen, id: email.id, date: email.date, from: email.from.name, sender: email.from.email, kind: (seen.kind ?? "other") as Kind, availability: (seen.availability ?? []).map(toCentral).filter(validWindow(role)) };
       });
     } catch (cause) {
-      if (attempt >= tries) return emails.map((email) => ({ id: email.id, kind: "other" as const, date: email.date, from: email.from.name, why: `could not read: ${(cause as Error).message}` }));
+      if (attempt >= tries) return emails.map((email) => ({ id: email.id, kind: "unread" as const, date: email.date, from: email.from.name, sender: email.from.email, why: (cause as Error).message }));
     }
   }
 }
@@ -131,24 +132,26 @@ function tag(seen: Seen): string | null {
   if (seen.kind === "withdrawal") return `${first(seen.candidate ?? seen.from)} · withdrew`;
   if (seen.kind === "referral") return `referral · ${first(seen.candidate ?? "?")}`;
   if (seen.kind === "suspicious") return "phishing";
+  if (seen.kind === "unread") return "could not read";
   return null;
 }
 
 async function read({ ids, role }: { ids: number[]; role: Role }, { partial, report }: SkillContext) {
-  // A board taking this slice over from one that died keeps what that board had already read.
-  const seen: Seen[] = [...((partial as { seen?: Seen[] } | null)?.seen ?? [])];
+  // A board taking this slice over from one that died keeps what that board had already read,
+  // and tries again on any email it could not.
+  const seen: Seen[] = ((partial as { seen?: Seen[] } | null)?.seen ?? []).filter((entry) => entry.kind !== "unread");
   const batches = groups(ids.filter((id) => !seen.some((entry) => entry.id === id)), Math.ceil(ids.filter((id) => !seen.some((entry) => entry.id === id)).length / 4));
   const marks = (): Found => ({ marks: ids.flatMap((id, row): Array<[number, string]> => {
     const label = seen.find((entry) => entry.id === id);
     const text = label && tag(label);
     return text ? [[row, text]] : [];
   }) });
-  report(seen.length / ids.length, marks(), { seen } as unknown as Json);
+  report(seen.length / ids.length, marks(), { seen: [...seen] } as unknown as Json);
   let next = 0;
   await Promise.all([0, 1].map(async () => {
     while (next < batches.length) {
       seen.push(...(await readBatch(role, batches[next++])));
-      report(seen.length / ids.length, marks(), { seen } as unknown as Json);
+      report(seen.length / ids.length, marks(), { seen: [...seen] } as unknown as Json);
     }
   }));
   const applicants = seen.filter((entry) => entry.kind === "application");
@@ -246,31 +249,32 @@ async function draft({ pick, prompt, role }: { pick: Pick; prompt: string; role:
 
 // ---- The report.
 
-function writeReport({ seen, applicants, drafts, role }: { seen: Seen[]; applicants: Applicant[]; drafts: Draft[]; role: Role }) {
-  const booked = drafts.filter((entry) => entry.slot);
+function writeReport({ seen, applicants, drafts, picks, role }: { seen: Seen[]; applicants: Applicant[]; drafts: Draft[]; picks: Pick[]; role: Role }) {
+  const booked = picks.filter((pick) => pick.slot);
+  const unread = seen.filter((entry) => entry.kind === "unread");
+  const undrafted = picks.filter((pick) => !drafts.some((entry) => entry.name === pick.applicant.name));
   const attention = [
+    ...(unread.length ? [`${plural(unread.length, "email")} could not be read (${unread.map((entry) => `${entry.id} from ${entry.from}`).join(", ")}), so this list may be missing someone or a withdrawal.`] : []),
+    ...undrafted.map((pick) => `The invite to ${pick.applicant.name}${pick.slot ? ` for ${when(pick.slot)}` : ""} could not be written; send it yourself.`),
     ...applicants.filter((applicant) => applicant.withdrew).map((applicant) => `${applicant.name} withdrew, so they are not on the list.`),
     ...applicants.filter((applicant) => applicant.late && !applicant.withdrew).map((applicant) => `${applicant.name} applied after the deadline (fit ${applicant.fit}). Your call whether to add them.`),
     ...applicants.filter((applicant) => applicant.emails.length > 1).map((applicant) => `${applicant.name} applied ${applicant.emails.length} times; counted once.`),
     ...applicants.filter((applicant) => applicant.referredBy.length).map((applicant) => `${applicant.name} was referred by ${applicant.referredBy.join(" and ")} (fit ${applicant.fit}).`),
-    ...drafts.filter((entry) => !entry.slot).map((entry) => `${entry.name} has no times that fit the panel yet; the draft asks for some.`),
+    ...picks.filter((pick) => !pick.slot).map((pick) => `${pick.applicant.name} has no times that fit the panel yet; the draft asks for some.`),
     ...seen.filter((entry) => entry.kind === "suspicious").map((entry) => `Email ${entry.id} from ${entry.from} looks like phishing: ${entry.why ?? "do not click its links"}.`),
   ];
   const result: Result = {
-    headline: `Read ${plural(seen.length, "email")}, found ${plural(applicants.length, "applicant")} and booked ${plural(booked.length, "interview")}${drafts.length > booked.length ? `; ${drafts.length - booked.length} still ${drafts.length - booked.length === 1 ? "needs" : "need"} times` : ""}.`,
+    headline: `Read ${unread.length ? `${seen.length - unread.length} of ${seen.length}` : plural(seen.length, "email")}, found ${plural(applicants.length, "applicant")} and booked ${plural(booked.length, "interview")}${picks.length > booked.length ? `; ${picks.length - booked.length} still ${picks.length - booked.length === 1 ? "needs" : "need"} times` : ""}.`,
     stats: [
-      { value: String(seen.length), label: "emails read" },
+      { value: String(seen.length - unread.length), label: "emails read" },
       { value: String(applicants.length), label: "applicants found" },
       { value: String(booked.length), label: "interviews booked" },
     ],
     sections: [
-      { title: "Interviews", kind: "table", columns: ["Student", "School", "Fit", "When", "With", "Why"], rows: drafts.map((entry) => {
-        const applicant = applicants.find((candidate) => candidate.name === entry.name)!;
-        return [entry.name, applicant.school, String(applicant.fit), entry.slot ? when(entry.slot) : "Asked for times", entry.slot ? `${first(role.manager.name)} + ${first(entry.slot.with)}` : "—", applicant.why];
-      }) },
+      { title: "Interviews", kind: "table", columns: ["Student", "School", "Fit", "When", "With", "Why"], rows: picks.map(({ applicant, slot }) => [applicant.name, applicant.school, String(applicant.fit), slot ? when(slot) : "Asked for times", slot ? `${first(role.manager.name)} + ${first(slot.with)}` : "—", applicant.why]) },
       { title: "Needs your attention", kind: "list", items: attention.length ? attention : ["Nothing."] },
       { title: "Draft invites", kind: "cards", cards: drafts.map((entry) => ({ title: entry.subject, subtitle: `To ${entry.name} <${entry.to}>`, lines: entry.body.split("\n").filter(Boolean) })) },
-      { title: "Every applicant", kind: "table", columns: ["Student", "School", "Year", "Fit", "Status"], rows: applicants.map((applicant) => [applicant.name, applicant.school, applicant.year, String(applicant.fit), applicant.withdrew ? "Withdrew" : applicant.late ? "Late" : drafts.some((entry) => entry.name === applicant.name) ? "Interview" : "Not this round"]) },
+      { title: "Every applicant", kind: "table", columns: ["Student", "School", "Year", "Fit", "Status"], rows: applicants.map((applicant) => [applicant.name, applicant.school, applicant.year, String(applicant.fit), applicant.withdrew ? "Withdrew" : applicant.late ? "Late" : picks.some((pick) => pick.applicant.name === applicant.name) ? "Interview" : "Not this round"]) },
     ],
   };
   return { found: { pages: [[`${booked.length} booked`, `${attention.length} for you to check`]] }, summary: `Booked ${plural(booked.length, "interview")}`, short: "Report ✓", data: result as unknown as Json };
@@ -278,7 +282,14 @@ function writeReport({ seen, applicants, drafts, role }: { seen: Seen[]; applica
 
 // What the orchestrator gets from the inbox and the hiring req before anyone reads: who is hiring for what, and the list of emails.
 type Opened = { role: Role; messages: Head[] };
-const opened = (done: Parameters<Scenario["stages"][number]["plan"]>[0]) => outputsOf<Opened>(done, "open")[0];
+type Done = Parameters<Scenario["stages"][number]["plan"]>[0];
+const opened = (done: Done) => {
+  const result = outputsOf<Opened | null>(done, "open")[0];
+  if (!result) throw new Error("the inbox could not be opened");
+  return result;
+};
+// Every email the boards read. A read step that failed outright (its output has no data) adds nothing.
+const seenIn = (done: Done) => outputsOf<Seen[] | null>(done, "read").flatMap((share) => share ?? []);
 
 export const interviews: Scenario = {
   id: "interviews",
@@ -320,13 +331,13 @@ export const interviews: Scenario = {
       label: "Rank and book the panel",
       short: "Book",
       icon: "calendar",
-      plan: (done) => [{ skill: "book", instruction: `Merge every applicant the boards found, rank them, and book the top ${SHORTLIST} around the panel's calendar`, label: "Rank and book", icon: "calendar", params: { seen: outputsOf<Seen[]>(done, "read").flat(), role: opened(done).role } as unknown as Json, ms: 2500, role: "orchestrator" }],
+      plan: (done) => [{ skill: "book", instruction: `Merge every applicant the boards found, rank them, and book the top ${SHORTLIST} around the panel's calendar`, label: "Rank and book", icon: "calendar", params: { seen: seenIn(done), role: opened(done).role } as unknown as Json, ms: 2500, role: "orchestrator" }],
     },
     {
       label: "Write the invites",
       short: "Invites",
       icon: "reply",
-      plan: (done, prompt) => (outputsOf<{ picks: Pick[] }>(done, "book")[0]?.picks ?? []).map((pick) => ({
+      plan: (done, prompt) => (outputsOf<{ picks: Pick[] } | null>(done, "book")[0]?.picks ?? []).map((pick) => ({
         skill: "draft",
         instruction: pick.slot ? `Write ${pick.applicant.name} an invite for ${when(pick.slot)}` : `Write ${pick.applicant.name} asking for interview times`,
         label: `Invite ${first(pick.applicant.name)}`,
@@ -340,7 +351,7 @@ export const interviews: Scenario = {
       label: "Report back",
       short: "Report",
       icon: "doc",
-      plan: (done) => [{ skill: "report", instruction: "Put the schedule, the drafts and what needs a decision in one report", label: "Write report", icon: "doc", params: { seen: outputsOf<Seen[]>(done, "read").flat(), applicants: outputsOf<{ applicants: Applicant[] }>(done, "book")[0]?.applicants ?? [], drafts: outputsOf<Draft>(done, "draft"), role: opened(done).role } as unknown as Json, ms: 2000, role: "orchestrator" }],
+      plan: (done) => [{ skill: "report", instruction: "Put the schedule, the drafts and what needs a decision in one report", label: "Write report", icon: "doc", params: { seen: seenIn(done), applicants: outputsOf<{ applicants: Applicant[] } | null>(done, "book")[0]?.applicants ?? [], picks: outputsOf<{ picks: Pick[] } | null>(done, "book")[0]?.picks ?? [], drafts: outputsOf<Draft | null>(done, "draft").filter(Boolean), role: opened(done).role } as unknown as Json, ms: 2000, role: "orchestrator" }],
     },
   ],
   skills: {

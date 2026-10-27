@@ -60,6 +60,8 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
         pending = {};
         call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes }).catch(() => (pending = { ...changes, ...pending }));
       }, heartbeatMs);
+      // A board losing power mid-step stops reporting at once, so its lease runs out and the step moves.
+      signal?.addEventListener("abort", () => clearInterval(beat), { once: true });
       try {
         output = await outputOf(task, { partial: (task.partial as Json) ?? null, report });
         if (output?.found && !real) pending.found = output.found;
