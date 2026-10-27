@@ -40,6 +40,17 @@ Kill a node from a terminal the way a board loses power:
 - **Add.** A new node starts empty and the orchestrator adds it to the members through the log, then sends it everything.
 - **Every node restarts.** Each one reloads what it saved; they elect an orchestrator, which replays the log once its first entry commits.
 
+## Real boards
+
+With `CLUSTER_BOARDS` set (say `q-sanyam`), the gateway runs the real Uno Q boards instead of starting its own nodes. The boards and the gateway share a private tailnet, so each board is reached by name, `http://q-<name>:4101`.
+
+- **Joining.** A board runs one command, shown under **Connect a board** on the Cluster page: `curl -fsSL <app>/api/cluster/join.sh | sh -s -- <name> <tailnet auth key>`. The script needs only Docker, which App Lab already runs. It starts the board's own Tailscale container and a `node:24-slim` container running `node.ts` in that container's network, so the node is reachable only on the tailnet. A board with nothing saved asks the app who is in the cluster and joins them, or starts the cluster if nobody is there. A board with a saved log rejoins as it was.
+- **Kill and Restart** power a board off and on (`POST /power` on the node). It stops answering and drops its step, as if unplugged, and comes back from what it saved. Pulling the real plug works the same way.
+- **Services.** Besides the cluster API, the gateway serves what every node can query, on port 4100 (`SERVICES_URL` on a board, over the tailnet only): the model (`POST /llm`, since boards have no key) and the demo company's mail (`/mail/inbox`, `/mail/messages/:id`), calendar (`/calendar/events`) and hiring req (`/hiring/role`), from `scenarios/data/interviews.json`. Boards do not get that file; they ask for what they need (`services.ts`).
+- **The demo** (`scenarios/interviews.ts`, the Assistant's first card): a hiring manager's inbox of 77 made-up emails (31 applications with resumes, availability replies, withdrawals, referrals, a duplicate, a phishing email and everyday noise) and the panel's calendar. The orchestrator opens the inbox and splits it five ways; each board fetches its emails and reads them with DeepSeek-V4.1-Flash four at a time, reporting real progress, what it found so far and a checkpoint (the emails it has read), so a board that takes over a dead board's share starts after them. The orchestrator then merges and ranks the applicants in code and books the best six around the calendar; each board writes one invite, streamed onto the page; the orchestrator writes the report. **Open the demo inbox** on the page shows the data. A run takes about a minute.
+- **The live job** (`scenarios/ask.ts`): anything a person types, split into up to five parts the boards work at once, then combined.
+- Raft needs a majority, so a failover needs at least three boards.
+
 ## Gateway routes
 
 | Method | Path | Purpose |

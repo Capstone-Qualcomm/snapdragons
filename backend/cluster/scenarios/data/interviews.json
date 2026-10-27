@@ -1,0 +1,1144 @@
+{
+ "company": "Lumen Labs",
+ "role": "Software Engineering Intern, Platform (Summer 2027)",
+ "manager": {
+  "name": "Dana Whitfield",
+  "email": "dana.whitfield@lumenlabs.example",
+  "title": "Engineering Manager, Platform"
+ },
+ "job": "Platform interns build the internal services every Lumen Labs team deploys on: a job scheduler, a metrics pipeline and the deploy tool. We want students graduating 2027 or 2028 who have written real backend code. Strong signals: Go, Python or Rust; distributed systems or operating systems coursework; databases (Postgres); Linux and containers; a project that runs as a service other people use. Nice to have: Kubernetes, observability, an earlier internship. Remote-friendly, but the intern must overlap 10am to 3pm Central.",
+ "panel": [
+  "Dana Whitfield",
+  "Marcus Lee",
+  "Priya Natarajan"
+ ],
+ "week": [
+  "2026-11-02",
+  "2026-11-03",
+  "2026-11-04",
+  "2026-11-05",
+  "2026-11-06"
+ ],
+ "busy": [
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-02",
+   "start": "09:00",
+   "end": "10:30",
+   "what": "Platform staff meeting"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-02",
+   "start": "13:00",
+   "end": "14:00",
+   "what": "1:1 with Sam"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-03",
+   "start": "13:00",
+   "end": "15:00",
+   "what": "Offsite planning"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-03",
+   "start": "09:00",
+   "end": "10:00",
+   "what": "Hiring sync"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-04",
+   "start": "11:00",
+   "end": "12:30",
+   "what": "Quarterly roadmap review"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-04",
+   "start": "15:00",
+   "end": "16:00",
+   "what": "1:1s"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-05",
+   "start": "09:00",
+   "end": "11:00",
+   "what": "Incident review"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-05",
+   "start": "14:00",
+   "end": "15:00",
+   "what": "Vendor call (Datadog)"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-06",
+   "start": "14:00",
+   "end": "15:00",
+   "what": "Engineering all-hands"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-06",
+   "start": "10:00",
+   "end": "11:00",
+   "what": "Budget"
+  },
+  {
+   "who": "Dana Whitfield",
+   "day": "2026-11-06",
+   "start": "15:30",
+   "end": "17:00",
+   "what": "Focus time"
+  },
+  {
+   "who": "Marcus Lee",
+   "day": "2026-11-02",
+   "start": "10:00",
+   "end": "12:00",
+   "what": "On call handoff"
+  },
+  {
+   "who": "Marcus Lee",
+   "day": "2026-11-03",
+   "start": "13:00",
+   "end": "15:00",
+   "what": "Offsite planning"
+  },
+  {
+   "who": "Marcus Lee",
+   "day": "2026-11-04",
+   "start": "09:00",
+   "end": "10:00",
+   "what": "Standup + deploy"
+  },
+  {
+   "who": "Marcus Lee",
+   "day": "2026-11-05",
+   "start": "12:00",
+   "end": "17:00",
+   "what": "Out (dentist)"
+  },
+  {
+   "who": "Marcus Lee",
+   "day": "2026-11-06",
+   "start": "14:00",
+   "end": "15:00",
+   "what": "Engineering all-hands"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-02",
+   "start": "13:00",
+   "end": "16:00",
+   "what": "Design review"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-03",
+   "start": "09:00",
+   "end": "12:00",
+   "what": "Scheduler deep work"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-03",
+   "start": "13:00",
+   "end": "15:00",
+   "what": "Offsite planning"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-04",
+   "start": "13:00",
+   "end": "14:30",
+   "what": "Architecture council"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-05",
+   "start": "10:00",
+   "end": "11:30",
+   "what": "Mentoring"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-06",
+   "start": "09:00",
+   "end": "10:30",
+   "what": "Interview loop (other team)"
+  },
+  {
+   "who": "Priya Natarajan",
+   "day": "2026-11-06",
+   "start": "14:00",
+   "end": "15:00",
+   "what": "Engineering all-hands"
+  }
+ ],
+ "emails": [
+  {
+   "id": 1,
+   "from": {
+    "name": "Amara Delgado",
+    "email": "amara.delgado@purdue.edu"
+   },
+   "date": "2026-10-27T21:56:00-05:00",
+   "subject": "Re: Interview availability - Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks so much for reaching out. I'm excited about the Platform internship and would love to interview next week.\n\nTuesday, November 3 works well for me anytime between 11am and 3pm Central. I'm flexible within that window, so feel free to pick whatever slot fits your schedule best. My time zone is Central, so no conversion needed on my end.\n\nIf Tuesday fills up, I can usually make other times work too, just let me know.\n\nLooking forward to it, and thanks again for the opportunity.\n\nBest,\nAmara Delgado"
+  },
+  {
+   "id": 2,
+   "from": {
+    "name": "Security Training",
+    "email": "training@lumenlabs.example"
+   },
+   "date": "2026-10-27T17:28:00-05:00",
+   "subject": "Action needed: Your annual security awareness training (due Nov 15)",
+   "body": "Hi Dana,\n\nThis is a reminder that your annual security awareness training is due by November 15. The course takes about 25 minutes to complete and covers phishing, data handling, and incident reporting — all things we're required to review each year.\n\nYou can access it through the Lumen Learn portal under \"Required Training.\" If you've already completed it, thank you, and you can disregard this message. If not, please aim to finish it before the deadline so we can keep our compliance records up to date.\n\nManagers, please encourage your teams to complete theirs as well. We'll send a final reminder next week, and anyone with an outstanding assignment after the 15th will be flagged in the monthly compliance report.\n\nIf you run into any access issues or have questions about the content, reply to this email and we'll help you sort it out.\n\nThanks,\nSecurity Training Team\nLumen Labs"
+  },
+  {
+   "id": 3,
+   "from": {
+    "name": "Aisha Okafor",
+    "email": "aisha.okafor@wisc.edu"
+   },
+   "date": "2026-10-27T16:27:00-05:00",
+   "subject": "Re: Interview Availability — Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks so much for reaching out — I'm excited to move forward. Next week works well for me. I'm available Monday, Nov 2, from 10am to 1pm Central, and Tuesday, Nov 3, also 10am to 1pm Central. Either day is fine, so feel free to pick whatever fits your schedule. If those windows don't work, I can be flexible later in the week — just let me know.\n\nWould a video call be best? Happy to confirm details once you send the invite.\n\nThanks again,\nAisha Okafor"
+  },
+  {
+   "id": 4,
+   "from": {
+    "name": "LinkedIn",
+    "email": "messages-noreply@linkedin.example"
+   },
+   "date": "2026-10-27T15:42:00-05:00",
+   "subject": "You appeared in 47 searches this week",
+   "body": "Hi Dana,\n\nYou appeared in 47 searches this week. That's up from 21 last week.\n\nThe people searching for you also viewed these profiles:\n\n- Priya Raman, Staff Engineer at Lumen Labs\n- Marcus Oyelaran, Hiring Manager at Northwind Systems\n- Elena Vasquez, Engineering Director at Lumen Labs\n\nYou have 3 new suggested connections:\n\n- Tom Becker, Site Reliability Engineer at Lumen Labs\n- Aisha Khan, Product Manager at Northwind Systems\n- Devin Park, CTO at Finch AI\n\nSee all searches: https://www.linkedin.example/search-analytics\n\nYou are receiving Search Appearance emails. Unsubscribe: https://www.linkedin.example/unsubscribe\n\nLinkedIn Corporation, 1000 W Maude Ave, Sunnyvale, CA 94085\n\n(c) 2024 LinkedIn Corporation. All rights reserved."
+  },
+  {
+   "id": 5,
+   "from": {
+    "name": "Yara Mensah",
+    "email": "yara.mensah@wisc.edu"
+   },
+   "date": "2026-10-27T15:25:00-05:00",
+   "subject": "Re: Interview availability — Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks for reaching out, and I'm glad to hear Lumen Labs wants to move forward with an interview. Next week actually works well for me on both days you'd expect.\n\nMonday, Nov 2 — I'm free from 10am to 1pm Central.\nTuesday, Nov 3 — I'm free from 10am to 2pm Central.\n\nEither morning block is open on my end, so feel free to pick whatever fits your schedule best and send over the details. I'm in Central time myself, so no conversion needed on my side. If neither window works, just let me know and I can look at later in the week.\n\nLooking forward to it — thanks again!\n\nBest,\nYara Mensah"
+  },
+  {
+   "id": 6,
+   "from": {
+    "name": "Daniel Lindqvist",
+    "email": "daniel.lindqvist@illinois.edu"
+   },
+   "date": "2026-10-27T14:16:00-05:00",
+   "subject": "Withdrawal of Application - Software Engineering Intern, Platform",
+   "body": "Dear Lumen Labs Hiring Team,\n\nI hope this message finds you well. I am writing to respectfully withdraw my application for the Software Engineering Intern, Platform position for Summer 2027. I was fortunate to receive a return offer from my previous internship and have decided to accept it. I truly appreciate the time and consideration you have given my application, and I am sorry for any inconvenience this may cause. I hope to have the opportunity to apply again in the future. Thank you again.\n\nBest regards,\nDaniel Lindqvist"
+  },
+  {
+   "id": 7,
+   "from": {
+    "name": "Ben Haddad",
+    "email": "ben.haddad@umn.edu"
+   },
+   "date": "2026-10-27T12:58:00-05:00",
+   "subject": "Following up on Software Engineering Intern application",
+   "body": "Hi Lumen Labs team,\n\nI applied for the Software Engineering Intern, Platform role for Summer 2027 about a week ago and wanted to check that my application came through. I'm still very interested in the position and would be glad to answer any questions. My resume and portfolio are included in my original submission. Thanks for your time, and I look forward to hearing from you.\n\nBest,\nBen Haddad"
+  },
+  {
+   "id": 8,
+   "from": {
+    "name": "Divya Reyes",
+    "email": "divya.reyes@iastate.edu"
+   },
+   "date": "2026-10-27T12:02:00-05:00",
+   "subject": "Re: Interview Availability - Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks so much for reaching out! I'm really excited about the opportunity to interview with Lumen Labs.\n\nNext week works well for me. Here are some times that would be good, all in Central time:\n\nMonday, Nov 2: 10am to 1pm\nTuesday, Nov 3: 1pm to 3pm\nThursday, Nov 5: 11am to 2pm\n\nLet me know which slot works best for your team, and I'm happy to confirm. Also, if you need anything else from me beforehand, just let me know.\n\nThanks again, and I look forward to speaking with you!\n\nBest,\nDivya Reyes"
+  },
+  {
+   "id": 9,
+   "from": {
+    "name": "Priya Natarajan",
+    "email": "priya.natarajan@lumenlabs.example"
+   },
+   "date": "2026-10-27T09:52:00-05:00",
+   "subject": "Design doc review request: job scheduler retry policy (3 open questions)",
+   "body": "Hi Dana,\n\nI've put together a design doc for the new job scheduler retry policy and would love your review before we bring it to the team on Thursday. The doc is https://docs.lumenlabs.example/d/scheduler-retry-policy and it's about a 15-minute read.\n\nQuick context: our current retry logic is a fixed 3-attempt, 30-second delay across all job types, which is causing head-of-line blocking for long-running batch jobs and unnecessary retries for transient network blips. The proposal is a per-job-type policy with exponential backoff and jitter, plus a circuit breaker for downstream services.\n\nI have three open questions where I'd especially value your input:\n\n1. Should the retry policy be configurable at the job-type level only, or also per individual job instance? The latter adds flexibility but complicates the config surface.\n2. For the circuit breaker, what failure threshold makes sense for platform-level services? I've tentatively set 50% over a 60-second window, but I'm not confident that's right for high-volume services.\n3. Do we need to preserve ordering guarantees for retried jobs? If so, that rules out the jittered backoff approach for ordered queues.\n\nHappy to walk through it live if that's easier. I know you're slammed this week, so even a quick pass on the open questions would be helpful.\n\nThanks,\nPriya"
+  },
+  {
+   "id": 10,
+   "from": {
+    "name": "Office Team",
+    "email": "office@lumenlabs.example"
+   },
+   "date": "2026-10-26T17:33:00-05:00",
+   "subject": "Halloween potluck thanks + lost & found + parking garage closure Nov 4",
+   "body": "Hi everyone,\n\nQuick recap from Friday's Halloween potluck: thank you to everyone who came out and especially to those who brought food. The chili cook-off was a tie between Priya and Marcus, so we're declaring co-champions and splitting the remaining candy. We had about 40 people stop by, and the costume contest went to the three-person group dressed as the printer from Office Space that keeps jamming. You know who you are.\n\nLost and found from the event is piling up in the 4th floor break room. Currently we have: one black cardigan (size M), a reusable purple water bottle with stickers on it, a pair of blue earbuds in a white case, and a set of car keys with a tiny flashlight. If any of these are yours, grab them by end of day Thursday. Anything unclaimed goes to donation on Friday.\n\nOne facilities note: the parking garage on Level B will be closed Monday Nov 4 for scheduled lighting repairs. If you park there, use the surface lot on Cedar Street that day. Entry code will be posted at the gate. Sorry for the short notice.\n\nQuestions? Reply here or stop by the front desk.\n\nThanks,\nOffice Team"
+  },
+  {
+   "id": 11,
+   "from": {
+    "name": "Elena Liu",
+    "email": "elena.liu@umich.edu"
+   },
+   "date": "2026-10-26T16:12:00-05:00",
+   "subject": "Following up on Software Engineering Intern, Platform application",
+   "body": "Hi Lumen Labs team,\n\nI applied for the Software Engineering Intern, Platform role (Summer 2027) about a week ago and wanted to check that my application came through okay. I know things get busy, so no worries if it's still in the queue.\n\nI'm still really excited about the opportunity. The platform work you all do is exactly the kind of thing I want to be doing, and I'd love to be considered.\n\nThanks for your time,\nElena Liu"
+  },
+  {
+   "id": 12,
+   "from": {
+    "name": "Aisha Okafor",
+    "email": "aisha.okafor@wisc.edu"
+   },
+   "date": "2026-10-26T11:38:00-05:00",
+   "subject": "Following up on Software Engineering Intern, Platform application",
+   "body": "Hi Lumen Labs team,\n\nI applied for the Software Engineering Intern, Platform role (Summer 2027) about a week ago and wanted to make sure my application came through. I know you're probably sorting through a lot right now, so no rush at all — I just wanted to confirm it arrived.\n\nI'm still really excited about the Platform team and the work you're doing. If there's anything else you need from me to move things along, just let me know.\n\nThanks for your time!\nAisha Okafor"
+  },
+  {
+   "id": 13,
+   "from": {
+    "name": "Hassan Joshi",
+    "email": "hassan.joshi@gatech.edu"
+   },
+   "date": "2026-10-26T10:44:00-05:00",
+   "subject": "Re: Interview availability - Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks for reaching out, I'm excited to move forward! Next week I'm available Wednesday Nov 4 from 2 to 5pm and Thursday Nov 5 from 11am to 1pm, all Central time. Either window is fine and I can do a video call. If none of those work, let me know and I'll try to rearrange. Looking forward to talking with the team about the Platform internship.\n\nBest,\nHassan Joshi"
+  },
+  {
+   "id": 14,
+   "from": {
+    "name": "Pedro Alves",
+    "email": "pedro.alves@illinois.edu"
+   },
+   "date": "2026-10-26T09:41:00-05:00",
+   "subject": "Re: Interview Availability — Software Engineering Intern, Platform",
+   "body": "Hi Dana,\n\nThanks so much for reaching out, I'm really glad to hear from you. I'd love to move forward with the interview for the Software Engineering Intern, Platform role.\n\nNext week works well for me. I'm available Monday Nov 2 from 10am to 2pm, Tuesday Nov 3 from 11am to 3pm, and Thursday Nov 5 from 1pm to 5pm. All of these are Central time.\n\nLet me know which slot fits best and I'll make it work. Looking forward to it.\n\nBest,\nPedro Alves"
+  },
+  {
+   "id": 15,
+   "from": {
+    "name": "Datadog",
+    "email": "billing@datadog.example"
+   },
+   "date": "2026-10-25T22:39:00-05:00",
+   "subject": "Your Lumen Labs Datadog usage report is ready",
+   "body": "Hi Dana,\n\nYour monthly usage report for Lumen Labs is now available in your Datadog account. Here is a quick summary for the billing period ending March 31.\n\nCustom metrics: 4.2 million, up 18 percent from last month. This remains your fastest-growing usage category. Hosts: 212, up 6 percent. Log management: 1.9 TB ingested, roughly flat. APM: 38 million indexed spans, up 9 percent.\n\nNo action is needed right now, but your custom metrics volume is approaching the tier threshold on your current plan. If the trend continues, you may want to review which metrics are being submitted as custom versus standard, since many common integrations can be configured to emit standard metrics at no extra custom metric cost.\n\nYou can break usage down by team, service, and metric name in the Usage Attribution page, or set a custom metrics monitor to alert you if volume crosses a threshold you choose.\n\nFull details and your invoice estimate are in the Plan and Usage section of your account. If you have questions about the report or want help reducing custom metric volume, just reply to this email or open a ticket from your account.\n\nThanks for being a Datadog customer.\n\nThe Datadog Billing Team"
+  },
+  {
+   "id": 16,
+   "from": {
+    "name": "Nikhil Schultz",
+    "email": "nikhil.schultz@umn.edu"
+   },
+   "date": "2026-10-25T21:12:00-05:00",
+   "subject": "Withdrawing Application - Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Lumen Labs Recruiting Team,\n\nI hope you're doing well. I'm writing to withdraw my application for the Software Engineering Intern, Platform position for Summer 2027. After some thought, I've decided to stay on campus next summer to focus on a research project with my advisor.\n\nI really appreciate the time your team put into reviewing my application, and I'm sorry for any inconvenience this causes.\n\nThanks again, and I hope to apply again in the future.\n\nBest,\nNikhil Schultz"
+  },
+  {
+   "id": 17,
+   "from": {
+    "name": "Payroll Notice",
+    "email": "payroll-update@lumen-labs-hr.example"
+   },
+   "date": "2026-10-25T20:38:00-05:00",
+   "subject": "Urgent: Confirm Your Direct Deposit Details Before Friday",
+   "body": "Dear Dana Whitfield,\n\nOur records indicate that your direct deposit information may be out of date. To ensure your next paycheck is delivered on time, please confirm your banking details by Friday, November 15.\n\nTo update your information, click here: http://lumen-labs-payroll.example/verify\n\nIf you do not confirm your details, your payment may be delayed. This is a required action per company policy.\n\nThank you,\nPayroll Notice\npayroll-update@lumen-labs-hr.example"
+  },
+  {
+   "id": 18,
+   "from": {
+    "name": "Carmen Brennan",
+    "email": "carmen.brennan@purdue.edu"
+   },
+   "date": "2026-10-25T20:38:00-05:00",
+   "subject": "Re: Interview availability — Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks so much for reaching out. I'm excited to move forward. I can do any of these next week, all Central time: Wednesday Nov 4, 1 to 4pm; Thursday Nov 5, 9am to 1pm; Friday Nov 6, 2 to 4pm. Thursday morning works best for me, but I'm flexible. Also happy to use whatever video platform you prefer.\n\nBest,\nCarmen Brennan"
+  },
+  {
+   "id": 19,
+   "from": {
+    "name": "Coursera",
+    "email": "no-reply@coursera.example"
+   },
+   "date": "2026-10-25T20:30:00-05:00",
+   "subject": "New course recommendations for engineering managers",
+   "body": "Hi Dana,\n\nBecause you've completed courses in engineering leadership, we thought you might be interested in these new programs:\n\nLeading Platform Teams: This course covers service ownership, on-call culture, and how to set platform roadmaps that internal customers actually adopt. About 6 hours per week for 4 weeks.\n\nTechnical Strategy for Engineering Managers: Learn to connect architecture decisions to business outcomes, run build-versus-buy reviews, and communicate tradeoffs to executives. 4 weeks, self-paced.\n\nCoaching Senior Engineers: Practical frameworks for giving feedback, sponsoring promotions, and keeping staff-level engineers engaged. 3 weeks.\n\nYou can preview any syllabus free, and your organization's learning benefits may cover the certificate. If you'd rather not get these emails, update your preferences in account settings.\n\nHappy learning,\nThe Coursera Team\n\nThis message was sent to you because you opted in to course recommendations. Coursera, 2440 W El Camino Real, Mountain View, CA 94040"
+  },
+  {
+   "id": 20,
+   "from": {
+    "name": "AWS",
+    "email": "no-reply-aws@amazon.example"
+   },
+   "date": "2026-10-25T16:17:00-05:00",
+   "subject": "Action required: Your AWS Reserved Instances for Lumen Labs expire in 30 days",
+   "body": "Dear Dana Whitfield,\n\nWe are writing to inform you that your AWS Reserved Instances (RIs) associated with account ID 123456789012 will expire in 30 days, on November 15, 2025. This includes 10 m5.large instances in the US East (N. Virginia) region that you purchased on November 15, 2024.\n\nAs a reminder, once these RIs expire, your instances will continue to run but will be billed at the standard On-Demand rate. To avoid unexpected cost increases, you can renew your RIs or purchase new ones before the expiration date. You can do this through the AWS Management Console under the Reserved Instances section, or by using the AWS CLI.\n\nIf you no longer need these RIs, no action is required. However, we recommend reviewing your usage to ensure you have the appropriate coverage for your workloads.\n\nFor more information, see the following resources:\n- Renewing Reserved Instances: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ri-renewal.html\n- Reserved Instances overview: https://aws.amazon.com/ec2/pricing/reserved-instances/\n\nPlease note that this is a system-generated message and replies to this address are not monitored. If you need assistance, contact AWS Support.\n\nThank you for using Amazon Web Services.\n\nSincerely,\nAmazon Web Services"
+  },
+  {
+   "id": 21,
+   "from": {
+    "name": "Marcus Lee",
+    "email": "marcus.lee@lumenlabs.example"
+   },
+   "date": "2026-10-25T13:28:00-05:00",
+   "subject": "Referral for Pedro Alves - Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'd like to refer Pedro Alves (pedro.alves@illinois.edu) for the Software Engineering Intern, Platform role this summer. He was a TA in my distributed systems course and ran the best office hours I've seen. He didn't just answer questions, he got students to reason through failure modes on their own, and his Raft debugging sessions were the reason a lot of groups passed the final project.\n\nI think he'd be a strong fit for the platform team. I'm happy to set up a quick chat if you want more detail.\n\nThanks,\nMarcus"
+  },
+  {
+   "id": 22,
+   "from": {
+    "name": "Samuel Lindgren",
+    "email": "samuel.lindgren@northwestern.edu"
+   },
+   "date": "2026-10-25T12:57:00-05:00",
+   "subject": "Re: Interview Availability – Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nThanks for reaching out and for considering my application for the Software Engineering Intern, Platform role at Lumen Labs. I'm excited about the opportunity.\n\nNext week I'm available during the following windows (all Central time):\n\n- Monday, Nov 2: 9 AM to 12 PM\n- Wednesday, Nov 4: 2 PM to 5 PM\n- Thursday, Nov 5: 2 PM to 5 PM\n\nAny of those work equally well for me. Please let me know what fits your schedule and whether I should prepare anything in advance.\n\nBest,\nSamuel Lindgren"
+  },
+  {
+   "id": 23,
+   "from": {
+    "name": "Kayla Ortiz",
+    "email": "kayla.ortiz@lumenlabs.example"
+   },
+   "date": "2026-10-25T11:47:00-05:00",
+   "subject": "Quick follow-up on the platform interview loop",
+   "body": "Hi Dana,\n\nFollowing up from our recruiting sync earlier this week. A few things to keep on your radar as you and the panel wrap up the Platform interviews.\n\nFirst, the interview is 45 minutes on video. Please make sure every candidate hears that directly from us before they show up, not just from the calendar invite. We have had a couple of people expect a full hour or assume it is onsite, so a quick line in the confirmation email helps.\n\nSecond, the rubric is the same one we reviewed last month. Same four areas and the same 1 to 4 scale. If anyone on the panel is working from an older version, let me know and I can resend it. Scores should be in before the debrief so we are not reconstructing feedback from memory at the end of a long day.\n\nThird, I am planning to send offers the week after next, assuming the feedback is in on time. If that timeline is tight for you, tell me now and I will adjust rather than surprise anyone later.\n\nThanks Dana. Happy to jump on a quick call if anything needs clarifying.\n\nKayla"
+  },
+  {
+   "id": 24,
+   "from": {
+    "name": "Victor Qureshi",
+    "email": "victor.qureshi@cmu.edu"
+   },
+   "date": "2026-10-25T09:18:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Victor Qureshi",
+   "body": "Hi Dana,\n\nI'm Victor Qureshi, a senior in Computer Science at Carnegie Mellon University, writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I came across the role through the CMU career portal and it immediately stood out because it focuses on the kind of internal services I've been building and studying throughout my time here.\n\nMy coursework and projects have centered on systems and distributed infrastructure. As a teaching assistant for 15-213: Introduction to Computer Systems, I've deepened my understanding of operating systems, concurrency, and low-level performance. Outside class, I built a job queue service in Go that a campus research group now uses to process data jobs on a small cluster. That experience taught me a lot about reliability, backpressure, and observability in a real deployment.\n\nI meet your requirement to overlap from 10am to 3pm Central, since I'm based in Pittsburgh (Eastern). I'd love to learn more about how Lumen Labs builds and scales its platform.\n\nI'm available for an interview next week on Wednesday November 4 from 11am to 1pm, or Friday November 6 from 2pm to 4pm Central time. Please let me know if either slot works.\n\nMy resume is pasted below.\n\nBest,\nVictor Qureshi\nvictor.qureshi@cmu.edu",
+   "attachments": [
+    {
+     "name": "Victor_Qureshi_Resume.pdf",
+     "text": "Victor Qureshi\nvictor.qureshi@cmu.edu | (412) 555-0198 | Pittsburgh, PA\n\nEDUCATION\nCarnegie Mellon University, Pittsburgh, PA\nBachelor of Science in Computer Science, Expected May 2027\nGPA: 3.46/4.0\nRelevant coursework: Distributed Systems (15-440), Operating Systems (15-410), Database Systems (15-445), Computer Networks (15-441), Parallel Computer Architecture (15-418), Introduction to Computer Systems (15-213).\n\nEXPERIENCE\nTeaching Assistant, Introduction to Computer Systems (15-213), Carnegie Mellon University\nJanuary 2026 - Present\n- Lead weekly recitations for 25 students, covering topics such as caching, linking, and concurrency.\n- Hold office hours to debug student C code, focusing on memory bugs and performance bottlenecks.\n- Grade exams and programming assignments, providing detailed feedback on low-level implementation choices.\n\nPROJECTS\nGo Job Queue Service\n- Built a distributed job queue in Go that schedules tasks across a small cluster, with a REST API and Prometheus metrics.\n- Implements at-least-once delivery, persistent job storage in Postgres, and graceful shutdown.\n- Deployed using Docker Compose; used by a campus research group for data processing experiments (approximately 100 jobs/day).\n- Code: github.com/vqureshi/go-job-queue\n\nMini Kubernetes Controller\n- Wrote a custom controller in Go that watches for Pod events and ensures a minimum replica count for a toy service.\n- Uses client-go and interacts with the Kubernetes API server; tested on Minikube.\n- Added unit tests and structured logging with zap.\n\nDistributed Key-Value Store\n- Implemented a Raft-based key-value store in C++ for 15-440, supporting leader election and log replication.\n- Passed all test cases for linearizability and fault tolerance; benchmarked under simulated network partitions.\n- Integrated gRPC for client communication and used etcd as a reference for design.\n\nSKILLS\nLanguages: Go, C++, Python, SQL, Bash\nTechnologies: Linux, Docker, Kubernetes, Postgres, Redis, gRPC, Git, Prometheus\nConcepts: Distributed systems, operating systems, concurrency, networking\n\nADDITIONAL\n- Member of CMU Systems Club, participated in hackathons and CTFs.\n- Available for Summer 2027 internship; can overlap 10am-3pm Central time (based in Eastern)."
+    }
+   ]
+  },
+  {
+   "id": 25,
+   "from": {
+    "name": "Maya Nasser",
+    "email": "maya.nasser@wisc.edu"
+   },
+   "date": "2026-10-24T19:18:00-05:00",
+   "subject": "Re: Interview Availability - Software Engineering Intern, Platform",
+   "body": "Hi Dana,\n\nThanks so much for reaching out! I'm really excited about the Software Engineering Intern, Platform role at Lumen Labs.\n\nNext week works great for me. I'm available Tuesday, Nov 3 from 11am to 1pm, and Wednesday, Nov 4 from 10am to 2pm. All times are Central.\n\nIf either of those windows works on your end, just let me know which slot to hold and I'll confirm. Happy to be flexible if something else fits your schedule better.\n\nLooking forward to chatting,\nMaya Nasser"
+  },
+  {
+   "id": 26,
+   "from": {
+    "name": "Liam Kapoor",
+    "email": "liam.kapoor@madisoncollege.edu"
+   },
+   "date": "2026-10-24T18:15:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'm Liam Kapoor, a junior at Madison College majoring in Game Design. I'm applying for the Software Engineering Intern, Platform role for Summer 2027. I saw the posting and think it could be a great fit because I love building systems that other people use.\n\nMost of my coding has been in C# and Unity. I've built a multiplayer game prototype with real-time state sync and a matchmaking lobby. While that's game dev, it taught me a lot about networking, concurrency, and making things run smoothly under load. I also did a social media internship last summer where I wrote some Python scripts to automate content scheduling and basic analytics. That was my first taste of backend work, and I enjoyed it.\n\nI know the job mentions Go, Python, or Rust, and Postgres. I've used Python before and I'm eager to learn Go and databases more deeply. I'm comfortable on Linux and have played with Docker for my projects. I'm free for an interview next week, Friday Nov 6 from 1pm to 5pm Central time. I'm in the Central time zone, so that works well.\n\nThanks for considering my application. I'd love to talk about how I can contribute to the Platform team.\n\nBest,\nLiam Kapoor\nliam.kapoor@madisoncollege.edu",
+   "attachments": [
+    {
+     "name": "Liam_Kapoor_Resume.pdf",
+     "text": "Liam Kapoor\nliam.kapoor@madisoncollege.edu\n\nEDUCATION\nMadison College, Madison, WI\nAssociate of Applied Science in Game Design, expected May 2027\nGPA: 3.3/4.0\nRelevant coursework: Data Structures, Algorithms, Object-Oriented Programming with C#, Game Networking, Database Fundamentals, Operating Systems, Web Development\n\nEXPERIENCE\nSocial Media Intern, Badger Media, Madison, WI (Summer 2026)\n- Created and scheduled social media posts across multiple platforms using Hootsuite and Buffer.\n- Wrote Python scripts to automate the collection of basic engagement metrics (likes, shares, comments) from Twitter and Instagram APIs, reducing manual reporting time by 30%.\n- Collaborated with the marketing team to analyze post performance and suggest content improvements.\n- Gained experience with version control (Git) and working in a team.\n\nPROJECTS\nMultiplayer Arena Shooter (Unity, C#)\n- Developed a real-time multiplayer game with server-authoritative movement and shooting.\n- Implemented client-side prediction and server reconciliation to reduce perceived lag.\n- Used Unity's UNET (now Mirror) for networking, handling up to 8 concurrent players.\n- Built a matchmaking lobby system that groups players by skill level.\n- Deployed the game server on a Linux VM using Docker for easy setup.\n\nTask Scheduler (Python)\n- Created a simple job scheduler that runs user-defined tasks at specified intervals.\n- Used Python's threading and queue modules to manage concurrent jobs.\n- Stored job metadata in a JSON file and logged execution results.\n- Ran it as a background service on my Raspberry Pi to automate backups and reminders.\n\nPersonal Website (HTML, CSS, JavaScript)\n- Built a portfolio site to showcase my game projects and resume.\n- Deployed on GitHub Pages and used basic responsive design.\n\nSKILLS\nLanguages: C#, Python, JavaScript, SQL\nFrameworks/Engines: Unity, .NET\nTools: Git, Docker, Linux command line, Postman\nDatabases: SQLite, basic PostgreSQL\n\nADDITIONAL\n- Interested in backend development and distributed systems.\n- Quick learner, enjoy picking up new languages and tools.\n- Available for remote work with 10am-3pm Central overlap."
+    }
+   ]
+  },
+  {
+   "id": 27,
+   "from": {
+    "name": "Grace Patel",
+    "email": "grace.patel@northwestern.edu"
+   },
+   "date": "2026-10-24T17:39:00-05:00",
+   "subject": "Following up on Software Engineering Intern, Platform application",
+   "body": "Hi Lumen Labs team,\n\nI applied for the Software Engineering Intern, Platform role for Summer 2027 about a week ago and wanted to check that my application came through okay. I know things get busy, so no worries if it's still in the queue.\n\nI'm still really excited about the Platform team and the chance to work on backend systems at Lumen. Happy to send anything else you might need.\n\nThanks for your time,\nGrace Patel"
+  },
+  {
+   "id": 28,
+   "from": {
+    "name": "Nikhil Schultz",
+    "email": "nikhil.schultz@umn.edu"
+   },
+   "date": "2026-10-24T16:44:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Nikhil Schultz",
+   "body": "Hi Dana,\n\nI'm writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I'm a junior in Computer Engineering at the University of Minnesota, and I'm excited about building internal services that other teams rely on.\n\nI saw the job description and it aligns well with what I've been learning and doing. I've taken courses in Operating Systems and Databases, and I've built a few projects that run as services. For example, I wrote a Python-based job queue with a Postgres backend that my classmates used for a distributed computing assignment. I also have experience with Linux and containers from my IT help desk job, where I maintained a small Kubernetes cluster for internal tools. I'm comfortable with C, Linux, and Python, and I'm eager to learn Go or Rust. I've also dabbled in observability, setting up Prometheus and Grafana for a personal project.\n\nI'm available for an interview next week at these times (Central):\n- Tuesday, Nov 3: 2pm–5pm\n- Friday, Nov 6: 11am–3pm\n\nI'm remote-friendly and can overlap 10am–3pm Central. My resume is below. Thank you for your consideration.\n\nBest,\nNikhil Schultz\n\nPhone: (612) 555-1234",
+   "attachments": [
+    {
+     "name": "Nikhil_Schultz_Resume.pdf",
+     "text": "EDUCATION\nUniversity of Minnesota, Minneapolis, MN\nBachelor of Science in Computer Engineering, expected May 2027\nGPA: 3.64/4.00\n\nEXPERIENCE\nIT Help Desk Assistant, University of Minnesota, Sep 2024 - Present\n- Provide technical support for 500+ students and staff, resolving hardware and software issues.\n- Maintain an internal knowledge base, reducing repeat tickets by 15%.\n- Assisted in deploying a containerized ticketing system using Docker and Kubernetes, improving uptime.\n\nPROJECTS\nDistributed Job Queue, Fall 2025\n- Built a job scheduler in Python with a Postgres backend, allowing users to submit and monitor tasks.\n- Implemented a REST API and used multithreading to handle concurrent jobs.\n- Deployed on a Linux VM with Docker; used by 20+ classmates for a distributed computing assignment.\n\nMetrics Pipeline, Spring 2025\n- Created a simple metrics collection pipeline in Python that ingests data from sensors and stores it in Postgres.\n- Visualized data with Grafana; set up alerting for threshold breaches.\n- Ran as a service on a Raspberry Pi, used by a research group for environmental monitoring.\n\nPersonal Website, Ongoing\n- Developed a static site generator in C to learn systems programming.\n- Hosted on a Linux server with Nginx; uses Git for deployment.\n\nSKILLS\n- Programming: C, Python, Bash\n- Systems: Linux (Ubuntu, CentOS), Docker, Kubernetes (basic)\n- Databases: PostgreSQL, SQLite\n- Tools: Git, Prometheus, Grafana, Nginx\n\nCOURSEWORK\n- Operating Systems (Fall 2025)\n- Databases (Spring 2025)\n- Computer Networks (Fall 2024)\n- Data Structures and Algorithms (Spring 2024)\n- Distributed Systems (in progress, Spring 2026)"
+    }
+   ]
+  },
+  {
+   "id": 29,
+   "from": {
+    "name": "Product Weekly",
+    "email": "newsletter@lumenlabs.example"
+   },
+   "date": "2026-10-24T15:54:00-05:00",
+   "subject": "Product Weekly: Three launches and a customer who gets it",
+   "body": "Hey Dana,\n\nQuick rundown of what shipped this week across the platform.\n\n1. Async webhook retries are live. Failed deliveries now retry with exponential backoff for up to 24 hours. This was the top request from the API council, so big thanks to your team for the infra work.\n\n2. New usage dashboard in the admin console. Customers can now see API calls, storage, and seat counts in one view. No more exporting CSVs to answer \"how much are we using?\" (Looking at you, every QBR ever.)\n\n3. SSO for self-serve accounts. Google and Okta are supported out of the gate. Enterprise can keep using their existing configs, nothing breaks.\n\nOne customer note worth reading. Priya Raman, CTO at Fieldstone, wrote in after the webhook release:\n\n\"We used to lose events every time a downstream service hiccuped. I had two engineers babysitting retries. Now it just works. I actually forgot webhooks were a thing we worried about, which is the highest compliment I can give infrastructure.\"\n\nThat one's going on the wall.\n\nNext week: audit log export and a fix for the timezone bug in scheduled reports.\n\nHave a good weekend,\nProduct Weekly"
+  },
+  {
+   "id": 30,
+   "from": {
+    "name": "Ines Eze",
+    "email": "ines.eze@utexas.edu"
+   },
+   "date": "2026-10-24T12:58:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform - Summer 2027",
+   "body": "Dear Dana Whitfield,\n\nI'm writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I'm a junior at UT Austin majoring in Game Design, and I'm excited about the opportunity to work on internal services that power other teams.\n\nWhile my major is in Game Design, I've built a strong foundation in web development through my coursework and projects. I've worked extensively with React, CSS, and Figma, and I'm comfortable picking up new technologies quickly. I've also taken introductory computer science courses that covered programming fundamentals and data structures.\n\nLast summer, I interned at a social media startup where I helped build and maintain their front-end interface. I collaborated with a small team to implement new features and improve user engagement. That experience taught me how to work in a fast-paced environment and communicate effectively with cross-functional teams.\n\nI'm particularly drawn to Lumen Labs because of your focus on building reliable, scalable infrastructure. I'm eager to learn more about backend development and distributed systems, and I'm confident that my problem-solving skills and ability to learn quickly will allow me to contribute meaningfully.\n\nI'm available for an interview next week on Monday, November 2 from 2pm to 4pm, or Tuesday, November 3 from 10am to 12pm Central time. Please let me know if either of those times works for you.\n\nThank you for considering my application. I look forward to the possibility of discussing how I can contribute to your team.\n\nBest regards,\nInes Eze",
+   "attachments": [
+    {
+     "name": "Ines_Eze_Resume.pdf",
+     "text": "Ines Eze\nines.eze@utexas.edu | (512) 555-1234 | Austin, TX\n\nEDUCATION\nUniversity of Texas at Austin — Bachelor of Science in Game Design\nExpected Graduation: May 2027\nGPA: 2.91/4.0\n\nEXPERIENCE\nSocial Media Intern, Chirp Inc., Austin, TX — Summer 2026\n- Assisted in managing the company's social media accounts, creating and scheduling posts across multiple platforms.\n- Designed graphics and short videos using Figma and Canva, increasing engagement by 15% over the summer.\n- Collaborated with the marketing team to analyze post performance and suggest improvements based on engagement metrics.\n- Gained experience with React by building a small internal dashboard to track social media analytics.\n\nPROJECTS\nPersonal Portfolio Website — Fall 2025\n- Designed and developed a responsive portfolio site using React and CSS to showcase my game design projects.\n- Deployed the site on Netlify and integrated a contact form using Formspree.\n- Implemented smooth scrolling and animations to enhance user experience.\n\nGame Design Capstone: \"Echo\" — Spring 2026\n- Led a team of four in creating a 2D puzzle platformer using Unity and C#.\n- Designed levels and mechanics, and implemented UI elements using Unity's UI system.\n- Conducted playtesting sessions and iterated on feedback to improve game flow.\n\nCampus Event Finder — Fall 2024\n- Built a web app to help students discover campus events, using React and Firebase.\n- Integrated with a third-party API to fetch event data and used Firebase for authentication and data storage.\n- Collaborated with two classmates to design the UI and implement core features.\n\nSKILLS\nProgramming: JavaScript, HTML, CSS, C#\nFrameworks: React, Unity\nTools: Git, Figma, Firebase, Netlify\nSoft Skills: Team collaboration, communication, problem-solving, adaptability\n\nCOURSEWORK\n- Introduction to Computer Science (Python)\n- Data Structures\n- Game Design Fundamentals\n- Web Programming\n- User Interface Design\n- Database Systems (currently enrolled)"
+    }
+   ]
+  },
+  {
+   "id": 31,
+   "from": {
+    "name": "Marcus Lee",
+    "email": "marcus.lee@lumenlabs.example"
+   },
+   "date": "2026-10-23T22:00:00-05:00",
+   "subject": "Thursday 1:1 + intern loop rubric draft",
+   "body": "Hi Dana,\n\nQuick one — any chance we could push Thursday's 1:1 to Friday morning or later Thursday afternoon? I've got the oncall handoff running long and I'd rather not show up half-distracted. Totally fine if Friday doesn't work, just let me know what slot looks open on your side.\n\nSeparately, here's the first pass at the interview rubric for the intern loop: https://docs.lumenlabs.example/interview-rubrics/intern-platform-draft. It's still rough. I lifted the structure from the newgrad rubric and swapped in intern-level signals, but the debugging section especially needs your eyes — I'm not sure it's fair to weight it that heavily when most of these candidates won't have touched a real production system yet.\n\nAlso flagging that I left the collaboration bar at two signals instead of three. Happy to defend that or bump it, your call.\n\nNo rush on the comments, but if you can get them in before the panel sync next Tuesday that would help a lot.\n\nThanks,\nMarcus"
+  },
+  {
+   "id": 32,
+   "from": {
+    "name": "Quinn Zhou",
+    "email": "quinn.zhou@umich.edu"
+   },
+   "date": "2026-10-23T21:21:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'm Quinn Zhou, a senior at the University of Michigan studying Computer Science and Math. I'm applying for the Platform intern role at Lumen Labs for Summer 2027.\n\nI've built backend services with TypeScript, Node.js, and Postgres, and used Docker for local development and deployment. In my projects, I've implemented job queues, REST APIs, and database schemas. I enjoy working on the infrastructure side—making services reliable and fast. The chance to work on a job scheduler, metrics pipeline, and deploy tool at Lumen Labs really excites me.\n\nMy coursework includes Operating Systems, Distributed Systems, and Databases, which gave me a solid foundation in concurrency, networking, and data storage. I'm comfortable on Linux and have deployed containerized apps.\n\nI'm available for an interview next week on Wednesday, November 4, from 10am to 12pm Central time. I'm based in Ann Arbor but can work remotely and overlap with Central time.\n\nThank you for considering my application. I look forward to hearing from you.\n\nBest,\nQuinn Zhou",
+   "attachments": [
+    {
+     "name": "Quinn_Zhou_Resume.pdf",
+     "text": "QUINN ZHOU\nquinn.zhou@umich.edu | (555) 123-4567 | Ann Arbor, MI\n\nEDUCATION\nUniversity of Michigan, Ann Arbor, MI\nBachelor of Science in Computer Science and Mathematics, expected May 2027\nGPA: 3.2/4.0\n\nEXPERIENCE\nNone.\n\nPROJECTS\nTask Queue Service (TypeScript, Node.js, Postgres, Docker)\nBuilt a REST API for submitting and tracking background jobs. Used Postgres to store job metadata and status. Implemented a worker process to execute jobs from the queue. Containerized with Docker and deployed on a Linux VM for personal use.\n\nURL Shortener (Node.js, Postgres)\nCreated a service that shortens URLs and redirects users. Used Postgres for storing mappings. Added basic rate limiting.\n\nChat App (TypeScript, Node.js)\nDeveloped a real-time chat server using WebSockets. Allowed multiple clients to join rooms and exchange messages.\n\nSKILLS\nLanguages: TypeScript, JavaScript, SQL\nFrameworks: Node.js, Express\nDatabases: PostgreSQL\nTools: Docker, Git, Linux\n\nCOURSEWORK\nOperating Systems, Distributed Systems, Database Management Systems, Data Structures and Algorithms, Computer Networks, Web Systems"
+    }
+   ]
+  },
+  {
+   "id": 33,
+   "from": {
+    "name": "Marcus Lee",
+    "email": "marcus.lee@lumenlabs.example"
+   },
+   "date": "2026-10-23T20:45:00-05:00",
+   "subject": "Out Thursday afternoon + quick q on deploy tool roadmap",
+   "body": "Hi Dana,\n\nQuick heads up: I'm out Thursday Nov 5 in the afternoon for a dentist appointment, back online Friday morning. Morning should be normal, so I'll try to get the platform sync notes out before I head out. If anything urgent comes up on the staging migration after 1pm, Priya has context on where I left it.\n\nOne thing I wanted to ask about before the roadmap review next week. Where do we actually stand on the self-serve deploy tool? The last planning doc had it landing in Q1, but I keep hearing it might slip to Q2 depending on the config service work. I'm asking because the onboarding work I'm scoping for the new hires assumes they can ship to staging without a platform ticket by January, and I don't want to build that plan on a date that's already moved.\n\nIf it's slipping, no worries, I'd rather plan around the real date now than scramble in December. Happy to walk through what I've got so far whenever works for you, maybe a short call Monday?\n\nThanks,\nMarcus"
+  },
+  {
+   "id": 34,
+   "from": {
+    "name": "Zoom",
+    "email": "no-reply@zoom.example"
+   },
+   "date": "2026-10-23T19:08:00-05:00",
+   "subject": "Cloud recording is ready: Platform sync",
+   "body": "Hi Dana Whitfield,\n\nYour cloud recording for the meeting \"Platform sync\" is ready.\n\nTopic: Platform sync\nDate: Mar 12, 2024 10:00 AM Pacific Time (US and Canada)\nMeeting ID: 987 6543 2101\nHost: Dana Whitfield\n\nView recording and transcript summary: https://zoom.example/rec/abc123xyz\n\nRecording summary\n\nThe team reviewed the platform migration timeline and agreed to hold the canary rollout until next Wednesday to allow for additional load testing. Priya will own the rollback runbook and share a draft by Friday. The group also discussed Kafka consumer lag on the ingest service and decided to keep the current partition count for now while monitoring for one more week. Action items: Ken to update the capacity spreadsheet, Dana to confirm on-call coverage for the migration window, and Marcus to schedule a follow-up with the data platform team.\n\nShare recording\nPassword: p9Xk2mAq\n\nThis recording will be available for 120 days.\n\nThank you,\nThe Zoom Team\n\nNote: This is an automated message, please do not reply to this email."
+  },
+  {
+   "id": 35,
+   "from": {
+    "name": "Olivia Moreau",
+    "email": "olivia.moreau@purdue.edu"
+   },
+   "date": "2026-10-23T16:26:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Olivia Moreau",
+   "body": "Dear Dana Whitfield,\n\nI am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a junior at Purdue University studying Graphic Design, and I am eager to bring my technical skills and creative problem-solving to your team.\n\nWhile my major is in design, I have developed a strong foundation in programming through courses and personal projects. I have experience with C# and Unity, and I am comfortable learning new technologies quickly. I am particularly interested in backend systems and how they support user-facing applications. I believe my unique perspective from design can contribute to building intuitive and efficient internal services.\n\nI understand the importance of reliable infrastructure and am excited about the opportunity to work on job schedulers, metrics pipelines, and deployment tools. I am confident that my attention to detail and ability to collaborate will make me a valuable addition to your team.\n\nI am available for an interview next week on Monday, November 2, from 1pm to 4pm Central, or Wednesday, November 4, from 1pm to 4pm Central. Please let me know if either of these times works for you. I am also happy to provide any additional information.\n\nThank you for considering my application. I look forward to the possibility of discussing how I can contribute to Lumen Labs.\n\nSincerely,\nOlivia Moreau\nolivia.moreau@purdue.edu",
+   "attachments": [
+    {
+     "name": "Olivia_Moreau_Resume.pdf",
+     "text": "Olivia Moreau\nolivia.moreau@purdue.edu | (555) 123-4567 | West Lafayette, IN\n\nEDUCATION\nPurdue University, West Lafayette, IN\nBachelor of Arts in Graphic Design, Expected May 2027\nGPA: 2.98/4.00\n\nRelevant Coursework:\n- Introduction to Programming (C#)\n- Data Structures and Algorithms\n- Web Design and Development\n- User Experience Design\n- Database Fundamentals\n\nEXPERIENCE\nRetail Sales Associate, Campus Bookstore, West Lafayette, IN\nAugust 2024 – Present\n- Provide excellent customer service to students and faculty, handling inquiries and resolving issues.\n- Operate point-of-sale system and manage cash transactions accurately.\n- Assist with inventory management and restocking shelves.\n- Collaborate with team members to ensure store operations run smoothly during peak times.\n\nSeasonal Retail Assistant, Target, Indianapolis, IN\nJune 2023 – August 2023\n- Greeted customers and helped locate products, improving shopping experience.\n- Processed returns and exchanges efficiently at customer service desk.\n- Maintained organized and clean sales floor.\n- Received employee recognition for teamwork and reliability.\n\nPROJECTS\nUnity Game Prototype: \"Escape the Maze\" (Personal Project)\n- Developed a 3D maze game using Unity and C#.\n- Implemented player movement, collision detection, and level progression.\n- Designed UI elements including menus and score display.\n- Optimized game performance for smooth frame rates.\n- Shared project on itch.io, receiving positive feedback from peers.\n\nCampus Event Website (Course Project)\n- Created a responsive website for a fictional campus event using HTML, CSS, and JavaScript.\n- Designed layout and graphics using Figma and Adobe Photoshop.\n- Integrated a simple backend using PHP and MySQL to handle event registration.\n- Collaborated with a team of three, managing version control with Git.\n\nSKILLS\n- Programming: C#, Unity, HTML, CSS, JavaScript, basic SQL\n- Design Tools: Adobe Photoshop, Illustrator, Figma, Blender\n- Version Control: Git, GitHub\n- Operating Systems: Windows, macOS, Linux (basic)\n- Soft Skills: Communication, teamwork, problem-solving, time management\n\nADDITIONAL\n- Dean's List, Spring 2024\n- Member, Purdue Game Development Club\n- Volunteer, local community center teaching basic computer skills"
+    }
+   ]
+  },
+  {
+   "id": 36,
+   "from": {
+    "name": "Google Calendar",
+    "email": "calendar-notification@google.example"
+   },
+   "date": "2026-10-23T16:12:00-05:00",
+   "subject": "Invitation: Platform team offsite planning, Tuesday Nov 3, 1pm to 3pm",
+   "body": "Dana Whitfield has invited you to the following event.\n\nPlatform team offsite planning\nTuesday, November 3, 2026 · 1:00 PM – 3:00 PM\nTime zone: Pacific Time (US and Canada)\n\nLocation: Lumen Labs, 4th floor — Sequoia Room\nVideo call: meet.google.example/lumen-platform-offsite-planning\n\nOrganizer: Dana Whitfield, Engineering Manager, Platform\n\nAgenda:\n1. Goals for the spring platform offsite\n2. Format and length (one day vs two)\n3. Session topics: reliability, developer experience, on-call health\n4. Budget and logistics\n5. Owners and next steps\n\nPlease review the draft doc before we meet: docs.google.example/platform-offsite-planning\n\nRSVP: Yes / Maybe / No\n\nYou are receiving this email because you are on the Platform team calendar at Lumen Labs. To stop receiving invitations for this calendar, unsubscribe here: calendar.google.example/unsubscribe"
+  },
+  {
+   "id": 37,
+   "from": {
+    "name": "Finance Ops",
+    "email": "finance@lumenlabs.example"
+   },
+   "date": "2026-10-23T09:13:00-05:00",
+   "subject": "October expense reports due November 3",
+   "body": "Hi Dana,\n\nQuick reminder that October expense reports are due by end of day November 3. Please make sure your team submits through the portal before then so we can close the month on schedule.\n\nOne thing to flag: any receipt over $75 needs itemization. That means an itemized receipt, not just the card slip. If the vendor only gave you a summary, attach a note explaining the charge. We've had a few kicked back this quarter, and I'd rather catch it now than during review.\n\nFor Platform folks specifically, please double-check any cloud or software charges that hit personal cards. Those often come through as generic line items and get flagged. If it's a recurring subscription, add the service name and billing period in the memo field.\n\nIf you have receipts sitting in your inbox, now's a good time to clear them out. The portal will lock at 11:59pm on the 3rd, and late submissions go to the next cycle, which pushes reimbursement into December.\n\nLet me know if anything's unclear or if someone's out and needs an extension. Happy to work with you on that.\n\nThanks,\nFinance Ops"
+  },
+  {
+   "id": 38,
+   "from": {
+    "name": "Nora Fitzgerald",
+    "email": "nora.fitzgerald@wisc.example"
+   },
+   "date": "2026-10-23T07:48:00-05:00",
+   "subject": "Spring career fair invitation for Lumen Labs",
+   "body": "Hi Dana,\n\nMy name is Nora Fitzgerald and I coordinate employer relations for the University of Wisconsin engineering career fair. I wanted to reach out before we open general registration for the spring fair on March 12 to see if Lumen Labs would like a table this year. We've had good turnout from platform and infrastructure companies, and the fair runs 10 to 4 in the Kohl Center with about 900 students expected. Tables are $450 for the day and we provide parking and lunch for up to three recruiters.\n\nI should also mention that two students stopped by our prep session last week and said they had already applied to Lumen Labs, so there seems to be some genuine interest on campus. I don't know the details of their applications, just that they seemed excited.\n\nRegistration closes February 28, so if you want a spot just let me know and I can hold one for you. Happy to answer any questions about booth logistics or the student population.\n\nThanks,\nNora Fitzgerald\nUniversity Career Fair Liaison\nnora.fitzgerald@wisc.example"
+  },
+  {
+   "id": 39,
+   "from": {
+    "name": "Uma Farouk",
+    "email": "uma.farouk@utexas.edu"
+   },
+   "date": "2026-10-23T07:09:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Uma Farouk",
+   "body": "Dear Dana Whitfield,\n\nI am writing to express my interest in the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a sophomore at UT Austin majoring in Graphic Design with a GPA of 3.07. While my major is in design, I have developed a strong interest in backend development and have been building my skills in web technologies.\n\nThrough my coursework and personal projects, I have gained experience in HTML, JavaScript, and WordPress. I recently built a small web app that tracks local events and allows users to RSVP. Although it's not a large-scale distributed system, it runs as a service that a few friends use. I am eager to learn more about backend systems, particularly in Go, Python, or Rust, and I am excited about the opportunity to work on internal services like job schedulers and metrics pipelines.\n\nI am available for an interview next week at the following times (Central time): Monday, Nov 2, 10am–2pm; Thursday, Nov 5, 9am–12pm; or Friday, Nov 6, 2pm–5pm. Please let me know what works best for you.\n\nThank you for considering my application. I look forward to the possibility of contributing to your team.\n\nSincerely,\nUma Farouk\numa.farouk@utexas.edu",
+   "attachments": [
+    {
+     "name": "Uma_Farouk_Resume.pdf",
+     "text": "Uma Farouk\n(512) 555-1234 | uma.farouk@utexas.edu | Austin, TX\n\nEDUCATION\nUniversity of Texas at Austin — Bachelor of Arts in Graphic Design, Minor in Computer Science\nExpected May 2028 | GPA: 3.07/4.00\nRelevant Coursework: Introduction to Programming (Python), Web Design, Digital Media, Data Structures (in progress)\n\nEXPERIENCE\nSales Associate, Target, Austin, TX — Jun 2025 – Aug 2025\n• Provided customer service, handled cash and card transactions, and managed inventory.\n• Collaborated with team members to meet daily sales goals.\n• Developed strong communication and problem-solving skills.\n\nFreelance Web Designer — Jan 2024 – Present\n• Designed and developed websites for small businesses using WordPress, HTML, and CSS.\n• Managed client projects from concept to launch, ensuring responsive design and basic SEO.\n• Implemented JavaScript for interactive elements like image sliders and contact forms.\n\nPROJECTS\nEvent Tracker Web App — Sep 2025 – Present\n• Built a web application using JavaScript, HTML, and CSS that allows users to browse and RSVP for local events.\n• Implemented a simple backend with Node.js and Express to handle event data and user registrations.\n• Deployed on Heroku and shared with friends, currently used by about 10 people.\n• Learned about REST APIs, basic database operations, and version control with Git.\n\nPersonal Portfolio Website — Jan 2025\n• Created a responsive portfolio site showcasing design work and coding projects.\n• Used HTML, CSS, and vanilla JavaScript; hosted on GitHub Pages.\n\nSKILLS\n• Programming: JavaScript, HTML, CSS, basic Python\n• Tools: WordPress, Git, VS Code, Node.js, Express\n• Design: Adobe Photoshop, Illustrator, Figma\n• Languages: English (native), Arabic (conversational)\n\nADDITIONAL\n• Interested in backend development and distributed systems.\n• Available for remote work with overlap 10am–3pm Central.\n• Eligible to work in the US."
+    }
+   ]
+  },
+  {
+   "id": 40,
+   "from": {
+    "name": "Tom Becker",
+    "email": "tom.becker@lumenlabs.example"
+   },
+   "date": "2026-10-22T18:05:00-05:00",
+   "subject": "Referral for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nWanted to pass along a referral for the Software Engineering Intern, Platform opening for Summer 2027. Elena Liu (elena.liu@umich.edu) is my neighbor's kid. She's studying at Michigan and is looking for a summer internship.\n\nI should be upfront: I don't know her work firsthand, so I can't speak to her coding ability or anything like that. But she's a nice guy... I mean, she's a nice person, polite and seems motivated. Her neighbor reference is really all I've got here.\n\nHappy to forward her resume if you want to take a look, but I understand if this isn't the strongest referral.\n\nThanks,\nTom"
+  },
+  {
+   "id": 41,
+   "from": {
+    "name": "Jira",
+    "email": "jira@lumenlabs.atlassian.example"
+   },
+   "date": "2026-10-22T15:33:00-05:00",
+   "subject": "PLAT Jira Digest: 9 tickets updated",
+   "body": "Hi Dana,\n\nHere is your daily digest of updates in the PLAT project. You are receiving this because you are listed as the assignee or watcher on these tickets.\n\nPLAT-101: Fix flaky integration test in auth service\nPLAT-108: Update Terraform module for EKS 1.28\nPLAT-112: Investigate 500 errors on /v2/orders endpoint\nPLAT-115: Add rate limiting to public API gateway\nPLAT-119: Migrate legacy cron jobs to Kubernetes CronJobs\nPLAT-123: Refactor user profile service to use shared cache\nPLAT-127: Document incident response runbook for DB failover\nPLAT-131: Upgrade Postgres client library to 2.4.1\nPLAT-134: Spike: evaluate OpenTelemetry for tracing\n\nOpen in Jira to view details, comment, or transition status. You can adjust your notification preferences in your Jira profile.\n\nThanks,\nJira\n\nThis is an automated message from Lumen Labs Jira. Please do not reply directly to this email."
+  },
+  {
+   "id": 42,
+   "from": {
+    "name": "Engineering All-Hands",
+    "email": "events@lumenlabs.example"
+   },
+   "date": "2026-10-22T14:16:00-05:00",
+   "subject": "Agenda for the Nov 6 Engineering All-Hands",
+   "body": "Hi Dana,\n\nAhead of the Nov 6 Engineering All-Hands, here's the agenda. The meeting runs 2pm to 3pm Central and everyone is expected to attend.\n\n2:00 - Welcome and updates from leadership. Brief overview of where Platform and the wider org are headed this quarter.\n\n2:15 - Platform roadmap. A walkthrough of the near-term priorities, including the API gateway and the data pipeline work. Come with questions; we want these to be a real conversation, not a monologue.\n\n2:35 - Incidents and reliability. A short retro on the recent outages and what we're changing. Ownership and follow-ups will be called out so it's clear who's on what.\n\n2:50 - Open floor and announcements. Hiring, on-call rotation changes, and any team news you want to bring up.\n\nPlease add anything you'd like covered to the shared doc by end of day Monday. If there's a topic you think deserves more time, flag it and we'll fit it in.\n\nRecordings and notes will go out afterward.\n\nThanks,\nEngineering All-Hands"
+  },
+  {
+   "id": 43,
+   "from": {
+    "name": "Priya Natarajan",
+    "email": "priya.natarajan@lumenlabs.example"
+   },
+   "date": "2026-10-22T13:38:00-05:00",
+   "subject": "Referral for Bilal Washington - Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'd like to refer Bilal Washington for the Software Engineering Intern, Platform role for Summer 2027. His email is bilal.washington@illinois.edu.\n\nI first came across Bilal's work through an open source scheduler he built. My team at the hackathon actually used it, and it was clean, well documented, and handled our load without a hitch.\n\nHe clearly has strong platform instincts and ships real code. I think he'd be a great fit for the team.\n\nHappy to share more if helpful.\n\nThanks,\nPriya"
+  },
+  {
+   "id": 44,
+   "from": {
+    "name": "Farhan Rahman",
+    "email": "farhan.rahman@iastate.edu"
+   },
+   "date": "2026-10-22T12:43:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI'm writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I'm a junior at Iowa State University majoring in Graphic Design with a minor in Computer Science, graduating in 2027. While my major is design, I've developed a strong foundation in programming through coursework and personal projects.\n\nI saw the job posting and was immediately drawn to the opportunity to work on internal services like job schedulers and metrics pipelines. I have experience with C# and Unity, and I've built a small multiplayer game server that handles real-time player movement using Unity and C#. I also took courses in data structures, operating systems, and databases, where I worked with SQL and PostgreSQL. I'm comfortable with Linux and have used Docker for a class project.\n\nAlthough my earlier internship was in social media, I'm eager to apply my technical skills in a backend engineering role. I'm available for an interview next week at the following times (Central): Monday Nov 2, 2pm–5pm; Tuesday Nov 3, 1pm–4pm; Wednesday Nov 4, 11am–1pm. I'm also happy to overlap with 10am–3pm Central as required.\n\nThank you for your consideration. I look forward to the possibility of contributing to your team.\n\nBest regards,\nFarhan Rahman\nfarhan.rahman@iastate.edu",
+   "attachments": [
+    {
+     "name": "Farhan_Rahman_Resume.pdf",
+     "text": "Farhan Rahman\nfarhan.rahman@iastate.edu\n(515) 555-0123\nAmes, IA\n\nEDUCATION\nIowa State University, Ames, IA\nBachelor of Arts in Graphic Design, Minor in Computer Science\nExpected Graduation: May 2027\nGPA: 3.21/4.0\n\nEXPERIENCE\nSocial Media Intern, Cardinal Creative Agency, Ames, IA\nMay 2025 – August 2025\n- Managed social media accounts for three local clients, creating and scheduling posts using Hootsuite.\n- Designed graphics in Adobe Illustrator and Photoshop, increasing client engagement by an average of 15%.\n- Analyzed post performance using Meta Business Suite and compiled weekly reports.\n- Collaborated with a team of five to brainstorm campaign ideas and maintain brand consistency.\n\nPROJECTS\nMultiplayer Game Server (Unity, C#)\nJanuary 2025 – Present\n- Built a real-time multiplayer game server in C# using Unity's networking API and sockets.\n- Implemented client-server communication for player movement, chat, and game state synchronization.\n- Optimized server loop to handle up to 20 concurrent players on a local machine.\n- Used Git for version control and documented setup instructions for others to run the server.\n\nPortfolio Website (HTML, CSS, JavaScript)\nSeptember 2024 – December 2024\n- Designed and developed a personal portfolio website to showcase graphic design work.\n- Implemented responsive layout using CSS Flexbox and media queries.\n- Deployed on GitHub Pages and received positive feedback from peers and instructors.\n\nSKILLS\nProgramming: C#, Unity, SQL, HTML/CSS, JavaScript\nTools: Git, Docker, Adobe Creative Suite (Illustrator, Photoshop)\nOperating Systems: Linux (Ubuntu), Windows\nDatabases: PostgreSQL, MySQL\n\nCOURSEWORK\n- Data Structures and Algorithms (CS 228)\n- Operating Systems (CS 352)\n- Database Management Systems (CS 363)\n- Object-Oriented Programming (CS 227)\n- Computer Graphics (ARTGR 371)\n- Web Design (ARTGR 276)"
+    }
+   ]
+  },
+  {
+   "id": 45,
+   "from": {
+    "name": "Snack Club",
+    "email": "snacks@lumenlabs.example"
+   },
+   "date": "2026-10-22T12:33:00-05:00",
+   "subject": "Vote now: pick our next snack mountain (three strong candidates)",
+   "body": "Hey Dana,\n\nIt's that time again. The Snack Club budget refresh lands next week, and we need your vote for next month's office snacks. Three options, and yes, the debates have already started.\n\nOption A: Sea salt kettle chips. Crunchy, simple, gone by Tuesday. The purists love it. The wellness crowd says it's just fried sadness.\n\nOption B: Dark chocolate covered almonds. Fancy, feels healthy, disappears quietly. Someone in Platform called them \"a tax on people who hate fun.\" I don't know what that means but I'm reporting it.\n\nOption C: Spicy mango gummies. Polarizing. Either you're hooked or you're mad they exist. Last time we tried a spicy snack, the kitchen smelled like a pepper factory for two days. Worth it? You decide.\n\nVoting closes Friday at 5. Reply with A, B, or C. If you abstain, you get whatever wins, no complaints.\n\nAlso, someone keeps stealing the almond butter from the snack shelf. We know. We're watching. Bring it back.\n\nCast your vote. Use your voice. Choose your crunch.\n\nSnack Club"
+  },
+  {
+   "id": 46,
+   "from": {
+    "name": "Jamal Kim",
+    "email": "jamal.kim@cmu.edu"
+   },
+   "date": "2026-10-22T11:09:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'm a senior at Carnegie Mellon studying Electrical Engineering, and I'd like to apply for the Platform internship at Lumen Labs. I've written real backend code in Rust and Python, and I'm comfortable in Linux and with containers. As a TA for operating systems, I've spent a lot of time debugging concurrency and memory issues, and I run a small Kubernetes cluster at home with Prometheus for metrics. I've also taken distributed systems and databases, so I get why a reliable job scheduler and metrics pipeline matter.\n\nI'm studying abroad in Seoul this semester, so I'm 15 hours ahead of Central. Next week I'm free Wednesday Nov 4 from midnight to 2am KST, and Thursday Nov 5 from 11pm to Friday 1am KST. Those windows overlap with your 10am-3pm Central, but let me know if another time works better.\n\nI'd love to talk about how I can contribute to the platform team. Thanks for your time.\n\nBest,\nJamal Kim\njamal.kim@cmu.edu",
+   "attachments": [
+    {
+     "name": "Jamal_Kim_Resume.pdf",
+     "text": "Jamal Kim\njamal.kim@cmu.edu\n\nEDUCATION\nCarnegie Mellon University — B.S. in Electrical Engineering, expected May 2027\nGPA: 3.4/4.0\nRelevant coursework: Operating Systems, Distributed Systems, Database Systems, Computer Networks, Cloud Computing, Algorithms\n\nEXPERIENCE\nTeaching Assistant, Operating Systems — Carnegie Mellon University\nAugust 2024 – Present\nLead recitations for 30 students on process scheduling, virtual memory, and file systems. Hold weekly office hours to debug C and Rust kernel projects. Grade assignments and provide feedback on concurrency and locking. Collaborated with faculty to redesign a lab on thread scheduling, improving student completion rate by 15%.\n\nPROJECTS\nRust Task Scheduler — github.com/jamalk/scheduler\nBuilt a distributed job scheduler in Rust that runs on a Kubernetes cluster. Workers register via gRPC and receive tasks from a central coordinator using a work-stealing algorithm. Implemented fault tolerance with heartbeats and task re-queueing. Deployed on a 3-node k3s cluster; processed 10k tasks in a load test. Used Prometheus to track queue depth and worker health.\n\nMetrics Pipeline — github.com/jamalk/metrics-pipeline\nCreated a Python service that ingests time-series data from IoT sensors, batches writes to PostgreSQL, and exposes a query API. Added a Prometheus exporter for ingestion rates and query latency. The pipeline runs in Docker and handles ~1k events per second on a single node. Used by a campus research group for environmental monitoring.\n\nPersonal Kubernetes Cluster\nMaintain a 4-node Raspberry Pi cluster running k3s. Deployed services include a private Git server, a Prometheus and Grafana monitoring stack, and a CI runner. Automated updates with Ansible and set up alerts for node failures.\n\nSKILLS\nLanguages: Rust, Python, Go (basic), C, SQL\nTools: Linux, Docker, Kubernetes, Prometheus, Grafana, Git, Ansible, PostgreSQL\nConcepts: Distributed systems, operating systems, concurrency, observability\n\nADDITIONAL\nCurrently studying abroad in Seoul, South Korea. Fluent in English and Korean."
+    }
+   ]
+  },
+  {
+   "id": 47,
+   "from": {
+    "name": "Ben Haddad",
+    "email": "ben.haddad@umn.edu"
+   },
+   "date": "2026-10-22T10:59:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI'm a senior in Computer Engineering at the University of Minnesota, graduating in 2027, and I'm excited to apply for the Software Engineering Intern, Platform role at Lumen Labs. I've built backend services with Python, Flask, and Postgres, and I'm comfortable with Linux and Docker. During my web development internship at North Star Digital, I worked on a Flask API that served 500+ daily users and optimized database queries. I also took Distributed Systems and Operating Systems, where I implemented a basic job scheduler and a metrics collector in Python. While I don't have production Go or Kubernetes experience yet, I'm eager to learn and have been self-studying Go and container orchestration. I'm free for an interview next week on Thursday, November 5, from 10am to 1pm Central Time. Thank you for your consideration.\n\nBest regards,\nBen Haddad\nben.haddad@umn.edu",
+   "attachments": [
+    {
+     "name": "Ben_Haddad_Resume.pdf",
+     "text": "Ben Haddad\nben.haddad@umn.edu | (612) 555-1234 | Minneapolis, MN\n\nEDUCATION\nUniversity of Minnesota — B.S. in Computer Engineering, expected May 2027\nGPA: 3.21/4.00\n\nCOURSEWORK\nDistributed Systems, Operating Systems, Database Systems, Computer Networks, Data Structures and Algorithms, Software Engineering, Web Development\n\nEXPERIENCE\nWeb Development Intern, North Star Digital, Minneapolis, MN — June 2024 to August 2024\n- Built RESTful endpoints with Flask and PostgreSQL for a customer portal used by 500+ daily users.\n- Optimized SQL queries, reducing average page load time by 30%.\n- Containerized the application with Docker and wrote a docker-compose file for local development.\n- Collaborated with a team of 4 using Git and Agile ceremonies.\n\nPROJECTS\nTask Scheduler Service — Python, Flask, PostgreSQL, Docker\n- Developed a job scheduler that accepts tasks via HTTP, queues them in PostgreSQL, and executes them asynchronously using Python threads.\n- Implemented retry logic and basic logging; deployed on a Linux VM with Docker.\n- Used by 10+ classmates for running batch data processing jobs.\n\nMetrics Collector — Python, Flask, SQLite\n- Created a lightweight metrics pipeline that ingests JSON from multiple sources, aggregates counts and averages, and exposes a /metrics endpoint.\n- Wrote unit tests with pytest and documented the API.\n\nCampus Event Board — Flask, PostgreSQL, HTML/CSS\n- Built a web app for posting and browsing campus events; included user authentication and search.\n- Deployed on a Raspberry Pi running Linux.\n\nSKILLS\nLanguages: Python, JavaScript, SQL, HTML/CSS\nFrameworks: Flask, Django (basic)\nDatabases: PostgreSQL, SQLite\nTools: Docker, Git, Linux, Postman\nLearning: Go, Kubernetes"
+    }
+   ]
+  },
+  {
+   "id": 48,
+   "from": {
+    "name": "Rhea Menon",
+    "email": "rhea.menon@iastate.edu"
+   },
+   "date": "2026-10-21T22:28:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Rhea Menon",
+   "body": "Dear Dana Whitfield,\n\nI'm a sophomore at Iowa State University majoring in Computer Science, and I'm excited to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027.\n\nWhile my background is primarily in Java and Android development, I've always been drawn to backend systems and the infrastructure that powers applications. During my social media internship at Hawkeye Social, I built features that involved backend integration and data handling, which sparked my interest in platform engineering. I'm eager to expand my skills in Go, Python, or Rust and learn more about distributed systems and databases.\n\nI understand the importance of reliable internal services and would love the opportunity to contribute to Lumen Labs' platform team. I'm particularly excited about the chance to work on job schedulers, metrics pipelines, and deploy tools.\n\nI'm available for an interview next week on Wednesday, November 4th, from 10am to 12pm Central time. Please let me know if that works for you.\n\nThank you for considering my application. I look forward to hearing from you.\n\nBest regards,\nRhea Menon\nrhea.menon@iastate.edu",
+   "attachments": [
+    {
+     "name": "Rhea_Menon_Resume.pdf",
+     "text": "Rhea Menon\nrhea.menon@iastate.edu\n(515) 555-0198\nAmes, IA\n\nEDUCATION\nIowa State University, Ames, IA\nBachelor of Science in Computer Science\nExpected Graduation: May 2028\nGPA: 3.17/4.0\n\nRelevant Coursework:\n- Object-Oriented Programming (Java)\n- Data Structures and Algorithms\n- Discrete Mathematics\n- Computer Organization and Assembly Language\n- Introduction to Databases\n\nEXPERIENCE\nSocial Media Intern, Hawkeye Social, Ames, IA\nMay 2025 – August 2025\n- Assisted in managing social media accounts for local businesses, creating and scheduling posts across platforms.\n- Analyzed engagement metrics using native analytics tools and compiled weekly reports for clients.\n- Collaborated with a small team to develop a content calendar and improve posting consistency.\n- Gained exposure to backend content management systems and basic data handling.\n\nPROJECTS\nPersonal Finance Tracker (Android App)\n- Developed an Android app in Java to help users track expenses and budgets.\n- Implemented local SQLite database for storing transactions and categories.\n- Designed a simple UI with RecyclerView and custom adapters.\n- Integrated basic charts using MPAndroidChart for monthly spending visualization.\n\nCampus Event Finder (Android App)\n- Built a prototype app that aggregates campus events from a mock REST API.\n- Used Retrofit for network calls and parsed JSON responses.\n- Implemented search and filter functionality by date and category.\n- Collaborated with a peer to test and refine user flows.\n\nSKILLS\nLanguages: Java, SQL, HTML/CSS\nMobile: Android SDK, SQLite, Retrofit\nTools: Git, Android Studio, IntelliJ IDEA\nConcepts: Object-Oriented Design, Data Structures, Basic Database Design\n\nADDITIONAL\n- Dean's List: Fall 2024\n- Member, Computer Science Club, Iowa State University\n- Interested in backend development and distributed systems; currently learning Python through online courses."
+    }
+   ]
+  },
+  {
+   "id": 49,
+   "from": {
+    "name": "Wen Petrova",
+    "email": "wen.petrova@osu.edu"
+   },
+   "date": "2026-10-21T21:18:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a junior at Ohio State University majoring in Computer Science and Mathematics, and I am excited about the opportunity to contribute to internal services that power real deployments.\n\nWhile I have not yet had a formal internship, I have built backend services using Python and Django, including a course review platform that handles user authentication, database storage with Postgres, and caching with Redis. I have also taken coursework in operating systems and databases, which has given me a solid foundation in concurrency, memory management, and SQL. I am eager to apply these skills to a platform team and learn from experienced engineers.\n\nI am comfortable working remotely and can overlap 10am to 3pm Central time. I am available for an interview next week on Wednesday, November 4, from 9am to 11am Central time. Please let me know if that works for you.\n\nThank you for your consideration.\n\nSincerely,\nWen Petrova\nwen.petrova@osu.edu",
+   "attachments": [
+    {
+     "name": "Wen_Petrova_Resume.pdf",
+     "text": "Wen Petrova\nwen.petrova@osu.edu | (555) 123-4567 | Columbus, OH\n\nEDUCATION\nOhio State University, Columbus, OH\nBachelor of Science in Computer Science and Mathematics, expected May 2028\nGPA: 3.35/4.00\n\nEXPERIENCE\nNone.\n\nPROJECTS\nCourse Review Platform | Python, Django, PostgreSQL, Redis | September 2025 – Present\n- Built a web application for students to rate and review courses, serving over 200 active users on campus.\n- Implemented user authentication, course search, and review posting using Django’s ORM and PostgreSQL.\n- Added Redis caching for frequently accessed course pages, reducing average page load time by 40%.\n- Deployed the service on a Linux virtual machine using Gunicorn and Nginx, with automated backups.\n- Wrote unit tests for core functionality using Django’s test framework, achieving 85% code coverage.\n\nTask Scheduler | Python, Redis | January 2025 – April 2025\n- Developed a simple distributed task queue that uses Redis as a message broker.\n- Workers pull tasks from a Redis list and execute them in parallel, with retry logic on failure.\n- Implemented a basic web dashboard to monitor task status and worker health.\n- Used this project to learn about concurrency and failure handling in distributed systems.\n\nSKILLS\nLanguages: Python, JavaScript, SQL, Go (basic)\nFrameworks: Django, Flask\nDatabases: PostgreSQL, Redis\nTools: Git, Docker, Linux command line, Nginx, Gunicorn\nConcepts: REST APIs, caching, concurrency, basic distributed systems\n\nCOURSEWORK\n- Operating Systems (Fall 2024): Implemented a thread scheduler and virtual memory manager in C.\n- Database Systems (Spring 2025): Designed and queried a relational database for a mock e-commerce site; wrote complex SQL queries and optimized indexes.\n- Data Structures and Algorithms (Spring 2024): Implemented graph algorithms and dynamic programming solutions.\n- Computer Networking (Fall 2025, in progress): Learning about TCP/IP, HTTP, and network programming.\n\nADDITIONAL\n- Remote-friendly; available for interviews Wednesday Nov 4, 9am–11am Central.\n- Eligible to work in the US. Expected graduation: May 2028."
+    }
+   ]
+  },
+  {
+   "id": 50,
+   "from": {
+    "name": "Sam Rivera",
+    "email": "sam.rivera@lumenlabs.example"
+   },
+   "date": "2026-10-21T20:16:00-05:00",
+   "subject": "Skip-level notes and a quick question on intern headcount",
+   "body": "Hi Dana,\n\nThanks for making time for the skip-level last week. I appreciated you walking through how the platform roadmap connects to the work my team is doing on the ingestion pipeline. A few things I took away: the Q3 priority is stabilizing the event schema before we add new consumers, and you want more visibility into cross-team dependencies earlier in the planning cycle. I'll bring that up in our next sprint review.\n\nOne thing I wanted to follow up on: I've heard mixed signals about intern headcount for the summer. My team has capacity to take on one intern, and I'd like to build a mentoring plan around the data tooling work if that's on the table. Is that still being finalized, or should I assume we're not getting one this cycle? Happy to put together a short proposal if it helps.\n\nAlso, if there's a standard mentoring structure other teams use, I'd love to borrow from it rather than reinvent.\n\nThanks,\nSam\n\nSam Rivera\nStaff Engineer, Platform\nsam.rivera@lumenlabs.example"
+  },
+  {
+   "id": 51,
+   "from": {
+    "name": "Zach Kowalski",
+    "email": "zach.kowalski@umn.edu"
+   },
+   "date": "2026-10-21T19:51:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Zach Kowalski",
+   "body": "Hi Dana,\n\nI'm Zach Kowalski, a sophomore in Electrical Engineering at the University of Minnesota, and I'm applying for the Software Engineering Intern, Platform role at Lumen Labs for Summer 2027. I saw the posting and got excited about the chance to work on internal services like a job scheduler and metrics pipeline.\n\nDuring my web development internship at Northstar Web Solutions last summer, I built REST APIs with Java and Spring, integrated MySQL databases, and deployed services on AWS EC2. I also worked on a small team to create an internal tool that automated report generation, which cut manual work by about 5 hours per week. That experience showed me how much I enjoy building backend services that other people rely on.\n\nI've taken courses in data structures, operating systems, and databases, and I've used Linux and Docker in my projects. While I haven't worked with Go or Rust yet, I'm confident in my programming fundamentals and eager to learn them quickly. I'm also comfortable with remote work and can overlap 10am-3pm Central.\n\nI'd love to discuss how I can contribute to the Platform team. I'm available for an interview next week: Tuesday Nov 3 from 10am to 12pm, Wednesday Nov 4 from 9am to 1pm, or Thursday Nov 5 from 1pm to 3pm Central.\n\nThanks for your consideration!\n\nBest,\nZach Kowalski",
+   "attachments": [
+    {
+     "name": "Zach_Kowalski_Resume.pdf",
+     "text": "Zach Kowalski\nzach.kowalski@umn.edu | (612) 555-1234 | Minneapolis, MN\n\nEDUCATION\nUniversity of Minnesota, Minneapolis, MN\nBachelor of Science in Electrical Engineering, Expected May 2029\nGPA: 3.27/4.0\nRelevant Coursework: Data Structures and Algorithms, Operating Systems, Database Systems, Computer Architecture, Linear Systems, Circuit Analysis\n\nEXPERIENCE\nWeb Development Intern | Northstar Web Solutions, Minneapolis, MN | June 2025 - August 2025\n- Developed RESTful APIs using Java and Spring Boot to support client web applications, handling up to 500 requests per minute.\n- Designed and optimized MySQL database schemas, improving query performance by 20% through indexing and query refactoring.\n- Deployed applications on AWS EC2 and configured S3 for static asset storage, gaining hands-on experience with cloud infrastructure.\n- Collaborated with a team of 5 developers using Agile practices, participating in daily stand-ups and code reviews.\n- Built an internal reporting tool that automated PDF generation from database records, reducing manual effort by approximately 5 hours per week.\n\nPROJECTS\nPersonal Finance Tracker | Java, Spring Boot, MySQL, React | January 2025 - Present\n- Created a full-stack web application for tracking expenses and budgets, with user authentication and data visualization.\n- Implemented REST API with Spring Boot and MySQL backend, deployed on AWS Lightsail and used by 10+ friends and family.\n- Integrated Docker for containerization, simplifying deployment and ensuring consistent environments.\n\nDistributed Key-Value Store | Go, Raft | September 2025 - Present\n- Built a basic distributed key-value store in Go implementing the Raft consensus algorithm for a course project.\n- Tested with 3-node cluster on local Linux machines, achieving fault tolerance and linearizable reads/writes.\n- Gained experience with concurrency, network programming, and distributed systems concepts.\n\nCampus Event Scheduler | Python, Flask, SQLite | October 2024 - December 2024\n- Developed a web-based scheduler for student organizations to manage events and room bookings.\n- Used Flask and SQLite for backend, with a simple frontend in HTML/CSS; deployed on a Raspberry Pi for club use.\n\nSKILLS\nLanguages: Java, Python, Go, SQL, JavaScript, HTML/CSS\nFrameworks: Spring Boot, Flask, React\nDatabases: MySQL, PostgreSQL, SQLite\nTools: Git, Docker, Linux, AWS (EC2, S3), Postman\nConcepts: REST APIs, OOP, Data Structures, Algorithms, Operating Systems, Distributed Systems (coursework)\n\nADDITIONAL\n- Eligible to work in the U.S. without sponsorship.\n- Available for remote work with 10am-3pm Central overlap.\n- Fluent in English and Polish."
+    }
+   ]
+  },
+  {
+   "id": 52,
+   "from": {
+    "name": "Recruiting Agency",
+    "email": "talent@topcodersearch.example"
+   },
+   "date": "2026-10-21T16:15:00-05:00",
+   "subject": "Pre-vetted senior engineers for Lumen Labs - 20% fee",
+   "body": "Hi Dana,\n\nI hope this finds you well. I'm reaching out from TopCoder Search, a boutique recruiting agency that specializes in placing senior software engineers at high-growth tech companies.\n\nWe've been following Lumen Labs for a while and are impressed by your work on the platform side. We know that finding top engineering talent is tough, especially for platform roles that require deep systems knowledge and a strong product mindset. That's where we come in.\n\nWe have a pool of pre-vetted senior engineers who are either actively looking or open to the right opportunity. Each candidate goes through a rigorous screening process including technical assessments, coding challenges, and behavioral interviews. We only present engineers we'd hire ourselves.\n\nOur fee is a flat 20% of first-year base salary, with a 90-day guarantee. No retainers, no upfront costs. You only pay if you hire someone we introduce.\n\nIf you're open to it, I'd love to set up a quick call to learn more about your hiring needs and share a few profiles that might be a fit. Let me know if that works for you.\n\nBest regards,\nAlex Rivera\nTopCoder Search\ntalent@topcodersearch.example"
+  },
+  {
+   "id": 53,
+   "from": {
+    "name": "Divya Reyes",
+    "email": "divya.reyes@iastate.edu"
+   },
+   "date": "2026-10-21T16:11:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI am Divya Reyes, a junior at Iowa State University majoring in Computer Science. I am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am excited about the opportunity to contribute to internal services that power other teams.\n\nThrough my coursework and projects, I have gained experience in Python and basic backend development. I have also worked with databases and Linux environments. My internship in social media gave me exposure to fast-paced technical work, where I collaborated with a team to analyze data and optimize content strategies. I am eager to apply my skills to build reliable platform tools.\n\nI am particularly drawn to Lumen Labs' focus on job scheduling and metrics pipelines, as I have a strong interest in systems and infrastructure. I am confident that my background and enthusiasm make me a good fit for this role.\n\nThank you for considering my application. I look forward to the possibility of discussing how I can contribute to your team.\n\nSincerely,\nDivya Reyes\ndivya.reyes@iastate.edu",
+   "attachments": [
+    {
+     "name": "Divya_Reyes_Resume.pdf",
+     "text": "DIVYA REYES\nAmes, IA | divya.reyes@iastate.edu | github.com/divyareyes\n\nEDUCATION\nIowa State University, Ames, IA\nBachelor of Science in Computer Science, Expected May 2027\nGPA: 2.82/4.00\n\nEXPERIENCE\nSocial Media Intern, Cardinal & Gold Media, Ames, IA | May 2024 – Aug 2024\n- Analyzed social media performance data using Excel and Tableau, identifying trends that increased engagement by 15%.\n- Created and scheduled content for Instagram and Twitter, collaborating with a team of 3 to maintain brand consistency.\n- Assisted in developing a basic Python script to automate weekly reporting, reducing manual effort by 2 hours per week.\n\nBarista, Starbucks, Ames, IA | Sep 2023 – Present\n- Provide excellent customer service in a fast-paced environment, managing orders and payments accurately.\n- Train new employees on POS systems and drink preparation, ensuring adherence to quality standards.\n\nPROJECTS\nPersonal Budget Tracker | Python, SQLite | Jan 2025 – Present\n- Developed a command-line application to track expenses and income, with features for categorization and monthly summaries.\n- Implemented a SQLite database to store transactions and generate reports.\n- Wrote unit tests for core functionality, achieving 85% code coverage.\n\nWeather Data Dashboard | Python, Flask, OpenWeatherMap API | Oct 2024 – Dec 2024\n- Built a web dashboard that displays current weather and forecasts for user-selected cities.\n- Used Flask to create a RESTful API and integrated with OpenWeatherMap API for data retrieval.\n- Deployed the application on a local Linux server, configuring a reverse proxy with Nginx.\n\nCoursework Project: Simple Shell | C, Linux | Mar 2024 – Apr 2024\n- Implemented a basic Unix shell in C as part of an operating systems course.\n- Supported command execution, piping, and input/output redirection.\n- Debugged using GDB and Valgrind to fix memory leaks.\n\nSKILLS\nProgramming: Python (intermediate), C (basic), SQL (basic)\nTools: Excel, Tableau, Git, Linux command line\nDatabases: SQLite, basic PostgreSQL\n\nCOURSEWORK\nCS 227: Computer Organization and Assembly Language\nCS 228: Introduction to Data Structures\nCS 230: Discrete Computational Structures\nCS 327: Advanced Programming Techniques\nCS 362: Introduction to Operating Systems\nCS 363: Introduction to Database Management Systems"
+    }
+   ]
+  },
+  {
+   "id": 54,
+   "from": {
+    "name": "PagerDuty",
+    "email": "alerts@pagerduty.example"
+   },
+   "date": "2026-10-21T15:55:00-05:00",
+   "subject": "Resolved: metrics-pipeline lag above 5 minutes",
+   "body": "Hi Dana,\n\nThis is a notification from PagerDuty that incident #12345, \"metrics-pipeline lag above 5 minutes,\" has been resolved.\n\nIncident Details:\n- Triggered: 2025-04-07 10:15 UTC\n- Acknowledged: 2025-04-07 10:18 UTC by Alex Chen\n- Resolved: 2025-04-07 10:45 UTC\n\nTimeline:\n- 10:15 UTC: Alert triggered due to metrics-pipeline lag exceeding 5 minutes.\n- 10:18 UTC: Alex Chen acknowledged the incident and began investigation.\n- 10:20 UTC: Initial findings indicated a backlog in the processing queue caused by a sudden spike in incoming metrics.\n- 10:25 UTC: Temporary mitigation applied by scaling up the consumer group to handle the increased load.\n- 10:30 UTC: Lag began to decrease steadily.\n- 10:40 UTC: Lag returned to normal levels (under 1 minute).\n- 10:45 UTC: Incident resolved. No further action required.\n\nIf you have any questions, please reach out to the on-call team.\n\nBest,\nPagerDuty"
+  },
+  {
+   "id": 55,
+   "from": {
+    "name": "Grace Patel",
+    "email": "grace.patel@northwestern.edu"
+   },
+   "date": "2026-10-21T14:53:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'm writing to apply for the Platform internship at Lumen Labs. As a junior at Northwestern studying Data Science, I've built backend services that others depend on, and I'd love to contribute to Lumen's internal platform. My experience with Go, Postgres, and Linux aligns well with the team's focus.\n\nIn my undergraduate research on distributed storage, I used Go to implement a sharded key-value store with a gRPC interface, integrating etcd for cluster coordination and Docker for local testing. I also built a metrics collection agent in Python that exports Prometheus-compatible endpoints and handles backpressure. These projects taught me the importance of reliable, observable services.\n\nI'm free for an interview next week on Tuesday, Nov 3 from 10am to 12pm or Thursday, Nov 5 from 1pm to 5pm Central time. My resume is below, and I look forward to discussing how I can contribute to Lumen Labs.\n\nBest,\nGrace Patel\n\n---\n\nResume:\n\nGrace Patel\nEmail: grace.patel@northwestern.edu | Phone: (555) 123-4567 | Evanston, IL\n\nEducation\nNorthwestern University, Evanston, IL\nBachelor of Science in Data Science, Expected June 2027\nGPA: 3.94/4.00\nRelevant Coursework: Distributed Systems, Operating Systems, Database Systems, Data Structures and Algorithms, Computer Networks, Cloud Computing\n\nExperience\nUndergraduate Research Assistant, Distributed Systems Lab, Northwestern University\nJanuary 2025 – Present\n- Designed and implemented a distributed key-value store in Go, achieving 10k operations per second with linear scalability across 5 nodes\n- Integrated etcd for leader election and service discovery; used gRPC for inter-node communication\n- Containerized the service with Docker and orchestrated tests using Docker Compose\n- Added Prometheus metrics and Grafana dashboards for latency and throughput monitoring\n- Co-authored a paper on consistency trade-offs, currently under review\n\nProjects\nDistributed Task Queue (Go, Postgres, Docker)\nSeptember 2025 – Present\n- Built a persistent job queue with at-least-once delivery semantics using PostgreSQL as the backing store\n- Implemented worker pools and exponential backoff for retries; handles 1k jobs per minute\n- Deployed on a single Linux server with systemd; used by 30+ students for coursework\n\nMetrics Pipeline (Python, Kafka, InfluxDB)\nMarch 2025 – June 2025\n- Created a pipeline to ingest application metrics via Kafka, process them in Python, and store time-series data in InfluxDB\n- Designed for fault tolerance with idempotent writes and checkpointing; achieved 99.9% data durability\n- Visualized results with Grafana; reduced incident response time by 40% in a campus club project\n\nSkills\nLanguages: Go, Python, Rust (basic), SQL\nDatabases: PostgreSQL, etcd, InfluxDB\nTools: Docker, Kubernetes (basics), gRPC, Git, Linux, Prometheus, Grafana\n\nCoursework Projects\n- Operating Systems: Implemented a preemptive thread scheduler in C with priority inheritance\n- Database Systems: Built a simple relational database with B+ tree indexing and ACID transactions",
+   "attachments": [
+    {
+     "name": "Grace_Patel_Resume.pdf",
+     "text": "Grace Patel\nEmail: grace.patel@northwestern.edu | Phone: (555) 123-4567 | Evanston, IL\n\nEducation\nNorthwestern University, Evanston, IL\nBachelor of Science in Data Science, Expected June 2027\nGPA: 3.94/4.00\nRelevant Coursework: Distributed Systems, Operating Systems, Database Systems, Data Structures and Algorithms, Computer Networks, Cloud Computing\n\nExperience\nUndergraduate Research Assistant, Distributed Systems Lab, Northwestern University\nJanuary 2025 – Present\n- Designed and implemented a distributed key-value store in Go, achieving 10k operations per second with linear scalability across 5 nodes\n- Integrated etcd for leader election and service discovery; used gRPC for inter-node communication\n- Containerized the service with Docker and orchestrated tests using Docker Compose\n- Added Prometheus metrics and Grafana dashboards for latency and throughput monitoring\n- Co-authored a paper on consistency trade-offs, currently under review\n\nProjects\nDistributed Task Queue (Go, Postgres, Docker)\nSeptember 2025 – Present\n- Built a persistent job queue with at-least-once delivery semantics using PostgreSQL as the backing store\n- Implemented worker pools and exponential backoff for retries; handles 1k jobs per minute\n- Deployed on a single Linux server with systemd; used by 30+ students for coursework\n\nMetrics Pipeline (Python, Kafka, InfluxDB)\nMarch 2025 – June 2025\n- Created a pipeline to ingest application metrics via Kafka, process them in Python, and store time-series data in InfluxDB\n- Designed for fault tolerance with idempotent writes and checkpointing; achieved 99.9% data durability\n- Visualized results with Grafana; reduced incident response time by 40% in a campus club project\n\nSkills\nLanguages: Go, Python, Rust (basic), SQL\nDatabases: PostgreSQL, etcd, InfluxDB\nTools: Docker, Kubernetes (basics), gRPC, Git, Linux, Prometheus, Grafana\n\nCoursework Projects\n- Operating Systems: Implemented a preemptive thread scheduler in C with priority inheritance\n- Database Systems: Built a simple relational database with B+ tree indexing and ACID transactions"
+    }
+   ]
+  },
+  {
+   "id": 56,
+   "from": {
+    "name": "Kayla Ortiz",
+    "email": "kayla.ortiz@lumenlabs.example"
+   },
+   "date": "2026-10-21T13:56:00-05:00",
+   "subject": "Platform intern first-round interviews next week",
+   "body": "Hi Dana,\n\nApplications for the Platform intern req closed October 24, so our pool is locked. Any submissions after that date are late and won't be considered.\n\nCould you and either Marcus or Priya hold first-round interviews next week, November 2 to 6? I'd like to get about six candidates scheduled, 45 minutes each. Please prioritize systems experience when you review the pile; that's the main screen here.\n\nThe req is approved for 2 interns, so once first rounds wrap we can move to final decisions.\n\nIf you send me your availability by Thursday, I'll book slots and send confirmations. If Marcus or Priya can't take the full set, just tell me which days each of you can cover and I'll split the panel.\n\nThanks,\nKayla Ortiz\nRecruiting Coordinator"
+  },
+  {
+   "id": 57,
+   "from": {
+    "name": "Okta",
+    "email": "noreply@okta.example"
+   },
+   "date": "2026-10-21T11:42:00-05:00",
+   "subject": "New sign-in to your Okta account from Chrome on macOS",
+   "body": "Hi Dana,\n\nA new sign-in to your Okta account was detected. If this was you, no action is needed.\n\nSign-in details:\n\nTime: March 14, 2025 at 3:42 PM CT\nApplication: Lumen Labs SSO\nBrowser: Chrome\nOperating System: macOS\nLocation: Madison, WI, United States\nIP Address: 198.51.100.24\n\nIf you did not sign in or this looks unfamiliar, please secure your account right away by resetting your password and reviewing your active sessions in the Okta dashboard. You can also contact your IT help desk for assistance.\n\nFor your security, never share this email or your sign-in details with anyone. Okta will never ask you for your password or verification code.\n\nThanks,\nThe Okta Team\n\nThis message was sent to dana.whitfield@lumenlabs.example from an unmonitored address. Please do not reply to this email."
+  },
+  {
+   "id": 58,
+   "from": {
+    "name": "Tanvi Iyer",
+    "email": "tanvi.iyer@gatech.edu"
+   },
+   "date": "2026-10-21T10:59:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Tanvi Iyer",
+   "body": "Hi Dana,\n\nI'm Tanvi Iyer, a junior at Georgia Tech studying Computer Science and Math. I saw your posting for the Platform internship and wanted to apply. I've built backend services with Python and Flask, worked with Postgres, and used Docker for containerization. Last summer, I interned as a web developer where I got hands-on experience with REST APIs and database design.\n\nI'm particularly interested in the chance to work on internal services like job schedulers and metrics pipelines. My coursework in databases and operating systems has given me a solid foundation, and I'm eager to apply it to real-world systems. I'm graduating in 2027 and have written backend code for class projects and personal work, including a Flask app that manages event registrations and uses Postgres.\n\nI'm available for an interview next week on Thursday, Nov 5, from 1pm to 5pm Central time. Thank you for considering my application. I look forward to the possibility of contributing to Lumen Labs.\n\nBest regards,\nTanvi Iyer",
+   "attachments": [
+    {
+     "name": "Tanvi_Iyer_Resume.pdf",
+     "text": "Tanvi Iyer\nEmail: tanvi.iyer@gatech.edu\n\nEducation\nGeorgia Institute of Technology, Atlanta, GA\nBachelor of Science in Computer Science and Mathematics\nExpected Graduation: May 2027\nGPA: 3.3/4.0\n\nExperience\nWeb Development Intern, Tech Solutions Inc., Atlanta, GA\nJune 2025 – August 2025\n- Developed and maintained Flask-based web applications for client projects.\n- Designed and implemented REST APIs to support frontend features.\n- Worked with PostgreSQL to create and query databases, optimizing queries for performance.\n- Used Docker to containerize applications for consistent development and deployment.\n- Collaborated with a team of developers using Git for version control.\n\nProjects\nEvent Registration System\n- Built a Flask web app that allows users to create and register for events.\n- Integrated PostgreSQL for storing user and event data.\n- Deployed using Docker and Nginx on a Linux server.\n- Implemented user authentication and basic role-based access control.\n\nDistributed Key-Value Store\n- Implemented a simple distributed key-value store in Python as part of a course project.\n- Used sockets for communication between nodes and a consistent hashing ring for data distribution.\n- Tested with multiple nodes to ensure fault tolerance and data consistency.\n\nSkills\nLanguages: Python, SQL, JavaScript, HTML/CSS\nFrameworks: Flask, React\nDatabases: PostgreSQL, SQLite\nTools: Docker, Git, Linux, VS Code\n\nCoursework\n- Database Systems\n- Operating Systems\n- Distributed Systems\n- Data Structures and Algorithms\n- Computer Networks\n- Web Development"
+    }
+   ]
+  },
+  {
+   "id": 59,
+   "from": {
+    "name": "Grace Patel",
+    "email": "grace.patel@northwestern.edu"
+   },
+   "date": "2026-10-21T10:42:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Grace Patel",
+   "body": "Dear Dana Whitfield,\n\nI am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a junior at Northwestern University studying Data Science with a 3.94 GPA, and I am excited about the opportunity to contribute to internal services that power other teams.\n\nThrough my coursework in distributed systems and operating systems, and my research on distributed storage, I have developed strong backend skills in Go, Python, and Rust, along with experience in Postgres, Docker, Linux, and gRPC. I have built a distributed key-value store that replicates data across nodes using Raft consensus, which has given me practical insight into building reliable, scalable systems.\n\nI am confident that my background aligns well with the Platform team's focus on job schedulers, metrics pipelines, and deploy tools. I am particularly drawn to the chance to work on services that other engineers depend on daily.\n\nI am available for an interview next week on Tuesday, November 3, from 10am to 12pm, or Thursday, November 5, from 1pm to 5pm Central time. Please let me know if either works for you.\n\nThank you for your consideration. I look forward to the possibility of contributing to Lumen Labs.\n\nBest regards,\nGrace Patel",
+   "attachments": [
+    {
+     "name": "Grace_Patel_Resume.pdf",
+     "text": "Grace Patel\ngrace.patel@northwestern.edu | (123) 456-7890 | Evanston, IL\n\nEDUCATION\nNorthwestern University, Evanston, IL\nBachelor of Science in Data Science, expected June 2027\nGPA: 3.94/4.00\nRelevant coursework: Distributed Systems, Operating Systems, Database Systems, Computer Networks, Algorithms, Data Structures\n\nEXPERIENCE\nUndergraduate Research Assistant, Distributed Systems Lab, Northwestern University\nSeptember 2024 – Present\n- Design and implement a distributed storage system in Go that replicates data across multiple nodes using Raft consensus.\n- Optimize read/write performance by 30% through batching and pipelining techniques.\n- Collaborate with graduate students to test fault tolerance and consistency under network partitions.\n\nSoftware Engineering Intern, TechNova Solutions\nJune 2024 – August 2024\n- Developed a RESTful API in Python (Flask) for internal inventory management, serving 500+ daily requests.\n- Integrated PostgreSQL database and wrote complex queries to generate real-time reports.\n- Containerized the application with Docker and deployed on Linux servers, reducing deployment time by 40%.\n\nPROJECTS\nDistributed Key-Value Store | Go, gRPC, Raft\n- Built a fault-tolerant key-value store that replicates data across five nodes.\n- Implemented leader election, log replication, and snapshotting using Raft consensus.\n- Designed a gRPC interface for client interactions and achieved 99.9% availability in tests.\n\nContainerized Job Scheduler | Go, Docker, PostgreSQL\n- Created a simple job scheduler that runs tasks on a schedule and logs results to Postgres.\n- Packaged the scheduler as a Docker container and orchestrated multiple instances with Docker Compose.\n- Added a basic metrics endpoint for monitoring job success rates.\n\nSKILLS\nLanguages: Go, Python, Rust, SQL\nDatabases: PostgreSQL, SQLite\nTools: Docker, Linux, Git, gRPC, Kubernetes (basic)\nConcepts: Distributed Systems, Operating Systems, Databases, Observability"
+    }
+   ]
+  },
+  {
+   "id": 60,
+   "from": {
+    "name": "Hassan Joshi",
+    "email": "hassan.joshi@gatech.edu"
+   },
+   "date": "2026-10-21T09:46:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI hope you're doing well. I'm Hassan Joshi, a junior at Georgia Tech studying Electrical Engineering, and I'm excited to apply for the Software Engineering Intern, Platform role at Lumen Labs for Summer 2027. The chance to work on core infrastructure like job schedulers and deploy tools really appeals to me, especially since I've been diving into backend systems through my coursework and personal projects.\n\nWhile my major is EE, I've focused heavily on software, with strong skills in C, Linux, and Python. Last summer, I interned as a web developer at a startup, where I built REST APIs and worked with databases, giving me a taste of real-world backend development. I've also taken courses in operating systems and databases, which have given me a solid foundation for distributed systems concepts. I'm particularly interested in how Lumen Labs builds internal services that other teams rely on, and I'd love to contribute to that mission.\n\nI've attached my resume with more details. Thank you for your consideration. I look forward to hearing from you.\n\nBest,\nHassan Joshi\nhassan.joshi@gatech.edu",
+   "attachments": [
+    {
+     "name": "Hassan_Joshi_Resume.pdf",
+     "text": "Hassan Joshi\nhassan.joshi@gatech.edu | Atlanta, GA\n\nEDUCATION\nGeorgia Institute of Technology, Atlanta, GA\nBachelor of Science in Electrical Engineering, Expected May 2028\nGPA: 3.6/4.0\n\nEXPERIENCE\nWeb Development Intern, TechNova Solutions, Atlanta, GA\nMay 2025 – August 2025\n- Developed RESTful APIs using Python and Flask to support an internal customer management tool, handling ~1000 requests per day.\n- Integrated PostgreSQL database for storing user data and session logs, optimizing queries to reduce response time by 20%.\n- Collaborated with a team of 4 developers using Git and Agile methodologies, participating in daily stand-ups and code reviews.\n- Deployed application on Linux servers using Docker containers, gaining hands-on experience with containerization and basic CI/CD pipelines.\n\nPROJECTS\nDistributed Key-Value Store, Georgia Tech\nJanuary 2026 – Present\n- Building a distributed key-value store in Go with Raft consensus algorithm for fault tolerance.\n- Implementing leader election, log replication, and persistent storage; testing with 5-node cluster on local Linux VMs.\n- Designed to handle network partitions and node failures, with metrics exposed via Prometheus for monitoring.\n\nTask Scheduler Service, Personal Project\nSeptember 2025 – December 2025\n- Created a job scheduler in Python that runs as a Linux daemon, allowing users to submit and manage cron-like tasks via a REST API.\n- Used SQLite for task persistence and multiprocessing for concurrent execution; added logging and basic alerting.\n- Deployed on a Raspberry Pi, used by friends for automating backups and reminders, handling ~50 tasks daily.\n\nSKILLS\nLanguages: C, Python, Go (learning), SQL, Bash\nTools: Linux, Git, Docker, PostgreSQL, SQLite, Flask, REST APIs\nConcepts: Operating Systems, Distributed Systems, Databases, Concurrency\n\nCOURSEWORK\nOperating Systems, Database Systems, Computer Networks, Data Structures & Algorithms, Distributed Systems (audit), Introduction to Software Engineering"
+    }
+   ]
+  },
+  {
+   "id": 61,
+   "from": {
+    "name": "Pedro Alves",
+    "email": "pedro.alves@illinois.edu"
+   },
+   "date": "2026-10-21T08:30:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'm Pedro Alves, a junior in Computer Science at UIUC, and I'd like to apply for the Platform internship at Lumen Labs. Your team's focus on schedulers, metrics pipelines, and deploy tools is exactly the kind of backend work I've been doing and want to keep doing.\n\nThis past summer I interned at a fintech startup where I wrote Go services for payment reconciliation. I added a retry queue with exponential backoff and idempotency keys, which cut duplicate reconciliation errors by about 30%. I also got comfortable with Postgres query tuning and deploying on Linux with Docker.\n\nOn campus, I built Hoard, a file-sharing service that runs on a small cluster in our systems lab. It uses consistent hashing to spread chunks across nodes and a gossip protocol for membership. About 50 students use it weekly, and it's taught me a lot about failure handling and observability. I've taken Distributed Systems and Operating Systems, and I use Linux as my daily driver.\n\nThe job listing mentions Go, Python, and Rust; I'm strongest in Go but have written Python for scripts and data pipelines. I haven't used Kubernetes in production, but I've played with minikube and would love to learn more.\n\nI'd be glad to walk through my work. Thanks for your time.\n\nBest,\nPedro Alves\npedro.alves@illinois.edu",
+   "attachments": [
+    {
+     "name": "Pedro_Alves_Resume.pdf",
+     "text": "Pedro Alves\npedro.alves@illinois.edu\n\nEDUCATION\nUniversity of Illinois Urbana-Champaign — B.S. in Computer Science, Junior\nGPA: 3.54/4.00\nExpected graduation: May 2027\n\nEXPERIENCE\nSoftware Engineering Intern — Fintech Startup (May 2025 – Aug 2025)\n- Built Go microservices for payment reconciliation, processing 50k transactions/day.\n- Added a retry queue with exponential backoff and idempotency keys, reducing duplicate reconciliation errors by 30%.\n- Optimized Postgres queries and added indexes, cutting average query time from 120ms to 40ms.\n- Deployed services with Docker on Linux VMs and set up basic metrics with Prometheus.\n\nPROJECTS\nHoard — Distributed File-Sharing Service (2025 – Present)\n- Implemented a service in Go that spreads file chunks across a cluster using consistent hashing.\n- Nodes discover each other via a gossip protocol; handles node failures by re-replicating chunks.\n- Used by ~50 students weekly for sharing course materials.\n- Added Prometheus metrics and structured logging to monitor health.\n\nMini-Scheduler — Job Scheduler (2025)\n- Wrote a concurrent job scheduler in Go with priority queues and backpressure.\n- Supports cron-like periodic jobs and one-off tasks; persists job state to Postgres.\n- Achieved 2x throughput over a naive implementation in benchmarks.\n\nRay Tracer — C++ (2024)\n- Built a multithreaded ray tracer in C++ that renders scenes to PNG.\n- Used a thread pool and lock-free queues to parallelize rendering, cutting render time by 60%.\n\nSKILLS\nLanguages: Go, C++, Python, SQL, Bash\nSystems: Linux, Docker, Postgres, Git, Prometheus\nConcepts: distributed systems, concurrency, operating systems, networking\n\nCOURSEWORK\nDistributed Systems, Operating Systems, Database Systems, Computer Networks, Algorithms & Data Structures, Computer Architecture"
+    }
+   ]
+  },
+  {
+   "id": 62,
+   "from": {
+    "name": "Keiko Tanaka",
+    "email": "keiko.tanaka@osu.edu"
+   },
+   "date": "2026-10-20T21:52:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana,\n\nI am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a junior at Ohio State University majoring in Computer Science and Mathematics, and I am excited about the opportunity to work on internal services that power other teams.\n\nThrough my coursework and projects, I have developed a strong foundation in backend development. I have experience building web applications using Java, Spring, and MySQL, and I have deployed services on AWS. While I have not worked specifically with Go, Python, or Rust, I am confident in my ability to learn quickly and adapt to new technologies. My web development internship gave me hands-on experience with the full development lifecycle, from coding to deployment.\n\nI am particularly drawn to Lumen Labs' focus on job scheduling, metrics pipelines, and deploy tools. I have taken courses in operating systems and databases, which have given me a solid understanding of the challenges in building reliable and scalable systems. I am eager to contribute to a team that values real backend code and services that people use.\n\nI am available for an interview next week on Thursday, November 5, from 11am to 1pm Central time. Please let me know if that time works for you. Thank you for considering my application.\n\nBest regards,\nKeiko Tanaka",
+   "attachments": [
+    {
+     "name": "Keiko_Tanaka_Resume.pdf",
+     "text": "KEIKO TANAKA\nkeiko.tanaka@osu.edu | (614) 555-0123 | Columbus, OH\n\nEDUCATION\nOhio State University, Columbus, OH\nBachelor of Science in Computer Science and Mathematics, Expected May 2027\nGPA: 3.06/4.0\nRelevant Coursework: Operating Systems, Database Systems, Data Structures and Algorithms, Computer Architecture, Software Engineering, Discrete Mathematics\n\nEXPERIENCE\nWeb Development Intern, TechSolutions Inc., Columbus, OH\nJune 2025 – August 2025\n- Developed and maintained web applications using Java, Spring Boot, and MySQL.\n- Designed REST APIs for internal tools, improving data retrieval efficiency by 20%.\n- Collaborated with a team of 4 developers using Agile methodologies.\n- Deployed applications on AWS EC2 and configured basic monitoring.\n- Participated in code reviews and wrote unit tests with JUnit.\n\nPROJECTS\nPersonal Finance Tracker (Spring Boot, MySQL, AWS)\n- Built a web service to track expenses and generate reports.\n- Implemented user authentication and authorization using Spring Security.\n- Deployed on AWS Elastic Beanstalk with RDS for database.\n- Used Git for version control and GitHub Actions for CI.\n\nCampus Event Scheduler (Java, JavaFX)\n- Created a desktop application for students to schedule and manage events.\n- Integrated with a MySQL database to persist event data.\n- Implemented conflict detection and notification features.\n\nSimple Metrics Dashboard (Python, Flask)\n- Developed a lightweight service to collect and visualize system metrics.\n- Used Flask and SQLite to store and display data.\n- Containerized with Docker for easy deployment.\n\nSKILLS\nLanguages: Java, Python, SQL, JavaScript\nFrameworks: Spring Boot, Flask\nDatabases: MySQL, PostgreSQL (coursework)\nTools: Git, Docker, AWS (EC2, S3, RDS), Linux\nConcepts: REST APIs, MVC, OOP, Agile\n\nADDITIONAL\n- Dean's List (Fall 2024)\n- Member of OSU Computer Science Club"
+    }
+   ]
+  },
+  {
+   "id": 63,
+   "from": {
+    "name": "Carmen Brennan",
+    "email": "carmen.brennan@purdue.edu"
+   },
+   "date": "2026-10-20T20:37:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform - Carmen Brennan",
+   "body": "Hi Dana,\n\nI'm Carmen Brennan, a sophomore at Purdue studying Information Science. I saw the Platform SWE Intern posting and wanted to apply. While my background is more in front-end and design, I've been teaching myself backend development and would love the chance to work on internal services.\n\nThis past summer, I interned at a social media startup where I helped build React components and used Figma for design specs. That experience showed me how important reliable backend systems are, even though I didn't work on them directly. Since then, I've taken online courses in Python and started learning Go. I also have experience with Git and basic Linux commands from my coursework.\n\nI know I have a lot to learn, but I'm a quick study and really excited about platform engineering. I'm eager to contribute to Lumen Labs and grow my skills in a real-world setting. I'd be happy to discuss how I can add value to your team.\n\nThanks for your consideration,\nCarmen",
+   "attachments": [
+    {
+     "name": "Carmen_Brennan_Resume.pdf",
+     "text": "Carmen Brennan\ncarmen.brennan@purdue.edu | linkedin.com/in/carmenbrennan | github.com/carmenb\n\nEDUCATION\nPurdue University, West Lafayette, IN\nBachelor of Science in Information Science\nExpected Graduation: May 2027\nGPA: 2.82/4.0\n\nRelevant Coursework:\n- Data Structures and Algorithms (CS 251)\n- Database Fundamentals (CS 348)\n- Web Development (CS 252)\n- Human-Computer Interaction (CS 275)\n- Systems Programming (currently enrolled)\n\nEXPERIENCE\nSocial Media Intern | Buzzly, Remote\nJune 2025 – August 2025\n- Developed reusable React components for a new analytics dashboard, reducing development time by 15%.\n- Collaborated with designers to implement UI mockups from Figma into responsive web pages.\n- Participated in daily stand-ups and used Git for version control.\n- Assisted in A/B testing of UI features, analyzing results with basic SQL queries.\n\nPROJECTS\nPersonal Portfolio Website | HTML, CSS, JavaScript\n- Designed and built a responsive portfolio site to showcase projects and design work.\n- Used Flexbox and CSS Grid for layout, ensuring compatibility across browsers.\n- Deployed via GitHub Pages.\n\nRecipe Sharing App | React, Firebase\n- Created a web app where users can post and browse recipes, with authentication and real-time updates.\n- Implemented CRUD operations using Firestore and React Hooks.\n- Collaborated with a peer to split front-end and back-end tasks; I focused on UI and state management.\n\nTask Tracker CLI | Python\n- Built a command-line task manager with file-based persistence to learn Python and basic OOP.\n- Supports adding, listing, and completing tasks with error handling.\n- Currently extending it to use SQLite for storage.\n\nLearnGo Exercises | Go\n- Completed online tutorials and small exercises to understand Go syntax and concurrency basics.\n- Wrote a simple concurrent web scraper to practice goroutines and channels.\n\nSKILLS\nLanguages: JavaScript, HTML/CSS, Python (basic), Go (learning)\nFrameworks/Libraries: React, Node.js (basic)\nTools: Git, GitHub, Figma, VS Code, Linux (basic commands)\nDatabases: Firebase, SQL (basic)\n\nADDITIONAL\n- Active in Purdue Women in Tech club, helping organize workshops.\n- Interested in backend development and distributed systems; currently reading \"Designing Data-Intensive Applications.\""
+    }
+   ]
+  },
+  {
+   "id": 64,
+   "from": {
+    "name": "Amara Delgado",
+    "email": "amara.delgado@purdue.edu"
+   },
+   "date": "2026-10-20T19:34:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform at Lumen Labs",
+   "body": "Dear Dana Whitfield,\n\nI'm writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I'm a junior at Purdue University studying Information Science, and I'm eager to contribute to your team.\n\nWhile my formal coursework has focused on web technologies and information systems, I've developed a strong foundation in problem-solving and building for the web. I've worked with HTML, JavaScript, and WordPress to create and maintain websites, and I'm comfortable learning new tools quickly. I understand that this role emphasizes backend systems like job schedulers and metrics pipelines, and I'm excited about the opportunity to apply my skills and grow in a platform engineering environment.\n\nThrough my retail experience, I've honed my ability to work in fast-paced teams, communicate clearly, and manage multiple priorities—skills that I believe translate well to collaborative software development. I'm particularly drawn to Lumen Labs' focus on internal services that empower other teams, and I'd love to contribute to that mission.\n\nI've attached my resume for your review. Thank you for your consideration. I look forward to the possibility of discussing how I can contribute to your team.\n\nSincerely,\nAmara Delgado",
+   "attachments": [
+    {
+     "name": "Amara_Delgado_Resume.pdf",
+     "text": "Amara Delgado\namara.delgado@purdue.edu\n\nEDUCATION\nPurdue University, West Lafayette, IN\nBachelor of Science in Information Science, Expected May 2027\nGPA: 3.21/4.0\n\nEXPERIENCE\nRetail Associate, Target, West Lafayette, IN\nJune 2024 – Present\n- Provide customer service in a fast-paced environment, resolving inquiries and handling transactions accurately.\n- Collaborate with team members to restock shelves and maintain store organization during peak hours.\n- Trained two new employees on point-of-sale systems and store procedures.\n\nSeasonal Retail Assistant, Old Navy, Indianapolis, IN\nNovember 2023 – January 2024\n- Assisted customers with finding products and processing returns during the holiday season.\n- Managed fitting room operations, ensuring a positive shopping experience.\n\nPROJECTS\nPersonal WordPress Blog\nJanuary 2025 – Present\n- Designed and launched a personal blog using WordPress to share insights on information science topics.\n- Customized a theme with HTML and CSS, and integrated social media sharing features.\n- Optimized site performance by compressing images and using caching plugins.\n\nClass Project: Interactive Website\nSeptember 2024 – December 2024\n- Built a multi-page website for a fictional business using HTML, CSS, and JavaScript.\n- Implemented a dynamic navigation menu and form validation.\n- Received positive feedback from peers and instructor for clean design and usability.\n\nSKILLS\n- Web Technologies: HTML, CSS, JavaScript, WordPress\n- Tools: Git, Visual Studio Code\n- Soft Skills: Customer service, teamwork, time management\n\nCOURSEWORK\n- Introduction to Information Science\n- Web Development\n- Database Fundamentals\n- Human-Computer Interaction\n- Information Systems in Organizations"
+    }
+   ]
+  },
+  {
+   "id": 65,
+   "from": {
+    "name": "Handshake",
+    "email": "notifications@joinhandshake.example"
+   },
+   "date": "2026-10-20T19:02:00-05:00",
+   "subject": "Your Software Engineering Intern role got 112 views and 9 applications this week",
+   "body": "Hi Dana,\n\nYour Software Engineering Intern posting at Lumen Labs picked up some solid traction on Handshake this week.\n\nHere's the snapshot:\n\n- 112 students viewed the role\n- 9 applications submitted\n- All applications are waiting for you in your Handshake portal\n\nThe views came mostly from students at schools in your recruiting pool, and a good chunk of them are computer science or adjacent majors graduating in the next year or two. That's usually a sign the posting is landing with the right audience.\n\nA couple of things that tend to help postings like yours convert even better:\n\n- Adding a salary range or hourly rate, if you can share one\n- Calling out whether the internship is remote, hybrid, or on-site\n- Noting the expected start date and length of the program\n\nNone of that is required, but postings with those details often see more completed applications.\n\nYou can review and message applicants right from your Handshake portal, no need to wait on anything from us. If you'd like help refining the posting or want to see how similar intern roles are performing, just reply to this email and we'll take a look.\n\nGood luck with the search.\n\nThe Handshake team"
+  },
+  {
+   "id": 66,
+   "from": {
+    "name": "Out of Office",
+    "email": "jordan.blake@lumenlabs.example"
+   },
+   "date": "2026-10-20T15:24:00-05:00",
+   "subject": "Automatic reply: Out of Office",
+   "body": "Hi, this is Jordan Blake. I'm out of office from now until November 9 and won't be checking email regularly. If you're writing about a deploy issue, page the on-call channel in Slack (#platform-oncall) rather than replying here, since I won't see this until I'm back. For anything else, Dana Whitfield is covering my work while I'm away, so please loop her in and she can route it or flag it for me. I'll read through everything when I return and get back to you then. Thanks, and sorry for the slow response. — Jordan"
+  },
+  {
+   "id": 67,
+   "from": {
+    "name": "IT Security",
+    "email": "security@lumenlabs.example"
+   },
+   "date": "2026-10-20T13:10:00-05:00",
+   "subject": "Action required: SSO password rotation by Friday",
+   "body": "Hi Dana,\n\nAs part of our quarterly access review, we need you to rotate your Lumen Labs SSO password by end of day Friday, November 21. This applies to your primary account (dana.whitfield@lumenlabs.example) and any service accounts you own under the Platform team.\n\nTo rotate: go to sso.lumenlabs.example, sign in with your current credentials, then choose Security > Change Password. Your new password must be at least 14 characters and cannot match any of your last five passwords. MFA enrollment is already active on your account, but please confirm your backup codes are saved somewhere safe before you finish.\n\nA quick reminder while we have your attention: phishing attempts are up sharply this quarter. We have seen messages impersonating HR, IT, and even vendor invoices. A few things to watch for: unexpected urgency, links that do not match the sender's domain, and requests to approve MFA prompts you did not initiate. If you get something suspicious, forward it to security@lumenlabs.example and do not click through. When in doubt, verify through a separate channel.\n\nIf you hit any snags with the rotation, reply here or ping the Security Operations channel and we will sort it out.\n\nThanks,\nIT Security\nLumen Labs"
+  },
+  {
+   "id": 68,
+   "from": {
+    "name": "Daniel Lindqvist",
+    "email": "daniel.lindqvist@illinois.edu"
+   },
+   "date": "2026-10-20T11:37:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform - Daniel Lindqvist",
+   "body": "Dear Dana,\n\nI'm writing to apply for the Software Engineering Intern, Platform role at Lumen Labs. I'm a junior at UIUC studying Electrical Engineering, and I've spent the last year building backend services that people actually rely on.\n\nLast summer, I interned at a fintech startup where I worked on their transaction processing backend. I rewrote a critical gRPC service in Go that handles account balance updates, cutting p99 latency from 120ms to 45ms. I also set up Docker containers for local development and helped migrate our Postgres schema to support sharding. That experience taught me how to write code that survives real traffic.\n\nOn campus, I'm part of a team building a distributed job scheduler for our research lab. We use Go, gRPC, and Postgres, and it's been running for six months, coordinating about 2,000 jobs per day across 12 nodes. I've learned a lot about failure modes and observability from that project.\n\nI'm excited about Lumen Labs because you're solving the exact problems I enjoy: building reliable infrastructure that other engineers depend on. I'm comfortable with Linux, containers, and I've dabbled with Kubernetes in a side project.\n\nI'd love to talk about how I can contribute. I'm free for an interview next week on Monday Nov 2 from 10am to 1pm, Thursday Nov 5 from 11am to 2pm, or Friday Nov 6 from 9am to 11am Central time. Please let me know what works for you.\n\nThanks for your consideration,\nDaniel",
+   "attachments": [
+    {
+     "name": "Daniel_Lindqvist_Resume.pdf",
+     "text": "Daniel Lindqvist\nUrbana, IL | daniel.lindqvist@illinois.edu | github.com/daniellindqvist\n\nEDUCATION\nUniversity of Illinois Urbana-Champaign\nB.S. in Electrical Engineering, Minor in Computer Science\nExpected May 2027 | GPA: 3.9/4.0\nRelevant Coursework: Distributed Systems, Operating Systems, Database Systems, Computer Networks, Data Structures & Algorithms, Computer Architecture\n\nEXPERIENCE\nBackend Engineering Intern | Fintech Startup (Remote) | Summer 2025\n- Rebuilt core gRPC service in Go for account balance updates, reducing p99 latency from 120ms to 45ms and handling 500 req/s.\n- Containerized legacy Python services with Docker and Docker Compose, streamlining local dev for 8 engineers.\n- Migrated Postgres schema to support horizontal sharding; wrote migration scripts and validated with pgbench.\n- Implemented distributed tracing with OpenTelemetry to debug cross-service latency spikes.\n\nPROJECTS\nDistributed Job Scheduler | Go, gRPC, Postgres, Docker | Jan 2026 - Present\n- Leading a team of 3 to build a job scheduler for a research lab; currently processes ~2,000 jobs/day across 12 nodes.\n- Designed leader election and fault-tolerant task queue using Raft consensus (implemented in Go).\n- Integrated Prometheus metrics and Grafana dashboards for observability.\n- Deployed via Docker Compose; working on Kubernetes manifests for production rollout.\n\nURL Shortener Service | Rust, Actix, Postgres | Sep 2025 - Dec 2025\n- Built a high-throughput URL shortener with custom base62 encoding, serving 10k requests/min in load tests.\n- Added rate limiting and caching with Redis; wrote integration tests achieving 95% coverage.\n\nSKILLS\nLanguages: Go, Python, Rust, SQL, Bash\nDatabases: PostgreSQL, Redis\nTools: Docker, Kubernetes (basic), Git, gRPC, Prometheus, Grafana, Linux\nConcepts: Distributed systems, concurrency, REST, observability"
+    }
+   ]
+  },
+  {
+   "id": 69,
+   "from": {
+    "name": "GitHub",
+    "email": "noreply@github.example"
+   },
+   "date": "2026-10-20T11:10:00-05:00",
+   "subject": "Dependabot opened 4 pull requests on lumen/deploy-tool",
+   "body": "Hi Dana,\n\nDependabot has opened 4 pull requests on lumen/deploy-tool since your last visit. For each pull request, you can review the dependency update, its release notes, and the compatibility score before deciding whether to merge or close it.\n\nHere's a summary:\n\n- #412: Bump axios from 1.6.8 to 1.7.2 (release notes included)\n- #413: Bump eslint from 9.3.0 to 9.5.0 (release notes included)\n- #414: Bump typescript from 5.4.5 to 5.5.2 (release notes included)\n- #415: Bump @types/node from 20.12.7 to 20.14.2 (release notes included)\n\nYou can view all open Dependabot pull requests here: https://github.example/lumen/deploy-tool/pulls?q=is%3Apr+author%3Aapp%2Fdependabot\n\nIf any of these updates need to be pinned to a specific version or ignored, you can adjust the configuration in .github/dependabot.yml. Dependabot will stop opening pull requests for dependencies you mark with an ignore rule.\n\nYou're receiving this because you have push access to lumen/deploy-tool. To change which notifications you get for this repository, visit your notification settings.\n\nThanks,\nThe GitHub Team"
+  },
+  {
+   "id": 70,
+   "from": {
+    "name": "Xavier O'Brien",
+    "email": "xavier.obrien@madisoncollege.edu"
+   },
+   "date": "2026-10-20T10:17:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI'm writing to apply for the Software Engineering Intern, Platform position at Lumen Labs. I'm a junior at Madison College studying Graphic Design, and I've developed a strong interest in backend development through my coursework and personal projects.\n\nWhile my major is design, I've taken several programming classes and built projects that involve server-side code. For example, I created a small web app using React and Node.js for a class project, and I've been learning Python on my own. I also have experience with databases from a course, where I used SQLite. I'm eager to apply my skills in a real-world setting and learn more about distributed systems and infrastructure.\n\nI understand the importance of reliable internal services and would love to contribute to Lumen Labs' platform team. I'm a quick learner and enjoy solving technical problems. I'm confident that my design background brings a unique perspective to backend engineering.\n\nThank you for considering my application. I look forward to the opportunity to discuss how I can contribute to your team.\n\nBest regards,\nXavier O'Brien",
+   "attachments": [
+    {
+     "name": "Xavier_O'Brien_Resume.pdf",
+     "text": "XAVIER O'BRIEN\nxavier.obrien@madisoncollege.edu\n\nEDUCATION\nMadison College, Madison, WI\nAssociate of Arts in Graphic Design, expected May 2027\nGPA: 3.01\n\nEXPERIENCE\nRetail Sales Associate, Target, Madison, WI (June 2024 - Present)\n- Provide customer service, handle cash transactions, and maintain store appearance.\n- Collaborate with team members to meet daily sales goals.\n- Developed strong communication and problem-solving skills.\n\nBarista, Starbucks, Madison, WI (September 2023 - May 2024)\n- Prepared beverages and food items in a fast-paced environment.\n- Managed inventory and restocked supplies.\n- Trained new employees on POS systems and drink recipes.\n\nPROJECTS\nPersonal Portfolio Website (2025)\n- Designed and built a responsive portfolio using React and CSS to showcase graphic design work.\n- Implemented smooth scrolling and interactive elements.\n- Deployed on Netlify.\n\nWeather Dashboard (2025)\n- Created a web app that fetches weather data from OpenWeatherMap API using JavaScript.\n- Allowed users to search for cities and view current conditions and forecasts.\n- Used CSS Grid and Flexbox for layout.\n\nClass Project: Inventory Management System (2024)\n- Collaborated with a team to design a simple inventory tracker using Python and SQLite.\n- Implemented CRUD operations and a basic command-line interface.\n- Presented project to class and received positive feedback.\n\nSKILLS\nDesign: Figma, Adobe Creative Suite, CSS, responsive design\nProgramming: JavaScript, React, Python, HTML, SQL\nTools: Git, Netlify, VS Code\n\nCOURSEWORK\nIntroduction to Programming (Python), Web Development (HTML/CSS/JavaScript), Database Concepts (SQL), User Experience Design, Graphic Design Principles, Typography, Digital Imaging."
+    }
+   ]
+  },
+  {
+   "id": 71,
+   "from": {
+    "name": "Yara Mensah",
+    "email": "yara.mensah@wisc.edu"
+   },
+   "date": "2026-10-20T07:57:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027) - Yara Mensah",
+   "body": "Dear Dana,\n\nI'm writing to apply for the Software Engineering Intern, Platform position at Lumen Labs. As a junior in Computer Engineering at UW–Madison, I've focused on building backend services and tooling that other engineers rely on.\n\nLast semester, I was a teaching assistant for Operating Systems, where I helped students debug low-level C and xv6, and wrote a Rust-based autograder that ran student submissions in containers. This deepened my understanding of concurrency, memory management, and Linux internals.\n\nFor my current project, I'm building a distributed job scheduler in Go that uses Postgres for state and Kafka for task distribution. It handles retries, prioritization, and has a simple UI for monitoring. The code is on GitHub and a few classmates are already using it for their own batch jobs.\n\nI've also taken courses in distributed systems and databases, and I'm comfortable with Docker and basic Kubernetes. I'm eager to apply these skills to internal platform services at Lumen Labs.\n\nThanks for your consideration. I look forward to hearing from you.\n\nBest,\nYara Mensah",
+   "attachments": [
+    {
+     "name": "Yara_Mensah_Resume.pdf",
+     "text": "YARA MENSAH\nyara.mensah@wisc.edu | (608) 555-1234 | github.com/ymensah | linkedin.com/in/ymensah\n\nEDUCATION\nUniversity of Wisconsin–Madison — B.S. Computer Engineering, May 2027\nGPA: 3.89/4.00\nRelevant Coursework: Operating Systems, Distributed Systems, Database Management Systems, Computer Architecture, Data Structures & Algorithms, Computer Networks, Software Engineering\n\nEXPERIENCE\nTeaching Assistant, Operating Systems — UW–Madison, Sep 2022 – Present\n- Lead weekly discussion sections for 30+ students on process scheduling, virtual memory, and file systems.\n- Hold office hours to debug xv6 kernel projects and C concurrency issues.\n- Developed a Rust-based autograder that runs student submissions in Docker containers, reducing grading time by 40%.\n- Collaborate with professors to update assignment specs and test suites.\n\nSoftware Engineering Intern — Fetch Robotics (remote), Jun 2022 – Aug 2022\n- Built a Python service to aggregate robot telemetry data into a Postgres database for analysis.\n- Wrote SQL queries and Grafana dashboards to visualize robot uptime and error rates.\n- Containerized the service with Docker and deployed to a Kubernetes cluster.\n\nPROJECTS\nDistributed Job Scheduler — Go, Postgres, Kafka, Docker (2023 – Present)\n- Designed a fault-tolerant scheduler that accepts job submissions via REST API and dispatches tasks to workers using Kafka.\n- Implemented job prioritization, retries with exponential backoff, and dead-letter queues.\n- Used Postgres to persist job state and provide exactly-once semantics via transactional outbox pattern.\n- Deployed locally with Docker Compose; currently used by 5 peers for batch processing.\n\nMetrics Pipeline — Python, Kafka, InfluxDB (2023)\n- Built a lightweight pipeline that ingests application metrics from Kafka topics into InfluxDB for time-series analysis.\n- Added a custom Python client library for easy instrumentation.\n\nCourse Project: Simple Container Runtime — Go, Linux (2023)\n- Implemented a basic container runtime using Linux namespaces and cgroups.\n- Supported filesystem isolation via chroot and resource limits on CPU and memory.\n\nSKILLS\nLanguages: Python, Go, Rust, C, SQL\nDatabases: PostgreSQL, InfluxDB\nTools: Docker, Kubernetes, Kafka, Git, Linux, Grafana\nConcepts: Distributed Systems, Operating Systems, Containers, Observability\n\nADDITIONAL\n- Active in UW–Madison Open Source Club; contribute to small Go projects.\n- Fluent in English and Twi."
+    }
+   ]
+  },
+  {
+   "id": 72,
+   "from": {
+    "name": "Bilal Washington",
+    "email": "bilal.washington@illinois.edu"
+   },
+   "date": "2026-10-19T22:22:00-05:00",
+   "subject": "Summer 2027 Software Engineering Intern Application - Bilal Washington",
+   "body": "Hi Dana,\n\nI'm Bilal Washington, a sophomore at UIUC studying CS and Math. I saw the Platform internship on your site and wanted to apply because building the services that other teams deploy on sounds like exactly what I want to do.\n\nMost of my hands-on work has been in Go and Postgres. Last spring I built a job scheduler as a side project that runs as a containerized service; it queues tasks and retries failed ones. I've also taken operating systems here and TA'd it this fall, so I spend a lot of time with Linux, processes, and concurrency. I use Docker daily and have played with gRPC for internal APIs. I haven't touched Kubernetes yet, but I'd like to.\n\nI'm looking for a summer internship where I can write real backend code that ships, and Lumen Labs' focus on metrics pipelines and deploy tools lines up with the kind of systems I enjoy. I can overlap 10am-3pm Central easily.\n\nI'd love to chat. I'm free next Thursday, Nov 5, from 9am to 1pm Central. Let me know if that works.\n\nThanks,\nBilal",
+   "attachments": [
+    {
+     "name": "Bilal_Washington_Resume.pdf",
+     "text": "BILAL WASHINGTON\nbilal.washington@illinois.edu | (217) 555-0142 | Urbana, IL\n\nEDUCATION\nUniversity of Illinois Urbana-Champaign — B.S. in Computer Science and Mathematics\nAug 2024 – May 2028 | GPA: 3.83/4.00\n\nEXPERIENCE\nTeaching Assistant, Operating Systems (CS 341) — UIUC\nAug 2025 – Present | Urbana, IL\n- Lead weekly discussion sections for 25 students on process scheduling, virtual memory, and concurrency.\n- Hold office hours debugging C programs with pthreads; help students reason about race conditions and deadlocks.\n- Grade assignments involving xv6 modifications and a simple shell; provide written feedback on code quality.\n\nPROJECTS\nJob Scheduler (Go, Postgres, Docker) — github.com/bilalw/scheduler\n- Built a small distributed job scheduler as a long-running service that accepts HTTP submissions and executes tasks in worker goroutines.\n- Stores job state and retries in Postgres; uses a table with SELECT ... FOR UPDATE SKIP LOCKED to safely claim tasks across workers.\n- Packaged with Docker Compose; currently runs on a $5 DigitalOcean droplet and processes about 200 jobs/day for a campus club.\n\ngRPC Key-Value Store (Go, gRPC)\n- Implemented a replicated key-value store with a leader and two followers; leader appends to a log and followers apply entries.\n- Wrote protobuf definitions and used gRPC streaming for log replication. Tested with a simple client that writes and reads keys.\n- Learned how to reason about consistency and failure; handled leader crash recovery with a dummy election timeout.\n\nCourse Notes CLI (Python)\n- Small tool that scrapes a course webpage for PDFs and renames them by week; used by a few classmates.\n- Just a script, but it made me care about packaging and error messages.\n\nSKILLS\nLanguages: Go, Python, C, SQL, JavaScript (basic)\nDatabases: Postgres (indexes, transactions, locks)\nTools: Linux (daily driver), Docker, gRPC, Git, Make\nFamiliar with: HTTP servers, concurrency, basic observability (logging, Prometheus metrics)\n\nCOURSEWORK\nCS 341 Operating Systems (Fall 2025), CS 233 Computer Architecture (Spring 2025), CS 225 Data Structures (Fall 2024), CS 361 Probability (Fall 2025), MATH 347 Fundamental Mathematics (Spring 2025)\n\nACTIVITIES\nIllinois Linux Users Group — help run install fests; answer questions about SSH and package managers."
+    }
+   ]
+  },
+  {
+   "id": 73,
+   "from": {
+    "name": "Aisha Okafor",
+    "email": "aisha.okafor@wisc.edu"
+   },
+   "date": "2026-10-19T22:06:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform",
+   "body": "Hi Dana,\n\nI'm Aisha Okafor, a junior at UW–Madison studying Data Science. I came across the Platform Intern posting on Lumen Labs' careers page and wanted to apply. The focus on internal services like job schedulers and deploy tools is exactly the kind of backend work I've enjoyed most.\n\nLast summer I interned at a fintech startup where I built a Go service to reconcile transaction ledgers. I containerized it with Docker and deployed it to a Kubernetes cluster, which cut reconciliation time from hours to minutes. I also set up Prometheus metrics and Grafana dashboards so the team could monitor throughput and error rates. Before that, I took Operating Systems and Databases, so I've written a basic scheduler in C and designed a Postgres schema for a class project.\n\nOutside of class, I contribute to a small open-source CLI for managing local Kubernetes clusters. It's used by a handful of folks in our CS department, and I maintain the docs and CI. I'm comfortable with Terraform, Linux, and writing tests for concurrent code.\n\nI'd love to bring my experience to Lumen Labs and learn more about building reliable platform services. Thanks for your time and consideration.\n\nBest,\nAisha Okafor",
+   "attachments": [
+    {
+     "name": "Aisha_Okafor_Resume.pdf",
+     "text": "Aisha Okafor\naisha.okafor@wisc.edu | Madison, WI | github.com/aishaok\n\nEDUCATION\nUniversity of Wisconsin–Madison\nB.S. in Data Science, Minor in Computer Science\nExpected May 2027\nGPA: 3.68/4.00\n\nRelevant Coursework: Operating Systems, Databases, Distributed Systems, Data Structures, Algorithms, Computer Networks, Software Engineering\n\nEXPERIENCE\nBackend Engineering Intern, PayFlow (Fintech Startup)\nJun 2025 – Aug 2025\n- Built a Go microservice to reconcile transaction ledgers against bank statements, processing 50k records daily.\n- Dockerized the service and deployed to a Kubernetes cluster using Helm charts; reduced reconciliation time from 4 hours to 20 minutes.\n- Instrumented the service with Prometheus metrics and created Grafana dashboards for latency and error rates, improving incident response.\n- Wrote integration tests with Postgres test containers and achieved 85% coverage on the reconciliation logic.\n- Collaborated with 3 engineers in daily standups and code reviews.\n\nPROJECTS\nKubeLocal – Open-source CLI for local Kubernetes clusters\n- Developed a Go CLI that simplifies creating and managing kind clusters for development.\n- Added commands for port-forwarding, log tailing, and resource cleanup; used by 10+ students in CS labs.\n- Wrote unit tests with Go's testing package and set up GitHub Actions for CI.\n- Documented usage and troubleshooting in README; maintained issue tracker.\n\nDistributed Task Scheduler (Course Project)\n- Implemented a fault-tolerant scheduler in Go with leader election using Raft (simplified) and gRPC for worker communication.\n- Integrated Postgres for persisting job states and used Redis for task queues.\n- Deployed on a 3-node Kubernetes cluster and simulated worker failures; achieved 99% job completion.\n\nSKILLS\nLanguages: Go, Python, SQL, Bash, C\nTools: Kubernetes, Docker, Terraform, Git, Prometheus, Grafana, Helm\nDatabases: PostgreSQL, Redis\nConcepts: Distributed systems, operating systems, concurrency, REST APIs\n\nADDITIONAL\n- Dean's List (3 semesters)\n- Member of UW–Madison Open Source Club"
+    }
+   ]
+  },
+  {
+   "id": 74,
+   "from": {
+    "name": "Samuel Lindgren",
+    "email": "samuel.lindgren@northwestern.edu"
+   },
+   "date": "2026-10-19T21:35:00-05:00",
+   "subject": "Summer 2027 Software Engineering Intern Application",
+   "body": "Dear Dana Whitfield,\n\nI am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a senior at Northwestern University studying Electrical Engineering, and I am excited about the opportunity to contribute to internal services that power every team.\n\nAs an undergraduate researcher, I worked on a distributed storage system where I implemented a log-structured merge-tree in Go and integrated it with a Raft consensus module. This experience taught me the importance of reliable, scalable backend services. I have also built a job scheduler as a side project that uses Postgres for persistence and Kafka for event distribution, which is currently used by a small group of peers for their data processing tasks. I am comfortable with Linux, Docker, and have coursework in operating systems and distributed systems.\n\nThe chance to work on a job scheduler, metrics pipeline, and deploy tool at Lumen Labs aligns perfectly with my interests and skills. I am eager to learn from your team and contribute to production services.\n\nThank you for considering my application. I look forward to the possibility of discussing how I can contribute to Lumen Labs.\n\nSincerely,\nSamuel Lindgren",
+   "attachments": [
+    {
+     "name": "Samuel_Lindgren_Resume.pdf",
+     "text": "Samuel Lindgren\nsamuel.lindgren@northwestern.edu\n\nEDUCATION\nNorthwestern University, Evanston, IL\nBachelor of Science in Electrical Engineering, Expected June 2027\nGPA: 3.84/4.0\n\nEXPERIENCE\nUndergraduate Research Assistant, Distributed Systems Lab, Northwestern University\nJanuary 2026 – Present\n- Implemented a log-structured merge-tree (LSM) in Go for a distributed key-value store, improving write throughput by 30% in benchmarks.\n- Integrated LSM with a Raft consensus module, ensuring data consistency across nodes.\n- Conducted performance testing and profiling to identify bottlenecks in read/write paths.\n\nSoftware Engineering Intern, TechNova Solutions (Remote)\nJune 2026 – August 2026\n- Developed a Python microservice to aggregate metrics from internal APIs, reducing data latency by 40%.\n- Containerized the service with Docker and deployed it on a Kubernetes cluster.\n- Wrote unit and integration tests, achieving 95% code coverage.\n\nPROJECTS\nJob Scheduler (Personal Project)\n- Built a distributed job scheduler in Go that uses Postgres for job persistence and Kafka for event distribution.\n- Supports cron-like scheduling and retry policies; currently used by 5 peers for data processing tasks.\n- Deployed on a single Linux server with Docker; monitoring via Prometheus and Grafana.\n\nDistributed Storage System (Course Project)\n- Implemented a simplified version of Amazon Dynamo in Python, including consistent hashing and vector clocks.\n- Simulated network partitions and evaluated consistency vs. availability trade-offs.\n\nSKILLS\nLanguages: Python, Go, SQL\nDatabases: PostgreSQL\nDistributed Systems: Kafka, Raft, consistent hashing\nDevOps: Docker, Linux, Git, basic Kubernetes\n\nCOURSEWORK\nDistributed Systems, Operating Systems, Database Systems, Computer Networks, Algorithms and Data Structures"
+    }
+   ]
+  },
+  {
+   "id": 75,
+   "from": {
+    "name": "Elena Liu",
+    "email": "elena.liu@umich.edu"
+   },
+   "date": "2026-10-19T19:43:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI am writing to apply for the Software Engineering Intern, Platform position at Lumen Labs for Summer 2027. I am a senior at the University of Michigan majoring in Computer Science, graduating in 2027. I am excited about the opportunity to work on internal services like job schedulers and metrics pipelines, and I believe my background in Java, Spring, MySQL, and AWS can contribute to your team.\n\nWhile I have not yet had a formal internship, I have developed a strong foundation in backend development through coursework and personal projects. For example, I built a simple job scheduler in Java that uses a MySQL database to track tasks and a REST API for submission and monitoring. This project gave me hands-on experience with service design, databases, and basic concurrency. I am eager to apply and expand these skills in a platform engineering context.\n\nI am available for an interview next week on Monday, November 2, from 11am to 2pm; Wednesday, November 4, from 10am to 2pm; and Friday, November 6, from 11am to 1pm, all in Central time. I am also open to any other time that works for you.\n\nThank you for considering my application. I look forward to the possibility of contributing to Lumen Labs.\n\nBest regards,\nElena Liu\nelena.liu@umich.edu",
+   "attachments": [
+    {
+     "name": "Elena_Liu_Resume.pdf",
+     "text": "Elena Liu\nelena.liu@umich.edu | (555) 123-4567 | Ann Arbor, MI\n\nEDUCATION\nUniversity of Michigan, Ann Arbor, MI\nBachelor of Science in Computer Science, Expected May 2027\nGPA: 3.18/4.0\nRelevant Coursework: Data Structures and Algorithms, Operating Systems, Database Management Systems, Web Systems, Introduction to Computer Networks, Software Engineering\n\nEXPERIENCE\nNone.\n\nPROJECTS\nTask Scheduler Service (Java, Spring Boot, MySQL, AWS EC2)\n- Developed a simple job scheduler that allows users to submit tasks via a REST API and monitors their execution.\n- Implemented a MySQL database to store task details, status, and logs.\n- Used Spring Boot to create the backend service and deployed it on AWS EC2.\n- Designed a basic concurrency model using Java threads to execute tasks from a queue.\n- Integrated basic authentication and input validation.\n- This project was used by a few classmates for running periodic data processing scripts.\n\nPersonal Blog (Java, Spring MVC, MySQL, AWS)\n- Built a blogging platform with user registration, post creation, and commenting features.\n- Utilized Spring MVC for the web layer and MySQL for data storage.\n- Deployed on AWS using Elastic Beanstalk.\n\nDatabase Project: University Course Catalog (MySQL)\n- Designed and implemented a relational database for a course catalog system.\n- Wrote complex SQL queries for course search and enrollment tracking.\n- Normalized schema to third normal form.\n\nSKILLS\nProgramming Languages: Java, Python (basic), SQL\nFrameworks: Spring Boot, Spring MVC\nDatabases: MySQL, PostgreSQL (basic)\nCloud: AWS (EC2, S3, Elastic Beanstalk)\nTools: Git, Maven, IntelliJ IDEA\nOperating Systems: Linux (basic command line)\n\nCOURSEWORK\n- Operating Systems: Implemented a simple shell and understood process scheduling, memory management, and file systems.\n- Database Management Systems: Designed ER diagrams, wrote SQL queries, and learned about transactions and indexing.\n- Data Structures and Algorithms: Implemented various data structures and algorithms in Java.\n- Web Systems: Built web applications using Java servlets and JSP.\n\nACTIVITIES\nMember, University of Michigan Computer Science Club\nParticipated in local hackathons and coding competitions."
+    }
+   ]
+  },
+  {
+   "id": 76,
+   "from": {
+    "name": "Chen Novak",
+    "email": "chen.novak@umich.edu"
+   },
+   "date": "2026-10-19T19:42:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Hi Dana,\n\nI'm Chen Novak, a junior in Computer Engineering at the University of Michigan. I'm applying for the Platform internship because I want to work on the systems that other engineers build on, and Lumen Labs' focus on scheduling, metrics, and deploys matches what I've enjoyed most in my coursework and projects.\n\nI've taken Operating Systems and Database Management, where I implemented a simple job scheduler in C with priority queues and built a Postgres-backed inventory app in Python. For my personal project, I wrote a log aggregator in Python that runs as a systemd service on a Linux VM; it ingests logs via HTTP and stores them in Postgres. I also have experience with containers from a cloud computing elective, where I containerized a small Flask service and deployed it to a single-node Kubernetes cluster. While I haven't had a formal internship, I've contributed to an open-source CLI tool for managing dotfiles, which gave me practice with code review and Git workflows.\n\nI'm eager to learn from your team and contribute to the platform tooling. My GPA is 3.06, but I've consistently performed well in systems courses and enjoy hands-on work. I'd welcome the chance to discuss how I can help.\n\nThanks for your consideration,\nChen Novak",
+   "attachments": [
+    {
+     "name": "Chen_Novak_Resume.pdf",
+     "text": "Chen Novak\nchen.novak@umich.edu | Ann Arbor, MI | github.com/chennovak\n\nEDUCATION\nUniversity of Michigan, Ann Arbor, MI\nBachelor of Science in Engineering, Computer Engineering\nExpected May 2027\nGPA: 3.06/4.00\n\nRELEVANT COURSEWORK\nOperating Systems (C, processes, threads, scheduling, memory management), Database Management Systems (SQL, Postgres, indexing, transactions), Computer Networks (TCP/IP, sockets), Cloud Computing (containers, Kubernetes basics), Data Structures and Algorithms (C++), Web Systems (Python, Flask)\n\nPROJECTS\nLog Aggregator Service | Python, Postgres, systemd, Linux\n- Built a Python service that accepts log entries via HTTP POST and stores them in Postgres.\n- Designed the schema with a single logs table and an index on timestamp for fast queries.\n- Wrote a systemd unit file to run the service on a Linux VM, with automatic restart on failure.\n- Implemented basic log rotation and retention by deleting entries older than 7 days.\n- Used only standard library and psycopg2; deployed on a single VM.\n\nJob Scheduler Simulation | C, Linux\n- Implemented a priority-based job scheduler in C as part of an operating systems course.\n- Used a binary heap for the ready queue and simulated process arrival, execution, and I/O waits.\n- Handled edge cases like preemption and process termination; tested with custom workloads.\n- Achieved correct scheduling order for 1000+ simulated jobs with varied priorities.\n\nContainerized Flask App | Python, Docker, Kubernetes\n- Containerized a simple Flask app that returns the current time and deployed it to a local Kubernetes cluster.\n- Wrote a Dockerfile and a Kubernetes Deployment and Service manifest.\n- Scaled the app to 3 replicas and verified load balancing with curl loops.\n\nOpen Source Contribution | Git, Python\n- Contributed a bug fix to a small open-source CLI tool for managing dotfiles.\n- Fixed an issue where symlinks were not created on macOS; added a test and submitted a pull request.\n- Learned Git workflow, code review, and writing clear commit messages.\n\nSKILLS\nLanguages: C, Python, SQL, Bash\nTools: Git, Docker, Linux, systemd, Postgres\nConcepts: operating systems, databases, basic networking, containers\n\nEXPERIENCE\nNone yet; seeking first internship."
+    }
+   ]
+  },
+  {
+   "id": 77,
+   "from": {
+    "name": "Maya Nasser",
+    "email": "maya.nasser@wisc.edu"
+   },
+   "date": "2026-10-19T16:16:00-05:00",
+   "subject": "Application for Software Engineering Intern, Platform (Summer 2027)",
+   "body": "Dear Dana Whitfield,\n\nI'm a junior at UW–Madison studying Data Science, and I'd like to apply for the Platform internship at Lumen Labs.\n\nI've written backend code in Go and Python, mostly around systems and data. As an operating systems teaching assistant, I help students debug concurrency, memory management, and file system projects in C. I've also built a distributed rate limiter in Go and a job queue with leader election on top of Raft, which gave me hands-on experience with the kind of primitives a platform team relies on.\n\nI use Postgres, Docker, and Linux daily, and I'm comfortable reading and writing gRPC service definitions. I don't have production Kubernetes or observability experience yet, but I'm eager to learn those on the job.\n\nI'd welcome the chance to discuss how I can contribute to the internal services your team builds. Thank you for your time and consideration.\n\nSincerely,\nMaya Nasser\nmaya.nasser@wisc.edu",
+   "attachments": [
+    {
+     "name": "Maya_Nasser_Resume.pdf",
+     "text": "Maya Nasser\nmaya.nasser@wisc.edu\n\nEDUCATION\nUniversity of Wisconsin–Madison — B.S. in Data Science, Junior\nGPA: 3.48/4.0\nExpected graduation: May 2027\n\nEXPERIENCE\nTeaching Assistant, Operating Systems — UW–Madison (Aug 2024 – Present)\n- Lead weekly discussion sections for 25 students on process scheduling, virtual memory, and file systems.\n- Hold office hours to debug student C projects; help with deadlocks, fork/exec, and page replacement.\n- Grade assignments and provide written feedback on code quality and design trade-offs.\n\nPROJECTS\nDistributed Rate Limiter (Go, gRPC, Redis) — Service that enforces per-user request quotas across multiple API instances. Uses a sliding-window counter in Redis and a gRPC interceptor for easy integration. Handles 5k+ requests per second in local benchmarks.\n\nMini Job Scheduler (Go, Postgres, Docker) — A small job queue with at-least-once delivery. Jobs are stored in Postgres, claimed with SELECT FOR UPDATE SKIP LOCKED, and retried with exponential backoff. Dockerized for local development.\n\nRaft-based Key-Value Store (Go) — Implemented leader election, log replication, and persistence for a simplified Raft cluster. Includes a client library and passes a suite of fault-injection tests.\n\nCourse Planner API (Python, Postgres, Docker) — REST API that lets students search and track degree requirements. Implements JWT authentication, rate limiting, and a Postgres schema with GIN indexes for full-text search.\n\nSKILLS\nLanguages: Go, Python, C, SQL\nDatabases: Postgres (schema design, indexing, transactions)\nTools: Docker, Linux, gRPC, Git\n\nCOURSEWORK\nOperating Systems, Distributed Systems, Databases, Computer Networks, Data Structures and Algorithms"
+    }
+   ]
+  }
+ ],
+ "deadline": "2026-10-24T23:59:59-05:00"
+}

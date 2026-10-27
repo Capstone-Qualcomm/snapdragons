@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
@@ -9,12 +9,19 @@ import type { Command, Persisted } from "./raft.ts";
 import { runWorker } from "./worker.ts";
 
 // One node is one process: a Raft peer, its copy of the queue, and a worker.
-// It stands in for one Uno Q board, and only talks to the others over HTTP.
+// It stands in for one Uno Q board, or runs on one, and only talks to the others over HTTP.
 
 type NodeOptions = {
   id: string;
-  // Where every node can be reached, by name.
+  // Where nodes can be reached, by name. A name missing here is reached as http://<name>:<port>,
+  // which on the boards' tailnet is the board itself.
   peers: Record<string, string>;
+  port?: number;
+  // 127.0.0.1 on one laptop; on a board, every address in its network, which is only its tailnet.
+  host?: string;
+  // Members of a running cluster to ask for a place in it, for a node starting with nothing saved;
+  // or a way to ask again each round, so a board told to join a founder that died finds another.
+  join?: string[] | (() => Promise<string[]>);
   dataDir: string;
   bootstrap?: string[];
   workMs?: number;
@@ -51,8 +58,9 @@ export function fileStorage(file: string) {
   };
 }
 
-export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseMs = 2000, heartbeatMs = 300, electionMs = [1500, 3000] }: NodeOptions) {
-  const port = Number(new URL(peers[id]).port);
+export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join: seeds = [], dataDir, bootstrap, workMs = 3000, leaseMs = 2000, heartbeatMs = 300, electionMs = [1500, 3000] }: NodeOptions) {
+  const port = givenPort ?? Number(new URL(peers[id]).port);
+  const peer = (name: string) => peers[name] ?? `http://${name}:${port}`;
   mkdirSync(dataDir, { recursive: true });
   const queue = createQueue();
 
@@ -70,7 +78,7 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
     storage: fileStorage(join(dataDir, `${id}.json`)),
     heartbeatMs,
     electionMs,
-    send: (to, type, body) => post(`${peers[to]}/raft/${type}`, body, 500),
+    send: (to, type, body) => post(`${peer(to)}/raft/${type}`, body, 500),
     onRemoved: () => setTimeout(() => process.exit(0), 200),
   });
 
@@ -80,6 +88,7 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
   let orchestratorTerm = -1;
 
   function checkLeases(): void {
+    if (off) return;
     const { role, term } = raft.status();
     if (role !== "orchestrator") return;
     if (term !== orchestratorTerm) {
@@ -99,7 +108,7 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
     if (!raft.isOrchestrator()) {
       const { orchestrator } = raft.status();
       if (!orchestrator || orchestrator === id) throw new HttpError(503, new NotOrchestrator(null).message);
-      return (await post<{ result: unknown }>(`${peers[orchestrator]}/client`, body, 4000)).result;
+      return (await post<{ result: unknown }>(`${peer(orchestrator)}/client`, body, 4000)).result;
     }
     if (body.members) return raft.changeMembers(body.members as { add?: string; remove?: string });
     const command = { ...body, at: Date.now() } as unknown as Command;
@@ -121,9 +130,22 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
     return JSON.parse(raw || "{}");
   }
 
+  // Powered off from the dashboard: the board stops answering and stops working, like losing power,
+  // but keeps what it saved, so powering on is the same as a reboot.
+  let off = false;
+
   const server = createServer(async (req, res) => {
     try {
       const path = new URL(req.url ?? "/", "http://localhost").pathname;
+      if (path === "/power" && req.method === "POST") {
+        const on = Boolean((await readBody(req)).on);
+        if (on && off) startWorker();
+        if (!on && !off) worker.abort();
+        off = !on;
+        return send(res, 200, { on });
+      }
+      // A board without power does not answer at all, so callers time out as they would.
+      if (off) return void req.socket.destroy();
       // The gateway reads these to draw the cluster.
       if (path === "/status") return send(res, 200, raft.status());
       if (path === "/state") return send(res, 200, queue.state());
@@ -136,31 +158,58 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
       send(res, status, { error: cause instanceof Error ? cause.message : "Node error." });
     }
   });
-  // Peers and the gateway reach a node over loopback, and /client changes the members, so nothing else should.
-  // HOST is only for the gateway: the peer addresses are always 127.0.0.1.
-  server.listen(port, "127.0.0.1");
+  // /client changes the members and /power turns the board off, so only peers and the gateway may reach a node:
+  // loopback on one laptop, the boards' tailnet on a board (its container has no other network).
+  server.listen(port, host);
 
-  const timers = [setInterval(raft.tick, 50), setInterval(checkLeases, 250)];
-  const controller = new AbortController();
+  const timers = [setInterval(() => off || raft.tick(), 50), setInterval(checkLeases, 250)];
+  let worker = new AbortController();
+  let stopped = false;
 
   // The worker runs until a Remove; then this node takes itself out of the members and stops.
-  void runWorker({ id, call: request, workMs, heartbeatMs: 500, signal: controller.signal }).then(async () => {
-    while (!controller.signal.aborted) {
-      try {
-        await request({ members: { remove: id } });
-        break;
-      } catch {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+  // Powering off aborts it mid-step, so its step goes back to the queue as a crash would.
+  function startWorker(): void {
+    const controller = (worker = new AbortController());
+    // A board without power sends nothing, not even the heartbeats of a step it was on.
+    const call = (body: Record<string, unknown>) => (off ? Promise.reject(new Error("Powered off.")) : request(body));
+    void runWorker({ id, call, workMs, heartbeatMs: 500, signal: controller.signal }).then(async () => {
+      if (controller.signal.aborted) return;
+      while (!stopped) {
+        try {
+          await request({ members: { remove: id } });
+          break;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
       }
+      // The orchestrator removing itself exits once the change commits (onRemoved).
+      if (!raft.isOrchestrator()) process.exit(0);
+    });
+  }
+  startWorker();
+
+  // A new board asks the cluster's members for a place, until the orchestrator has added it.
+  void (async () => {
+    while (!stopped && !raft.status().members.length) {
+      const others = (typeof seeds === "function" ? await seeds().catch(() => []) : seeds).filter((seed) => seed !== id);
+      if (!others.length && typeof seeds !== "function") return;
+      for (const seed of others) {
+        try {
+          await post(`${peer(seed)}/client`, { members: { add: id } }, 4000);
+          return;
+        } catch {
+          // That member is down, or another board is joining. Ask the next one.
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    // The orchestrator removing itself exits once the change commits (onRemoved).
-    if (!raft.isOrchestrator()) process.exit(0);
-  });
+  })();
 
   return {
     raft,
     stop: () => {
-      controller.abort();
+      stopped = true;
+      worker.abort();
       for (const timer of timers) clearInterval(timer);
       server.close();
     },
@@ -170,16 +219,55 @@ export function startNode({ id, peers, dataDir, bootstrap, workMs = 3000, leaseM
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const env = process.env;
   const id = env.NODE_ID ?? process.argv[2];
-  if (!id || !env.CLUSTER_PEERS) {
-    console.error("Usage: NODE_ID=Q-01 CLUSTER_PEERS=Q-01=http://127.0.0.1:4101,... node node.ts");
+  if (!id || !(env.CLUSTER_PEERS || env.NODE_PORT)) {
+    console.error("Usage: NODE_ID=Q-01 CLUSTER_PEERS=Q-01=http://127.0.0.1:4101,... node node.ts\n   or, on a board: NODE_ID=q-name NODE_PORT=4101 NODE_HOST=0.0.0.0 CLUSTER_JOIN_URL=<app>/api/cluster/join node node.ts");
     process.exit(1);
   }
   const ms = (name: string, fallback: number) => Number(env[name] ?? fallback);
+  const list = (value?: string) => (value ? value.split(",").filter(Boolean) : undefined);
+  const dataDir = env.CLUSTER_DATA ?? "data";
+  // A board starting with nothing saved asks the gateway where to go: the cluster's members to
+  // join, or, when there is no cluster yet and it asked first, to start one. While it waits to be
+  // added it asks again each round; told to start a cluster after all (the founder it was sent to
+  // never did), it restarts so it can. A board with a saved log rejoins as it was.
+  let seeds: string[] | (() => Promise<string[]>) | undefined = list(env.CLUSTER_JOIN);
+  let bootstrap = list(env.CLUSTER_BOOTSTRAP);
+  const joinUrl = env.CLUSTER_JOIN_URL;
+  if (joinUrl && !fileStorage(join(dataDir, `${id}.json`)).load()) {
+    const target = async () => (await (await fetch(`${joinUrl}?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) })).json()) as { join?: string[]; bootstrap?: boolean };
+    for (;;) {
+      try {
+        const first = await target();
+        if (first.bootstrap) bootstrap = [id];
+        else if (!first.join?.length) throw new Error("no answer");
+        break;
+      } catch (cause) {
+        console.error(`Cannot reach ${joinUrl} (${(cause as Error).message}). Trying again.`);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    }
+    if (!bootstrap) {
+      seeds = async () => {
+        const next = await target();
+        if (next.bootstrap) {
+          // It was never a member, so its log holds nothing; cleared, the restart starts the cluster.
+          console.log(`${id} is to start the cluster after all; restarting to do it.`);
+          rmSync(join(dataDir, `${id}.json`), { force: true });
+          process.exit(75);
+        }
+        return next.join ?? [];
+      };
+    }
+    console.log(bootstrap ? `${id} starts a new cluster.` : `${id} asks the cluster for a place.`);
+  }
   startNode({
     id,
-    peers: Object.fromEntries(env.CLUSTER_PEERS.split(",").map((pair) => pair.split("="))),
-    dataDir: env.CLUSTER_DATA ?? "data",
-    bootstrap: env.CLUSTER_BOOTSTRAP?.split(","),
+    peers: Object.fromEntries((env.CLUSTER_PEERS ?? "").split(",").filter(Boolean).map((pair) => pair.split("="))),
+    port: env.NODE_PORT ? Number(env.NODE_PORT) : undefined,
+    host: env.NODE_HOST,
+    join: seeds,
+    dataDir,
+    bootstrap,
     workMs: ms("WORK_MS", 3000),
     leaseMs: ms("LEASE_MS", 2000),
     heartbeatMs: ms("RAFT_HEARTBEAT_MS", 300),

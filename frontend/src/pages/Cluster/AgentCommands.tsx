@@ -25,6 +25,8 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  // Real boards join by themselves, so Add Agent becomes the command a new board runs.
+  const [joining, setJoining] = useState(false);
 
   // A success note fades after a few seconds; an error stays until the next command.
   useEffect(() => {
@@ -85,10 +87,17 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
               <Icon name="play" size={14} />
               Run Refresh
             </button>
-            <button className="button small" type="button" disabled={!cluster || nodes.length >= cluster.maxNodes || busy} onClick={() => void command("/api/cluster/nodes", "Adding an agent.")}>
-              <Icon name="plus" size={14} />
-              Add Agent
-            </button>
+            {cluster?.boards ? (
+              <button className="button small" type="button" aria-expanded={joining} onClick={() => setJoining(!joining)}>
+                <Icon name="plus" size={14} />
+                Connect a Board
+              </button>
+            ) : (
+              <button className="button small" type="button" disabled={!cluster || nodes.length >= cluster.maxNodes || busy} onClick={() => void command("/api/cluster/nodes", "Adding an agent.")}>
+                <Icon name="plus" size={14} />
+                Add Agent
+              </button>
+            )}
             <button className="button small" type="button" disabled={!up || busy} onClick={() => void command("/api/cluster/restart", "Restarting every agent.")}>
               <Icon name="restart" size={14} />
               Restart All
@@ -99,6 +108,15 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
               Auto refresh
             </label>
           </div>
+          {joining && cluster?.join && (
+            <div className="command-row join-board">
+              <p>On the Uno Q, in a terminal or over SSH, run this once with your name and the tailnet key. The board sets itself up and joins in about a minute.</p>
+              <code>{cluster.join}</code>
+              <button className="button small" type="button" onClick={() => navigator.clipboard?.writeText(cluster.join!)}>
+                Copy
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="command-group" role="group" aria-labelledby="commands-agent">

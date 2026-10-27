@@ -60,7 +60,10 @@ export function eventsOf(job: Job, tasks: Task[], cluster: ClusterState): StoryE
 
 const names = (ids: string[]) => {
   const numbers = ids.map((id) => boardName(id).replace("Board ", ""));
-  return numbers.length === 1 ? `Board ${numbers[0]}` : `Boards ${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`;
+  // Simulated boards are numbers ("Boards 1, 2 and 4"); real ones are their owners' names ("Sanyam, Matt and Alex").
+  const named = numbers.some((name) => !/^\d+$/.test(name));
+  const list = numbers.length === 1 ? numbers[0] : `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`;
+  return named ? list : numbers.length === 1 ? `Board ${list}` : `Boards ${list}`;
 };
 
 // One line, 6–10 words, saying what is happening right now.

@@ -57,3 +57,24 @@ test("a node with a damaged log stops and names the file, leaving it as it was",
   }
   assert.equal(readFileSync(join(dataDir, "Q-01.json"), "utf8"), "{damaged");
 });
+
+test("a new node joins a running cluster by asking a member, and a powered-off node stops answering until powered on", async () => {
+  const peers = "Q-01=http://127.0.0.1:4985,Q-02=http://127.0.0.1:4986";
+  const start = (id: string, env: Record<string, string>) =>
+    spawn(process.execPath, [fileURLToPath(new URL("./node.ts", import.meta.url)), id], { env: { ...process.env, NODE_ID: id, CLUSTER_PEERS: peers, CLUSTER_DATA: mkdtempSync(join(tmpdir(), "node-test-")), ...env } });
+  const first = start("Q-01", { CLUSTER_BOOTSTRAP: "Q-01" });
+  const second = start("Q-02", { CLUSTER_JOIN: "Q-01" });
+  const status = async (port: number) => (await fetch(`http://127.0.0.1:${port}/status`, { signal: AbortSignal.timeout(1000) })).json();
+  try {
+    let members: string[] = [];
+    for (let n = 0; n < 40 && members.length < 2; n++, await sleep(250)) members = (await status(4985).catch(() => ({ members: [] }))).members;
+    assert.deepEqual(members.sort(), ["Q-01", "Q-02"]);
+    await fetch("http://127.0.0.1:4986/power", { method: "POST", body: JSON.stringify({ on: false }) });
+    await assert.rejects(status(4986));
+    await fetch("http://127.0.0.1:4986/power", { method: "POST", body: JSON.stringify({ on: true }) });
+    assert.deepEqual((await status(4986)).members.sort(), ["Q-01", "Q-02"]);
+  } finally {
+    first.kill();
+    second.kill();
+  }
+});

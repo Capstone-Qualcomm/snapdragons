@@ -626,6 +626,10 @@
 }
 
 .page-summary li { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.page-draft { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; overflow: hidden; color: var(--ink); }
+.page-draft p { margin: 0 0 3px; }
+.page-draft .caret { display: inline-block; width: 6px; height: 10px; background: var(--ember, #e8613c); animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
 .look-log .sheet { background: color-mix(in srgb, var(--ink) 4%, var(--paper)); font-family: var(--mono); font-size: 9.5px; }
 .look-paper .sheet p:first-child { color: var(--ink); font-weight: 600; }
 
