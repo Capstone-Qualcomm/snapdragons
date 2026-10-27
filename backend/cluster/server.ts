@@ -82,8 +82,8 @@ export function createClusterServer(options: ServerOptions = {}) {
   // Every board name seen so far: the ones given, then each member any board reports.
   const known = new Set(boards ?? NODE_IDS);
   const ids = () => [...known];
-  // A board answers from across the internet (the gateway may be an ocean away), so it gets longer.
-  const statusMs = boards ? 1500 : 400;
+  // A board answers from across the internet through a Tailscale relay (the gateway may be an ocean away), so it gets longer.
+  const statusMs = boards ? 2500 : 400;
   const address = (id: string) => (boards ? `http://${id}:${nodePort}` : `http://127.0.0.1:${nodePort + NODE_IDS.indexOf(id)}`);
   const peers = NODE_IDS.map((id) => `${id}=${address(id)}`).join(",");
   // Node processes this gateway started, so it can kill them.

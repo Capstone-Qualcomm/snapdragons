@@ -29,6 +29,9 @@ type NodeOptions = {
   leaseMs?: number;
   heartbeatMs?: number;
   electionMs?: [number, number];
+  // How long a Raft message to a peer may take. Loopback answers at once; boards whose tailnet
+  // traffic goes through a relay take 150 to 350 ms a round trip, two for a new connection.
+  sendTimeoutMs?: number;
 };
 
 class HttpError extends Error {
@@ -58,7 +61,7 @@ export function fileStorage(file: string) {
   };
 }
 
-export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join: seeds = [], dataDir, bootstrap, workMs = 3000, leaseMs = 2000, heartbeatMs = 300, electionMs = [1500, 3000] }: NodeOptions) {
+export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join: seeds = [], dataDir, bootstrap, workMs = 3000, leaseMs = 2000, heartbeatMs = 300, electionMs = [1500, 3000], sendTimeoutMs = 500 }: NodeOptions) {
   const port = givenPort ?? Number(new URL(peers[id]).port);
   const peer = (name: string) => peers[name] ?? `http://${name}:${port}`;
   mkdirSync(dataDir, { recursive: true });
@@ -78,7 +81,7 @@ export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join
     storage: fileStorage(join(dataDir, `${id}.json`)),
     heartbeatMs,
     electionMs,
-    send: (to, type, body) => post(`${peer(to)}/raft/${type}`, body, 500),
+    send: (to, type, body) => post(`${peer(to)}/raft/${type}`, body, sendTimeoutMs),
     onRemoved: () => setTimeout(() => process.exit(0), 200),
   });
 
@@ -272,5 +275,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     leaseMs: ms("LEASE_MS", 2000),
     heartbeatMs: ms("RAFT_HEARTBEAT_MS", 300),
     electionMs: [ms("RAFT_ELECTION_MIN_MS", 1500), ms("RAFT_ELECTION_MAX_MS", 3000)],
+    sendTimeoutMs: ms("RAFT_SEND_TIMEOUT_MS", 500),
   });
 }

@@ -67,7 +67,7 @@ With `CLUSTER_BOARDS` set (say `q-sanyam`), the gateway runs the real Uno Q boar
 | POST | `/api/assistant/run` | `{ "scenario": "student", "prompt": "...", "pace": "normal" }` queues that scenario's plan. Auto refresh waits while it runs |
 | POST | `/api/assistant/stop` | `{ "job": "J-4" }` stops a running plan: its unfinished steps are dropped |
 
-Timings, all in milliseconds: `WORK_MS` (3000 per step), `LEASE_MS` (2000), `RAFT_HEARTBEAT_MS` (300), `RAFT_ELECTION_MIN_MS` and `RAFT_ELECTION_MAX_MS` (1500 and 3000).
+Timings, all in milliseconds: `WORK_MS` (3000 per step), `LEASE_MS` (2000), `RAFT_HEARTBEAT_MS` (300), `RAFT_ELECTION_MIN_MS` and `RAFT_ELECTION_MAX_MS` (1500 and 3000), `RAFT_SEND_TIMEOUT_MS` (500). Real boards talk through Tailscale relays at 150 to 350 ms a round trip, so `join.sh` gives them 6000, 500, 4000 to 8000 and 3000: failover takes a few seconds longer than on one laptop, and does not fail on a slow message.
 
 ## Tests
 

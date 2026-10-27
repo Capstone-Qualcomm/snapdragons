@@ -55,6 +55,14 @@ services:
       CLUSTER_DATA: /data
       CLUSTER_JOIN_URL: $APP/api/cluster/join
       SERVICES_URL: http://q-orsat:4100
+      # Boards talk through Tailscale relays (150 to 350 ms a round trip), so Raft gets room:
+      # a message may take 3 s, an orchestrator is presumed dead after 4 to 8 s of silence,
+      # and a board's step moves to another after 6 s without a heartbeat.
+      RAFT_SEND_TIMEOUT_MS: "3000"
+      RAFT_HEARTBEAT_MS: "500"
+      RAFT_ELECTION_MIN_MS: "4000"
+      RAFT_ELECTION_MAX_MS: "8000"
+      LEASE_MS: "6000"
     volumes: [./code:/code:ro, node-data:/data]
 
 volumes:
