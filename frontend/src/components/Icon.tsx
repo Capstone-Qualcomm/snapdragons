@@ -31,6 +31,9 @@ const PATHS: Record<string, string> = {
   bolt: "M13 2L4 14h7l-1 8 9-12h-7z",
   stop: "M7 7h10v10H7z",
   play: "M8 5l11 7-11 7z",
+  plus: "M12 5v14 M5 12h14",
+  power: "M12 3v8 M7.1 6.6a7 7 0 1 0 9.8 0",
+  restart: "M20 12a8 8 0 1 1-2.3-5.7 M20 4v4h-4",
   chevron: "M9 6l6 6-6 6",
   info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v5 M12 8h.01",
 };

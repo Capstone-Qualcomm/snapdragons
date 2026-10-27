@@ -163,6 +163,10 @@
 .button.is-kill { color: var(--fail); }
 .button.is-kill:hover:not(:disabled) { background: var(--fail-wash); }
 
+/* The second, confirming click of a destructive action. */
+.button.is-danger { border-color: transparent; background: var(--fail); color: #fff; }
+.button.is-danger:hover:not(:disabled) { background: var(--fail); filter: brightness(0.92); }
+
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.5;

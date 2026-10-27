@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../App";
 import { titles } from "../Today/sources";
@@ -107,40 +107,130 @@ describe("Cluster boards", () => {
     expect(document.querySelectorAll(".handoff")).toHaveLength(1);
   });
 
-  it("sends kill, remove and restart for the board they belong to, from its row", async () => {
-    const posts = mockCluster(cluster({ nodes: [node("Q-01", { up: false }), node("Q-02", { role: "orchestrator" })] }));
+  it("has no per-row commands; they are all in Agent Commands", async () => {
+    mockCluster(cluster());
     renderCluster();
     await boardsLoaded();
 
-    expect(within(row("Board 1")).queryByText("Kill")).toBeNull();
-    fireEvent.click(within(row("Board 2")).getByText("Kill"));
-    fireEvent.click(within(row("Board 2")).getByText("Remove"));
-    fireEvent.click(within(row("Board 1")).getByText("Restart"));
-    await act(async () => {});
-
-    expect(posts().map(([url]) => url).filter((url) => url !== "/api/cluster/refresh")).toEqual(["/api/cluster/nodes/Q-02/kill", "/api/cluster/nodes/Q-02/remove", "/api/cluster/nodes/Q-01/start"]);
+    expect(within(row("Board 2")).queryByRole("button", { name: /Kill|Terminate|Remove|Restart/ })).toBeNull();
+    expect(screen.getByRole("region", { name: "Agent Commands" })).toBeTruthy();
   });
 });
 
-describe("Cluster controls", () => {
-  it("runs a refresh, adds a board and turns auto refresh off", async () => {
+const commands = () => within(screen.getByRole("region", { name: "Agent Commands" }));
+const target = (name: string) => commands().getByRole("button", { name: new RegExp(`^${name},`) });
+
+describe("Agent Commands", () => {
+  it("runs a refresh, adds an agent and turns auto refresh off", async () => {
     const posts = mockCluster(cluster());
     renderCluster();
     await boardsLoaded();
-    fireEvent.click(screen.getByRole("button", { name: "Run refresh" }));
-    fireEvent.click(screen.getByText("Add board"));
-    fireEvent.click(screen.getByLabelText("Auto refresh"));
+    fireEvent.click(commands().getByRole("button", { name: "Run Refresh" }));
+    await act(async () => {});
+    fireEvent.click(commands().getByRole("button", { name: "Add Agent" }));
+    await act(async () => {});
+    fireEvent.click(commands().getByLabelText("Auto refresh"));
     await act(async () => {});
 
     expect(posts()).toEqual([["/api/cluster/refresh", {}], ["/api/cluster/nodes", {}], ["/api/cluster/auto", { on: false }]]);
   });
 
+  it("terminates the picked agent only after a second, confirming click", async () => {
+    const posts = mockCluster(cluster({ tasks: [task("T-1", "Fetch Jira issues", { status: "claimed", worker: "Q-03", runs: [run("Q-03")] })] }));
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 3"));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    expect(posts()).toEqual([]);
+    fireEvent.click(commands().getByRole("button", { name: "Confirm Terminate" }));
+    await act(async () => {});
+
+    expect(posts()).toEqual([["/api/cluster/nodes/Q-03/kill", {}]]);
+    expect(commands().getByRole("status").textContent).toBe("Terminated Board 3. Its step moves to another board once its 2 s lease runs out.");
+  });
+
+  it("sends nothing when a terminate is cancelled or the target changes", async () => {
+    const posts = mockCluster(cluster());
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    fireEvent.click(commands().getByRole("button", { name: "Cancel" }));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    fireEvent.click(target("Board 2"));
+    await act(async () => {});
+
+    expect(commands().queryByRole("button", { name: "Confirm Terminate" })).toBeNull();
+    expect(posts()).toEqual([]);
+  });
+
+  it("says when the terminated agent was the orchestrator", async () => {
+    mockCluster(cluster());
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 2"));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    fireEvent.click(commands().getByRole("button", { name: "Confirm Terminate" }));
+    await act(async () => {});
+
+    expect(commands().getByRole("status").textContent).toBe("Terminated Board 2. The other boards will elect a new orchestrator.");
+  });
+
+  it("warns before, and says after, when a terminate leaves too few boards for Raft to elect an orchestrator", async () => {
+    mockCluster(cluster({ nodes: [node("Q-01", { up: false }), node("Q-02", { role: "orchestrator" }), node("Q-03")] }));
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 2"));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    expect(commands().getByText("Only 1 of 3 boards would be up and Raft needs 2, so the cluster stops until you restart a board.")).toBeTruthy();
+    fireEvent.click(commands().getByRole("button", { name: "Confirm Terminate" }));
+    await act(async () => {});
+
+    expect(commands().getByRole("status").textContent).toBe("Terminated Board 2. Only 1 of 3 boards are up and Raft needs 2, so the cluster stops until you restart a board.");
+  });
+
+  it("drops a pending confirm when its board disappears, instead of terminating another board", async () => {
+    const state = cluster();
+    const posts = mockCluster(state);
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 3"));
+    fireEvent.click(commands().getByRole("button", { name: "Terminate Agent" }));
+    // Someone else removes Board 3 before the second click; the next poll no longer has it.
+    state.nodes = state.nodes.filter((board) => board.id !== "Q-03");
+    await waitFor(() => expect(screen.queryByRole("row", { name: "Board 3" })).toBeNull());
+
+    expect(commands().queryByRole("button", { name: "Confirm Terminate" })).toBeNull();
+    expect(posts()).toEqual([]);
+  });
+
+  it("offers restart for a down agent and remove for a live one, each for the picked board", async () => {
+    const posts = mockCluster(cluster({ nodes: [node("Q-01", { up: false }), node("Q-02", { role: "orchestrator" })] }));
+    renderCluster();
+    await boardsLoaded();
+
+    fireEvent.click(target("Board 1"));
+    expect((commands().getByRole("button", { name: "Terminate Agent" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(commands().getByRole("button", { name: "Restart Agent" }));
+    await act(async () => {});
+    fireEvent.click(target("Board 2"));
+    expect((commands().getByRole("button", { name: "Restart Agent" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(commands().getByRole("button", { name: "Remove Agent" }));
+    await act(async () => {});
+
+    expect(posts().map(([url]) => url)).toEqual(["/api/cluster/nodes/Q-01/start", "/api/cluster/nodes/Q-02/remove"]);
+  });
+
   it("shows why the cluster turned a request away", async () => {
     mockCluster(cluster(), () => Response.json({ error: "All 6 nodes are in use." }, { status: 409 }));
     renderCluster();
-    // Add board stays disabled until the first state arrives.
+    // Add Agent stays disabled until the first state arrives.
     await boardsLoaded();
-    fireEvent.click(screen.getByText("Add board"));
+    fireEvent.click(commands().getByRole("button", { name: "Add Agent" }));
 
     expect((await screen.findByRole("alert")).textContent).toBe("All 6 nodes are in use.");
   });

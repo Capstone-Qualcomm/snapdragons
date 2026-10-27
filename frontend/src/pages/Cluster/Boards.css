@@ -1,4 +1,4 @@
-/* The boards table: one row per board, its step with a progress bar, and Kill or Restart. */
+/* The boards table: one row per board and its step with a progress bar. */
 
 .crown {
   width: 15px;
@@ -19,7 +19,6 @@
 .boards-table .col-role { width: 150px; }
 .boards-table .col-done-count { width: 90px; }
 .boards-table .col-heartbeat { width: 110px; color: var(--ink-soft); }
-.boards-table .col-action { width: 170px; }
 .boards-table .col-task { min-width: 200px; }
 
 .board-toggle {
@@ -123,7 +122,7 @@ td.col-role .crown { margin-right: 6px; vertical-align: -1px; }
   background: var(--ember);
 }
 
-/* Phone: each board is a small card: name, status and actions, then role, task and numbers. */
+/* Phone: each board is a small card: name and status, then role, task and numbers. */
 @media (max-width: 720px) {
   .boards-table thead { display: none; }
   .boards-table tbody,
@@ -131,12 +130,12 @@ td.col-role .crown { margin-right: 6px; vertical-align: -1px; }
 
   .boards-table .board-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
-      "board status action"
-      "role role role"
-      "task task task"
-      "done beat beat";
+      "board status"
+      "role role"
+      "task task"
+      "done beat";
     align-items: center;
     gap: 6px var(--s3);
     padding: var(--s3) var(--s4);
@@ -160,7 +159,6 @@ td.col-role .crown { margin-right: 6px; vertical-align: -1px; }
   .boards-table td.col-done-count::before { content: "Tasks done: "; }
   .boards-table td.col-heartbeat { grid-area: beat; font-size: 12px; text-align: right; }
   .boards-table td.col-heartbeat::before { content: "Heartbeat: "; }
-  .boards-table td.col-action { grid-area: action; text-align: right; }
   .boards-table .board-row.is-dead .col-role,
   .boards-table .board-row.is-dead .col-task,
   .boards-table .board-row.is-left .col-role,

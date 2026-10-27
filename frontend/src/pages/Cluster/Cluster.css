@@ -6,7 +6,65 @@
   font-weight: 600;
 }
 
-.panel-head .switch { color: var(--ink-soft); font-weight: 500; }
+/* Agent Commands: a labelled row per group, cluster-wide first, then one agent picked from the chips. */
+
+.command-groups {
+  display: grid;
+  border-top: 1px solid var(--rule);
+}
+
+.command-group {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s2) var(--s4);
+  padding: var(--s3) var(--s5);
+}
+
+.command-group + .command-group { border-top: 1px solid var(--rule); }
+
+.command-group .command-row { grid-column: 2; }
+
+.command-label {
+  grid-row: 1;
+  padding-top: 7px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.command-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.command-row .switch { margin-left: var(--s2); color: var(--ink-soft); font-weight: 500; }
+
+.target-chips { margin-left: 0; }
+.target-chips .crown-icon { color: var(--ember); }
+
+.command-hint { color: var(--ink-soft); font-size: 13px; }
+.command-hint.is-warn { color: var(--waiting); font-weight: 600; }
+
+.command-status {
+  margin: 0 var(--s5) var(--s3);
+  padding: 10px var(--s4);
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+
+.command-status.is-ok { background: var(--live-wash); color: var(--live); }
+.command-status.is-bad { background: var(--fail-wash); color: var(--fail); }
+
+@media (max-width: 720px) {
+  .command-group { grid-template-columns: minmax(0, 1fr); padding: var(--s3) var(--s4); }
+  .command-group .command-row { grid-column: 1; }
+  .command-label { grid-row: auto; padding-top: 0; }
+}
 
 /* Board activity timeline */
 

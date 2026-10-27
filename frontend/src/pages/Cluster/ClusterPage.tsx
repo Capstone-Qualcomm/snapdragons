@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { ago, Stat } from "../../components/ui";
 import { Activity } from "./Activity";
+import { AgentCommands } from "./AgentCommands";
 import { boardName, refreshes, send } from "./cluster";
 import type { ClusterState } from "./cluster";
 import { ClusterPanel } from "./ClusterPanel";
@@ -9,11 +9,10 @@ import { Timeline } from "./Timeline";
 
 // The boards: who is up, who is orchestrator, what each is doing, how long refreshes take, and what happened.
 export function ClusterPage({ cluster, failed, reload, serverNow }: { cluster: ClusterState | null; failed: boolean; reload: () => Promise<void>; serverNow: () => number }) {
-  const [error, setError] = useState<string | null>(null);
-
-  async function act(path: string, body?: unknown) {
-    setError(await send(path, body));
+  async function run(path: string, body?: unknown) {
+    const error = await send(path, body);
     void reload();
+    return error;
   }
 
   const offset = serverNow() - Date.now();
@@ -46,7 +45,8 @@ export function ClusterPage({ cluster, failed, reload, serverNow }: { cluster: C
       </ul>
 
       <div className="page-body">
-        <ClusterPanel cluster={cluster} failed={failed} error={error} act={(path, body) => void act(path, body)} />
+        <AgentCommands cluster={cluster} run={run} />
+        <ClusterPanel cluster={cluster} failed={failed} />
         {cluster && <Timeline cluster={cluster} serverNow={serverNow} />}
         {cluster && (
           <div className="pair">
