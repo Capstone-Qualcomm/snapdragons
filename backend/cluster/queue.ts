@@ -353,7 +353,8 @@ export function createQueue() {
         log(at, `${command.orchestrator} elected orchestrator for term ${command.term}`);
         return null;
       case "config":
-        log(at, `Members are now ${(command.members as string[]).join(", ") || "none"}`);
+        // A new cluster's first entry has no time, since every member writes it the same; its joins say the same thing.
+        if (at !== undefined) log(at, `Members are now ${(command.members as string[]).join(", ") || "none"}`);
         return null;
       case "job":
         return addJob(command.name as string, command.steps as string[], command.then as string | undefined, at);
