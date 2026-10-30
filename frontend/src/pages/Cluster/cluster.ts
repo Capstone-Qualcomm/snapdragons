@@ -152,6 +152,17 @@ export function useCluster() {
   return { cluster, failed, reload: load, serverNow: () => Date.now() + offset.current };
 }
 
+// The cluster's time, re-read a few times a second so the timeline's blocks and
+// the Assistant's chips move between polls.
+export function useClock(serverNow: () => number) {
+  const [now, setNow] = useState(serverNow);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(serverNow()), 200);
+    return () => clearInterval(timer);
+  }, [serverNow]);
+  return now;
+}
+
 // Sends a Cluster view action to the gateway. Resolves with the error message, or null.
 export async function send(path: string, body: unknown = {}): Promise<string | null> {
   try {

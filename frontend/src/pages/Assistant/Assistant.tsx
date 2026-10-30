@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ErrorBanner, ago } from "../../components/ui";
 import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
-import { boardName, send, stalled } from "../Cluster/cluster";
+import { boardName, send, stalled, useClock } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
 import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
@@ -407,14 +407,4 @@ function Breakdown({ job, tasks, events, offset }: { job: Job; tasks: Task[]; ev
       {log && <Log events={events} offset={offset} />}
     </div>
   );
-}
-
-// Re-renders a few times a second so chips fly and the narration keeps up.
-function useClock(serverNow: () => number) {
-  const [now, setNow] = useState(serverNow);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(serverNow()), 200);
-    return () => clearInterval(timer);
-  }, [serverNow]);
-  return now;
 }

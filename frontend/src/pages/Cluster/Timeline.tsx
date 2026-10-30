@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { boardName, seconds, shortName } from "./cluster";
+import { boardName, seconds, shortName, useClock } from "./cluster";
 import type { ClusterState, Task } from "./cluster";
 
 const labelOf = (task: Task) => (task.skill ? task.skill[0].toUpperCase() + task.skill.slice(1) : shortName(task.input));
@@ -96,16 +96,6 @@ export function Timeline({ cluster, serverNow }: { cluster: ClusterState; server
       </div>
     </section>
   );
-}
-
-// Re-renders a few times a second so blocks grow and slide between polls.
-function useClock(serverNow: () => number) {
-  const [now, setNow] = useState(serverNow);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(serverNow()), 200);
-    return () => clearInterval(timer);
-  }, [serverNow]);
-  return now;
 }
 
 // The lanes' width in pixels, kept current as the window resizes.
