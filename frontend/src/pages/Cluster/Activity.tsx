@@ -68,7 +68,7 @@ export function Activity({ events, tasks, offset }: { events: ClusterEvent[]; ta
       {entries.length === 0 ? (
         <p className="panel-empty">Nothing has happened yet.</p>
       ) : (
-        <ol className="activity-rows" aria-label="Activity" aria-live="polite">
+        <ol className="activity-rows" aria-label="Activity">
           {entries.map((entry) => (
             <li key={entry.key}>
               <time className="num" dateTime={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</time>
