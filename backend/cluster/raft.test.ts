@@ -88,6 +88,20 @@ test("a command resolves once a majority has it, and every node applies it", asy
   for (const { queue } of cluster.nodes.values()) assert.deepEqual(jobNames(queue), ["refresh"]);
 });
 
+test("a command the queue refuses rejects its client, and the next one still commits everywhere", async () => {
+  const cluster = testCluster(["Q-01", "Q-02", "Q-03"]);
+  const orchestrator = await cluster.elect();
+  let outcome = "pending";
+  orchestrator.submit({ type: "plan", scenario: "none", prompt: "", at: 0 }).then(() => (outcome = "resolved"), (cause) => (outcome = cause.message));
+  await cluster.run(400);
+  assert.equal(outcome, "No scenario none.");
+
+  const result = orchestrator.submit(job("refresh"));
+  await cluster.run(400);
+  assert.equal(((await result) as { name: string }).name, "refresh");
+  for (const { queue } of cluster.nodes.values()) assert.deepEqual(jobNames(queue), ["refresh"]);
+});
+
 test("nothing commits without a majority", async () => {
   const cluster = testCluster(["Q-01", "Q-02", "Q-03"]);
   const orchestrator = await cluster.elect();

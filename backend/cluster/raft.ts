@@ -224,12 +224,20 @@ export function createRaft(options: RaftOptions) {
     while (lastApplied < commitIndex) {
       lastApplied += 1;
       const entry = entryAt(lastApplied);
-      const result = machine.apply(entry.command);
+      // A command the state machine refuses is still applied, the same on every node; its client gets the error.
+      let result: unknown;
+      let failure: Error | null = null;
+      try {
+        result = machine.apply(entry.command);
+      } catch (cause) {
+        failure = cause as Error;
+      }
       const waiter = waiting.get(lastApplied);
       if (waiter) {
         waiting.delete(lastApplied);
-        if (waiter.term === entry.term) waiter.resolve(result);
-        else waiter.reject(new NotOrchestrator(orchestrator));
+        if (waiter.term !== entry.term) waiter.reject(new NotOrchestrator(orchestrator));
+        else if (failure) waiter.reject(failure);
+        else waiter.resolve(result);
       }
     }
     if (role === "orchestrator" && !membersAt(commitIndex).includes(id)) {
