@@ -273,7 +273,15 @@ export function createClusterServer(options: ServerOptions = {}) {
     if (!id) return [409, { error: `All ${NODE_IDS.length} nodes are in use.` }];
     if (!orchestrator) return [409, { error: "There is no orchestrator to add a node to. Restart a dead node first." }];
     startNode(id, { fresh: true });
-    await clusterRequest({ members: { add: id } });
+    try {
+      await clusterRequest({ members: { add: id } });
+    } catch (cause) {
+      // Never added, the new node would wait for the cluster forever, so it goes as if it never started.
+      children.get(id)?.kill("SIGKILL");
+      children.delete(id);
+      rmSync(join(dataDir, `${id}.json`), { force: true });
+      throw cause;
+    }
     return [201, { id }];
   }
 
