@@ -1,4 +1,3 @@
-import type { ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
 import { createJiraApi } from "./jira-api.ts";
 import { createJiraAuth } from "./jira-auth.ts";
@@ -51,7 +50,7 @@ export function createJiraServer(options: ServerOptions = {}) {
     }),
     items: "issues",
     loadItems: ({ jiraApi }) => jiraApi.getAssignedIssues(),
-    async routes(req, res, url, { connection, auth, jiraApi }) {
+    async routes(req, res, url, { auth, jiraApi }) {
       if (req.method === "GET" && url.pathname === "/auth/jira/start") {
         auth.start(res);
         return true;
@@ -64,7 +63,6 @@ export function createJiraServer(options: ServerOptions = {}) {
 
       const transitionsPath = req.method === "GET" && url.pathname.match(/^\/api\/jira\/issues\/([^/]+)\/transitions$/);
       if (transitionsPath) {
-        if (!connection.connected) return notConnected(res);
         try {
           const result = await jiraApi.getTransitions(decodeURIComponent(transitionsPath[1]));
           if ("error" in result) {
@@ -80,7 +78,6 @@ export function createJiraServer(options: ServerOptions = {}) {
 
       const issueEditPath = req.method === "POST" && url.pathname.match(/^\/api\/jira\/issues\/([^/]+)$/);
       if (issueEditPath) {
-        if (!connection.connected) return notConnected(res);
         try {
           const issueKey = decodeURIComponent(issueEditPath[1]);
           const changes = await readJson(req);
@@ -99,11 +96,6 @@ export function createJiraServer(options: ServerOptions = {}) {
       return false;
     },
   });
-}
-
-function notConnected(res: ServerResponse) {
-  send(res, 401, { error: "Jira is not connected. Connect Jira." });
-  return true;
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {

@@ -154,6 +154,23 @@ test("rejects GitHub comments when disconnected or when the comment is blank", a
   assert.match((await blank.json() as { error: string }).error, /cannot be empty/i);
 });
 
+test("does not post a comment while GitHub is turned off", async () => {
+  let posted = false;
+  const base = await startServer(githubWithCommentResponse(() => {
+    posted = true;
+    return Response.json({ id: 1 }, { status: 201 });
+  }));
+  await connectGitHub(base);
+  await fetch(base + "/api/github/connection/enabled", {
+    method: "POST",
+    headers: { Origin: "http://localhost:5173", "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: false }),
+  });
+
+  assert.equal((await submitComment(base)).status, 403);
+  assert.equal(posted, false);
+});
+
 test("explains GitHub comment permission failures", async () => {
   const base = await startServer(githubWithCommentResponse(() => Response.json(
     { message: "Resource not accessible by integration" },

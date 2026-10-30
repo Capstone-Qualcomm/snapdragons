@@ -146,6 +146,19 @@ export function createSourceServer<S extends Session>({ name, title, port, appUr
         return;
       }
 
+      // The source's own API routes (reading a thread, posting a comment, editing an issue) need it
+      // connected and turned on, like the items list. Sign-in routes don't.
+      if (url.pathname.startsWith(`/api/${name}/`)) {
+        if (!connection.connected) {
+          send(res, 401, { error: `${title} is not connected. Connect ${title}.` });
+          return;
+        }
+        if (!connection.enabled) {
+          send(res, 403, { error: `${title} is turned off. Turn it on.` });
+          return;
+        }
+      }
+
       if (!(await routes(req, res, url, current))) send(res, 404, { error: "Not found" });
     } catch (error) {
       if (!res.headersSent) send(res, 500, { error: error instanceof Error ? error.message : "Internal server error" });

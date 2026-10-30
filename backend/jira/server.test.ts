@@ -350,6 +350,22 @@ test("rejects an issue edit from another site", async () => {
   assert.equal(issueWasUpdated, false);
 });
 
+test("does not edit an issue while Jira is turned off", async () => {
+  let issueWasUpdated = false;
+  const baseUrl = await startServer({ fetch: createJiraFetch({
+    onRequest: ({ url, init }) => {
+      if (url.pathname.includes("/rest/api/3/issue/") && init.method === "PUT") issueWasUpdated = true;
+    },
+  }) });
+  await connectJira(baseUrl);
+  const headers = { "Content-Type": "application/json" };
+  await request(baseUrl, "/api/jira/connection/enabled", { method: "POST", headers, body: JSON.stringify({ enabled: false }) });
+  const { response } = await request(baseUrl, "/api/jira/issues/SD-7", { method: "POST", headers, body: JSON.stringify({ description: "Changed" }) });
+
+  assert.equal(response.status, 403);
+  assert.equal(issueWasUpdated, false);
+});
+
 test("listens on loopback only", async () => {
   await startServer();
   assert.equal(([...servers][0].address() as { address: string }).address, "127.0.0.1");
