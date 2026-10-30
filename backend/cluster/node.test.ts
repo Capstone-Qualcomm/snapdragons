@@ -103,3 +103,21 @@ test("a board that saved a log while waiting to be added, but never was, asks to
     gateway.close();
   }
 });
+
+test("an orchestrator powered off past the lease does not expire its workers when powered on", async () => {
+  const node = runNode(4989, mkdtempSync(join(tmpdir(), "node-test-")), { LEASE_MS: "1500" });
+  const state = async () => (await fetch("http://127.0.0.1:4989/state", { signal: AbortSignal.timeout(1000) })).json();
+  try {
+    let workers: Array<{ alive: boolean }> = [];
+    for (let n = 0; n < 40 && !workers.length; n++, await sleep(250)) workers = (await state().catch(() => ({ workers: [] }))).workers;
+    assert.equal(workers.length, 1);
+    await fetch("http://127.0.0.1:4989/power", { method: "POST", body: JSON.stringify({ on: false }) });
+    await sleep(2500);
+    await fetch("http://127.0.0.1:4989/power", { method: "POST", body: JSON.stringify({ on: true }) });
+    await sleep(1000);
+    const { events } = await state();
+    assert.ok(!events.some((event: { text: string }) => event.text.includes("stopped responding")), JSON.stringify(events));
+  } finally {
+    node.kill();
+  }
+});

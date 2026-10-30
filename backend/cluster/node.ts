@@ -133,8 +133,9 @@ export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join
     return JSON.parse(raw || "{}");
   }
 
-  // Powered off from the dashboard: the board stops answering and stops working, like losing power,
-  // but keeps what it saved, so powering on is the same as a reboot.
+  // Powered off from the dashboard: the board stops answering and stops working, like losing power.
+  // Unlike a reboot it keeps what it had in memory, so an orchestrator powered on before another was
+  // elected is still the orchestrator. It heard from nobody while off, so it starts every node's lease again.
   let off = false;
 
   const server = createServer(async (req, res) => {
@@ -142,7 +143,10 @@ export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join
       const path = new URL(req.url ?? "/", "http://localhost").pathname;
       if (path === "/power" && req.method === "POST") {
         const on = Boolean((await readBody(req)).on);
-        if (on && off) startWorker();
+        if (on && off) {
+          orchestratorTerm = -1;
+          startWorker();
+        }
         if (!on && !off) worker.abort();
         off = !on;
         return send(res, 200, { on });
