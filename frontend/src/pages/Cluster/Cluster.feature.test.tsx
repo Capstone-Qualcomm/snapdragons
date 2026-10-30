@@ -59,6 +59,8 @@ const boardsLoaded = () => screen.findByRole("row", { name: "Board 1" });
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  Reflect.deleteProperty(document, "visibilityState");
   window.history.replaceState({}, "", "/");
 });
 
@@ -251,6 +253,27 @@ describe("Agent Commands", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))));
     expect((await screen.findByRole("alert")).textContent).toBe("The cluster is not reachable. Showing the last received state.");
     expect(row("Board 1")).toBeTruthy();
+  });
+
+  it("asks for the next state only after the last one answered, and not while the tab is hidden", async () => {
+    vi.useFakeTimers();
+    let answer = () => {};
+    const fetch = vi.fn(async (url: string) => {
+      if (!String(url).endsWith("/api/cluster/state")) return Response.json({ error: "Not found" }, { status: 404 });
+      return new Promise<Response>((resolve) => { answer = () => resolve(Response.json(cluster())); });
+    });
+    vi.stubGlobal("fetch", fetch);
+    const polls = () => fetch.mock.calls.filter(([url]) => String(url).endsWith("/api/cluster/state")).length;
+    renderCluster();
+
+    // A slow server: nothing more goes out while the first poll waits.
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(polls()).toBe(1);
+    await act(async () => { answer(); await vi.advanceTimersByTimeAsync(500); });
+    expect(polls()).toBe(2);
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    await act(async () => { answer(); await vi.advanceTimersByTimeAsync(5000); });
+    expect(polls()).toBe(2);
   });
 
   it("says why no orchestrator can be elected while too few boards are up", async () => {

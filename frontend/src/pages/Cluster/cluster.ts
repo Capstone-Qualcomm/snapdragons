@@ -103,24 +103,37 @@ export function useCluster() {
   const [cluster, setCluster] = useState<ClusterState | null>(null);
   const [failed, setFailed] = useState(false);
   const offset = useRef(0);
+  // Only the newest request's answer is kept, so a slow poll cannot undo a reload.
+  const latest = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const id = ++latest.current;
     try {
-      const response = await fetch(apiPath("/api/cluster/state"), { cache: "no-store" });
+      const response = await fetch(apiPath("/api/cluster/state"), { cache: "no-store", signal });
       const state: unknown = await response.json();
+      if (id !== latest.current) return;
       if (!response.ok || !isClusterState(state)) throw new Error("Cluster unavailable");
       offset.current = state.now - Date.now();
       setCluster({ ...state, events: Array.isArray(state.events) ? state.events : [] });
       setFailed(false);
     } catch {
-      setFailed(true);
+      if (id === latest.current && !signal?.aborted) setFailed(true);
     }
   }, []);
 
+  // The next poll waits for the last one to answer, and none go out while the tab is hidden.
   useEffect(() => {
-    void load();
-    const timer = setInterval(load, POLL_MS);
-    return () => clearInterval(timer);
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      if (document.visibilityState !== "hidden") await load(controller.signal);
+      if (!controller.signal.aborted) timer = setTimeout(poll, POLL_MS);
+    }
+    void poll();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [load]);
 
   return { cluster, failed, reload: load, serverNow: () => Date.now() + offset.current };
