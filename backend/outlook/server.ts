@@ -91,7 +91,13 @@ export function createOutlookServer(options: ServerOptions = {}) {
         try {
           if (messageAction[2] === "delete") await outlookApi.deleteMessage(messageId);
           else {
-            const body = await readJson(req);
+            let body: Record<string, unknown>;
+            try {
+              body = await readJson(req);
+            } catch {
+              send(res, 400, { error: "Invalid request body" });
+              return true;
+            }
             if (typeof body.comment !== "string" || !body.comment.trim()) {
               send(res, 400, { error: "Write a reply before sending." });
               return true;

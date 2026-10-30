@@ -14,11 +14,17 @@ export function redirect(res: ServerResponse, location: string): void {
   res.end();
 }
 
-// Throws when the body is not JSON, so callers can answer 400.
+const maxBodyLength = 1024 * 1024;
+
+// Throws when the body is not a JSON object or is over 1 MB, so callers can answer 400.
 export async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   let body = "";
-  for await (const chunk of req) body += chunk;
-  return JSON.parse(body);
+  // Past the limit, keep reading but drop the rest, so the client finishes sending and gets the answer.
+  for await (const chunk of req) if (body.length <= maxBodyLength) body += chunk;
+  if (body.length > maxBodyLength) throw new Error("Request body is too large.");
+  const value: unknown = JSON.parse(body);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Request body must be a JSON object.");
+  return value as Record<string, unknown>;
 }
 
 // OAuth state values handed out by /auth/<source>/start. Each one works once,
