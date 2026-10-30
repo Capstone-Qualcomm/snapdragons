@@ -189,8 +189,9 @@ export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
       }
-      // The orchestrator removing itself exits once the change commits (onRemoved).
-      if (!raft.isOrchestrator()) process.exit(0);
+      // An orchestrator removing itself has stepped down by the time its change commits, so it exits here too.
+      // onRemoved is for one that commits its own removal some other way, say replaying it after a restart.
+      process.exit(0);
     });
   }
   startWorker();
