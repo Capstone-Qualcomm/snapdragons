@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ErrorBanner, ago } from "../../components/ui";
 import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
@@ -32,7 +32,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const [starting, setStarting] = useState(false);
   const now = useClock(serverNow);
 
-  useEffect(() => {
+  const loadScenarios = useCallback(() => {
     api<{ scenarios: ScenarioInfo[] }>("/api/assistant/scenarios").then(({ scenarios }) => {
       setScenarios(scenarios);
       // The first scenario is picked to start with, its prompt in the box.
@@ -40,6 +40,10 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
       setPrompt((current) => current || scenarios[0]?.prompt || "");
     }, (cause: Error) => setError(cause.message));
   }, []);
+
+  useEffect(() => {
+    loadScenarios();
+  }, [loadScenarios]);
 
   const plans = cluster?.jobs.filter((job) => job.plan) ?? [];
   const running = plans.find((job) => job.doneAt === null) ?? null;
@@ -89,6 +93,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         prompt={prompt}
         pace={pace}
         error={banner}
+        // Without the example jobs there is nothing to run, so their error offers another try.
+        onRetry={error && !scenarios.length ? () => { setError(null); loadScenarios(); } : undefined}
         canRun={Boolean(cluster?.orchestrator && scenarios.length) && !starting}
         waiting={waiting}
         onPick={pick}
@@ -105,7 +111,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   return (
     <div className="assistant">
       {banner && <ErrorBanner message={banner} />}
-      <RunHeader job={job} scenario={scenario} onStop={() => void act("/api/assistant/stop", { job: job.id })} onAgain={() => setShown(null)} />
+      <RunHeader job={job} scenario={scenario} onStop={() => void act("/api/assistant/stop", { job: job.id })} onAgain={() => { setError(null); setShown(null); }} />
       {job.doneAt === null || !job.plan!.result ? (
         <Watching job={job} tasks={tasks} cluster={cluster} events={events} now={now} offset={serverNow() - Date.now()} act={(path) => void act(path)} />
       ) : (
@@ -115,12 +121,13 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   );
 }
 
-function Ask({ scenarios, selected, prompt, pace, error, canRun, waiting, onPick, onPrompt, onPace, onRun }: {
+function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun }: {
   scenarios: ScenarioInfo[];
   selected: string;
   prompt: string;
   pace: string;
   error: string | null;
+  onRetry?: () => void;
   canRun: boolean;
   waiting: string | null;
   onPick: (id: string) => void;
@@ -136,7 +143,7 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, waiting, onPick
         <h1>What should your boards do?</h1>
         <p className="lede">Describe a job. One board splits it up, the others work on the pieces at the same time.</p>
       </div>
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner message={error} onRetry={onRetry} />}
       <div className="prompt-card">
         <label className="sr-only" htmlFor="prompt">Job</label>
         <textarea id="prompt" value={prompt} rows={3} onChange={(event) => onPrompt(event.target.value)} />

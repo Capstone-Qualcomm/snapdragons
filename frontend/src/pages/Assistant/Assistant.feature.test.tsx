@@ -117,6 +117,25 @@ describe("Assistant: ask", () => {
     expect(posts).toEqual(["/api/assistant/run"]);
   });
 
+  it("offers to retry when the example jobs could not be loaded", async () => {
+    let down = true;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const path = String(url);
+      if (path.endsWith("/api/assistant/scenarios")) return down ? Response.json({ error: "The app server is busy." }, { status: 503 }) : Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return Response.json(cluster({ jobs: [], tasks: [] }));
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    const banner = await screen.findByRole("alert");
+    expect(banner.textContent).toContain("The app server is busy.");
+    down = false;
+    fireEvent.click(within(banner).getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: /Engineer/ })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("says why Run is off while too few boards are up", async () => {
     mock(cluster({ jobs: [], tasks: [], orchestrator: null, nodes: [node("Q-01", { up: false }), node("Q-02"), node("Q-03"), node("Q-04", { up: false })] }));
     expect(await screen.findByText("Only 2 of 4 boards are up. Restart a board to run a job.")).toBeTruthy();
@@ -236,6 +255,27 @@ describe("Assistant: report", () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 600)); });
     fireEvent.click(nav.getByRole("link", { name: "Assistant" }));
     expect(await screen.findByText("6 companies replied and 4 want an interview.")).toBeTruthy();
+  });
+
+  it("drops a failed Stop's error when going back to ask for another job", async () => {
+    let state = cluster();
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (init?.method === "POST") {
+        state = cluster({ jobs: [{ ...plan({ stage: 2, result }), doneAt: now - 1000, nodes: 3 }] });
+        return Response.json({ error: "The job already finished." }, { status: 409 });
+      }
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return Response.json(state);
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Stop" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("The job already finished.");
+    fireEvent.click(await screen.findByRole("button", { name: "Run another job" }));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("leads with a headline and stat tiles, puts each section in a tab, and goes back to ask for another", async () => {
