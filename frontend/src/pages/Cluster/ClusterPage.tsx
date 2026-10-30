@@ -1,7 +1,7 @@
 import { ago, Stat } from "../../components/ui";
 import { Activity } from "./Activity";
 import { AgentCommands } from "./AgentCommands";
-import { boardName, lastRefresh, refreshes, send } from "./cluster";
+import { boardName, lastRefresh, refreshes, send, stalled } from "./cluster";
 import type { ClusterState } from "./cluster";
 import { ClusterPanel } from "./ClusterPanel";
 import { RefreshChart } from "./Refresh";
@@ -21,6 +21,7 @@ export function ClusterPage({ cluster, failed, reload, serverNow }: { cluster: C
   const up = nodes.filter((node) => node.up).length;
   const last = lastRefresh(cluster);
   const term = cluster?.terms.at(-1);
+  const stuck = cluster && stalled(cluster);
   // Before the first answer the cluster is only unreachable once a poll has failed.
   const missing = failed ? "Cluster not reachable" : "Connecting…";
 
@@ -38,7 +39,7 @@ export function ClusterPage({ cluster, failed, reload, serverNow }: { cluster: C
         <Stat
           label="Orchestrator"
           value={cluster?.orchestrator ? boardName(cluster.orchestrator) : cluster ? "None" : "—"}
-          note={cluster?.orchestrator ? (term ? `Elected ${ago(now - term.at)}` : "Hands out the steps") : cluster ? "Boards are electing one" : missing}
+          note={cluster?.orchestrator ? (term ? `Elected ${ago(now - term.at)}` : "Hands out the steps") : stuck ? `${stuck.needed} boards needed to elect one` : cluster ? "Boards are electing one" : missing}
           tone={cluster && !cluster.orchestrator ? "is-warn" : ""}
         />
         <Stat label="Last refresh" value={last ? `${((last.doneAt! - last.queuedAt) / 1000).toFixed(1)} s` : "—"} note={last ? `On ${last.nodes} ${last.nodes === 1 ? "board" : "boards"}, ${ago(now - last.doneAt!)}` : "None finished yet"} />

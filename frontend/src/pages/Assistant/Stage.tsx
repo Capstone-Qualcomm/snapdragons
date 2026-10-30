@@ -246,7 +246,7 @@ function WorkerNode({ node, job, tasks, cluster, act, style }: { node: RaftNode;
             <span className="x-mark"><Icon name="x" size={14} /></span>
             <span>{wasOrchestrator ? "Orchestrator" : (silent ?? lost)?.label ?? "Powered off"}</span>
           </div>
-          <p className={`node-caption ${silent ? "is-warn" : "is-bad"}`}>{wasOrchestrator ? (cluster.orchestrator ? `Down · ${boardName(cluster.orchestrator)} took over the plan` : "Down · others are electing") : silent ? "No response · not noticed yet" : lost ? (lost.status === "queued" ? "Down · orchestrator took it back" : `Down · given to ${boardName(lost.runs.at(-1)!.worker)}`) : "Down"}</p>
+          <p className={`node-caption ${silent ? "is-warn" : "is-bad"}`}>{wasOrchestrator ? (cluster.orchestrator ? `Down · ${boardName(cluster.orchestrator)} took over the plan` : stalled(cluster) ? "Down · too few boards left to elect" : "Down · others are electing") : silent ? "No response · not noticed yet" : lost ? (lost.status === "queued" ? "Down · orchestrator took it back" : `Down · given to ${boardName(lost.runs.at(-1)!.worker)}`) : "Down"}</p>
           {(silent ?? lost) && <Preview task={(silent ?? lost)!} progress={silent ? silent.progress : lost!.runs.find((run) => run.worker === node.id && run.outcome === "lost")?.to ?? 0} frozen />}
         </>
       ) : current ? (

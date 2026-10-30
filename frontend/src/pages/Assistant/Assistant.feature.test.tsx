@@ -218,6 +218,7 @@ describe("Assistant: watch", () => {
     const stage = await screen.findByRole("region", { name: "Cluster" });
     expect(stage.querySelector(".narration")?.textContent).toBe("Only 2 of 4 boards are up, and it takes 3 to elect an orchestrator. Restart a board to carry on.");
     expect(within(stage).getByLabelText("Orchestrator").textContent).toContain("No orchestrator");
+    expect(within(stage).queryByText(/others are electing/)).toBeNull();
   });
 });
 

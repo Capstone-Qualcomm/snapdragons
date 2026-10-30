@@ -298,6 +298,7 @@ describe("Agent Commands", () => {
     mockCluster(cluster({ orchestrator: null, nodes: [node("Q-01"), node("Q-02", { up: false }), node("Q-03", { up: false })] }));
     renderCluster();
     expect((await screen.findByText(/No orchestrator:/)).textContent).toBe("No orchestrator: 1 of 3 boards are up, and an election needs 2. Restart a board to carry on.");
+    expect(screen.getByText("2 boards needed to elect one")).toBeTruthy();
   });
 });
 
