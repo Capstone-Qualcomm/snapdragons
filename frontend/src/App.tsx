@@ -8,7 +8,6 @@ import { AssistantPage } from "./pages/Assistant/Assistant";
 import { useCluster } from "./pages/Cluster/cluster";
 import { ClusterPage } from "./pages/Cluster/ClusterPage";
 import { ConnectionsPage } from "./pages/Connections/ConnectionsPage";
-import { rank, toItems } from "./pages/Today/rank";
 import { useSource } from "./pages/Today/sources";
 import { TodayPage } from "./pages/Today/TodayPage";
 
@@ -38,8 +37,8 @@ function App() {
   const github = useSource("github");
   const outlook = useSource("outlook");
   const sources = [slack, jira, github, outlook];
-  const items = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }));
-  const counts = Object.fromEntries(sources.map((source) => [source.name, items.filter((item) => item.source === source.name).length]));
+  // What each source loaded, items marked done on Today included.
+  const counts = Object.fromEntries(sources.map((source) => [source.name, source.items.length]));
 
   useEffect(() => {
     const sync = () => setPage(pageFromPath(window.location.pathname));
