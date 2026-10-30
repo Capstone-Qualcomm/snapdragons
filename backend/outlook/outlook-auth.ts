@@ -107,6 +107,9 @@ export function createOutlookAuth({
     }
   }
 
+  // One refresh at a time, so parallel requests don't each spend the refresh token.
+  let refreshing: Promise<string> | null = null;
+
   async function getAccessToken(): Promise<string> {
     const token = outlookConnection.token;
     if (!outlookConnection.connected || !token) throw new Error("Outlook is not connected. Connect Outlook.");
@@ -115,23 +118,30 @@ export function createOutlookAuth({
       reset();
       throw new Error("Outlook authorization expired. Reconnect Outlook.");
     }
+    refreshing ??= refresh(token).finally(() => { refreshing = null; });
+    return refreshing;
+  }
 
+  async function refresh(token: OutlookToken): Promise<string> {
+    let refreshed: OutlookToken;
     try {
-      const refreshed = await requestToken({ grant_type: "refresh_token", refresh_token: token.refreshToken, scope: scopes });
-      if (outlookConnection.token !== token || !outlookConnection.connected) {
-        throw new Error("Outlook connection changed during token refresh. Please retry.");
-      }
-      const next = { ...refreshed, refreshToken: refreshed.refreshToken || token.refreshToken };
-      outlookConnection.token = next;
-      return next.accessToken;
+      refreshed = await requestToken({ grant_type: "refresh_token", refresh_token: token.refreshToken, scope: scopes });
     } catch (error) {
       if (outlookConnection.token !== token || !outlookConnection.connected) {
         throw new Error("Outlook connection changed during token refresh. Please retry.");
       }
+      // Only Microsoft saying the refresh token is dead signs the user out; a network blip or a 503 doesn't.
+      if ((error as { code?: string }).code !== "invalid_grant") {
+        throw new Error("Outlook could not refresh the sign-in. Try again.");
+      }
       reset();
-      if (error instanceof Error && error.message.includes("connection changed")) throw error;
       throw new Error("Outlook authorization expired. Reconnect Outlook.");
     }
+    if (outlookConnection.token !== token || !outlookConnection.connected) {
+      throw new Error("Outlook connection changed during token refresh. Please retry.");
+    }
+    outlookConnection.token = { ...refreshed, refreshToken: refreshed.refreshToken || token.refreshToken };
+    return refreshed.accessToken;
   }
 
   async function requestToken(parameters: Record<string, string>): Promise<OutlookToken> {
@@ -143,7 +153,7 @@ export function createOutlookAuth({
     });
     const result = await response.json() as TokenResponse;
     if (!response.ok || !result.access_token) {
-      throw new Error(result.error_description ?? result.error ?? "Outlook token request failed.");
+      throw Object.assign(new Error(result.error_description ?? result.error ?? "Outlook token request failed."), { code: result.error });
     }
     if (parameters.grant_type === "authorization_code" && !result.refresh_token) {
       throw new Error("Microsoft did not return a refresh token. Check that offline_access is requested.");
@@ -170,6 +180,7 @@ export function createOutlookAuth({
   }
 
   function reset() {
+    refreshing = null;
     outlookConnection.connected = false;
     outlookConnection.enabled = false;
     outlookConnection.connectedAt = null;
