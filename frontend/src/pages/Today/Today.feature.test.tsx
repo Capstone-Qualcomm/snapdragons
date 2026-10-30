@@ -179,6 +179,16 @@ describe("Today connections", () => {
     await waitFor(() => expect(posts).toContainEqual({ path: "/api/github/connection/enabled", body: { enabled: true } }));
   });
 
+  it("disconnects only after a second, confirming click, and keeps the buttons off until it is answered", async () => {
+    await openToday();
+    openConnections();
+    fireEvent.click(screen.getByRole("button", { name: "Disconnect Jira" }));
+    expect(posts.map((post) => post.path)).not.toContain("/api/jira/connection/disconnect");
+    fireEvent.click(screen.getByRole("button", { name: "Confirm disconnect Jira" }));
+    expect(screen.getByRole("button", { name: "Turn off Jira" }).hasAttribute("disabled")).toBe(true);
+    await waitFor(() => expect(posts).toContainEqual({ path: "/api/jira/connection/disconnect", body: {} }));
+  });
+
   it("shows a failed sign-in from the address and clears it", async () => {
     window.history.replaceState({}, "", "/snapdragons/today?jira=invalid_state");
     await openToday();
