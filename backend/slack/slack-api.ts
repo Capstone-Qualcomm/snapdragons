@@ -35,7 +35,7 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
     const response = await fetchImpl(url, init);
     const result = await response.json() as Record<string, unknown>;
     if (!result.ok) {
-      if (result.error === "invalid_auth" || result.error === "token_revoked") {
+      if (["invalid_auth", "token_revoked", "token_expired", "not_authed", "account_inactive"].includes(String(result.error))) {
         throw new Error("Slack authorization expired. Reconnect Slack.");
       }
       throw new Error(`Slack returned ${result.error ?? "an error"} while loading messages.`);

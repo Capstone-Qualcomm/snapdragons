@@ -27,3 +27,10 @@ test("toItem builds a stable id and ISO time", () => {
   assert.equal(item.text, "@you ping");
   assert.equal(item.sentAt, "2025-10-09T08:53:20.000Z");
 });
+test("an expired, revoked or missing Slack token asks the user to reconnect", async () => {
+  for (const error of ["invalid_auth", "token_revoked", "token_expired", "not_authed"]) {
+    const connected = { ...noopConnection, connected: true, token: { accessToken: "xoxp-test" } } as unknown as typeof noopConnection;
+    const slack = createSlackApi({ slackConnection: connected, fetchImpl: async () => Response.json({ ok: false, error }) });
+    await assert.rejects(slack.getMessages(), /Reconnect Slack/, error);
+  }
+});
