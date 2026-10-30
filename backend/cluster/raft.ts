@@ -158,6 +158,8 @@ export function createRaft(options: RaftOptions) {
     orchestrator = id;
     nextIndex.clear();
     matchIndex.clear();
+    // Each node is first sent from the end of this log, so its first message carries the empty entry below.
+    for (const peer of others()) nextIndex.set(peer, lastIndex() + 1);
     // An orchestrator can only commit entries from its own term by counting copies, so
     // it starts with an empty one. Committing it commits everything before it.
     append({ type: "noop", orchestrator: id, term, at: now() });
