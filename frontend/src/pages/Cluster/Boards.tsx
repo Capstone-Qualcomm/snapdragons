@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
 import type { CSSProperties } from "react";
+import { ago } from "../../components/ui";
 import { appPath } from "../../lib/urls";
 import "./Boards.css";
 import { boardName, majority, seconds, sourceOf, stepLabel } from "./cluster";
@@ -105,11 +106,12 @@ function BoardRow({ node, cluster, open, onToggle }: { node: RaftNode; cluster: 
 }
 
 // Workers hear the orchestrator's heartbeat every 300 ms; the orchestrator sends it.
+// With no orchestrator the silence can run to hours, so past a minute it reads like the rest of the app.
 function heartbeat(node: RaftNode, isOrchestrator: boolean) {
   if (!node.up) return "—";
   if (isOrchestrator) return "Sending";
   if (node.quietFor == null) return "—";
-  return node.quietFor < 1000 ? `${node.quietFor} ms ago` : `${seconds(node.quietFor)} ago`;
+  return node.quietFor < 1000 ? `${node.quietFor} ms ago` : node.quietFor < 60_000 ? `${seconds(node.quietFor)} ago` : ago(node.quietFor);
 }
 
 // The step a board is on, in words, with its progress. A step taken over from

@@ -90,6 +90,15 @@ describe("Cluster boards", () => {
     expect(within(row("Board 3")).getByText("Candidate, 1 of 2 votes")).toBeTruthy();
   });
 
+  it("gives a long wait for a heartbeat in hours, a short one in seconds", async () => {
+    mockCluster(cluster({ orchestrator: null, nodes: [node("Q-01", { quietFor: 65_524_400 }), node("Q-02", { quietFor: 1500 })] }));
+    renderCluster();
+    await boardsLoaded();
+
+    expect(within(row("Board 1")).getByText("18 h ago")).toBeTruthy();
+    expect(within(row("Board 2")).getByText("1.5 s ago")).toBeTruthy();
+  });
+
   it("shows a step picked up from a dead board continuing from its checkpoint", async () => {
     const resumed = task("T-5", "Fetch Slack messages", {
       status: "claimed",
