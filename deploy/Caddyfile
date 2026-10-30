@@ -28,6 +28,12 @@
 		uri strip_prefix /snapdragons
 		reverse_proxy localhost:3001
 	}
+	# The demo page for our mentor: video files stay on orsat, outside git (deploy/README.md).
+	redir /demo /demo/
+	handle_path /demo/* {
+		root * /srv/demo
+		file_server
+	}
 	handle_path /snapdragons/* {
 		root * /app/frontend/dist
 		try_files {path} /index.html
