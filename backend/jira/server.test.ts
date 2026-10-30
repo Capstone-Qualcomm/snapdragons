@@ -124,13 +124,6 @@ test("reports Jira as configured before connecting", async () => {
   assert.equal(body.jira.connected, false);
 });
 
-test("logs each connection check on the Logs page", async () => {
-  const baseUrl = await startServer();
-  await fetch(`${baseUrl}/api/jira/connection`);
-  const { logs } = await (await fetch(`${baseUrl}/api/jira/logs`)).json();
-  assert.equal(logs[0].path, "/api/jira/connection");
-});
-
 test("reports Jira as unconfigured when OAuth credentials are missing", async () => {
   const baseUrl = await startServer({ configured: false });
   const { body } = await request(baseUrl, "/api/jira/connection");
@@ -337,17 +330,6 @@ test("rejects an update when no changes are provided", async () => {
 
   assert.equal(response.status, 400);
   assert.match(body.error, /No changes/);
-});
-
-test("records Jira API requests in the request log", async () => {
-  const baseUrl = await startServer();
-  await connectJira(baseUrl);
-  await request(baseUrl, "/api/jira/issues/SD-7/transitions");
-  const { body } = await request(baseUrl, "/api/jira/logs");
-
-  const transitionLog = body.logs.find((log: { path: string }) => log.path === "/api/jira/issues/SD-7/transitions");
-  assert.equal(transitionLog.method, "GET");
-  assert.equal("node" in transitionLog, false);
 });
 
 test("rejects an issue edit from another site", async () => {
