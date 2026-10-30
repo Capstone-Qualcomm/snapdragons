@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync } from "node:fs";
+import { createServer } from "node:http";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { networkInterfaces, tmpdir } from "node:os";
@@ -93,6 +94,26 @@ test("with no cluster yet, only the first new board starts one and the next join
   assert.deepEqual(await ask("q-nobody-b"), { join: ["q-nobody-a"] });
   assert.deepEqual(await ask("q-nobody-a"), { bootstrap: true }, "the founder asking again is still told to start it");
   assert.equal((await fetch(`${base}/api/cluster/join?id=../etc`)).status, 400);
+});
+
+test("a board that never answers holds up only the first read of the state, not every one after it", async () => {
+  // Takes connections and never answers, like a board that lost its network.
+  const silent = createServer(() => {});
+  servers.add(silent);
+  await new Promise<void>((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  const { server } = createClusterServer({ port: 0, boards: ["127.0.0.1"], nodePort: (silent.address() as AddressInfo).port });
+  servers.add(server);
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const state = async () => {
+    const started = Date.now();
+    const response = await fetch(`http://localhost:${(server.address() as AddressInfo).port}/api/cluster/state`);
+    await response.json();
+    return Date.now() - started;
+  };
+
+  assert.ok(await state() >= 2000, "the first read waits for the board's status");
+  const second = await state();
+  assert.ok(second < 500, `the next read answers without waiting, took ${second} ms`);
 });
 
 test("the services answer the boards' mail and calendar, and refuse the model without a key instead of calling themselves", async () => {

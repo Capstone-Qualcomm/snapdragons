@@ -176,14 +176,35 @@ export function createClusterServer(options: ServerOptions = {}) {
   // How long each node took to answer its last status check, so the queue is read from the quickest.
   const answeredIn = new Map<string, number>();
 
+  // Boards that missed their last status check, and when they were last asked. An unplugged board
+  // never answers, so waiting on it would hold every read for the whole timeout; it is asked again
+  // in the background every few seconds instead, and read normally once it answers.
+  const missing = new Map<string, number>();
+  const recheckMs = 5000;
+
   async function statuses(): Promise<NodeStatus[]> {
     const timed = async (id: string) => {
       const started = Date.now();
-      const status = await nodeJson<NodeStatus>(id, "/status");
-      answeredIn.set(id, Date.now() - started);
-      return status;
+      try {
+        const status = await nodeJson<NodeStatus>(id, "/status");
+        answeredIn.set(id, Date.now() - started);
+        missing.delete(id);
+        return status;
+      } catch {
+        if (boards) missing.set(id, Date.now());
+        return null;
+      }
     };
-    const all = (await Promise.all(ids().map((id) => timed(id).catch(() => null)))).filter((status): status is NodeStatus => status !== null);
+    const ask = (id: string) => {
+      const askedAt = missing.get(id);
+      if (askedAt === undefined) return timed(id);
+      if (Date.now() - askedAt >= recheckMs) {
+        missing.set(id, Date.now());
+        void timed(id);
+      }
+      return null;
+    };
+    const all = (await Promise.all(ids().map(ask))).filter((status): status is NodeStatus => status !== null);
     for (const status of all) for (const member of status.members) known.add(member);
     return all;
   }
