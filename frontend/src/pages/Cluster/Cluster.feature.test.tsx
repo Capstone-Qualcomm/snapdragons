@@ -245,6 +245,15 @@ describe("Agent Commands", () => {
     expect(screen.queryByRole("table", { name: "Boards" })).toBeNull();
   });
 
+  it("says it is connecting, not that the cluster is down, until the first state comes in", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    renderCluster();
+
+    expect(screen.getAllByText("Connecting…")).toHaveLength(3);
+    expect(screen.queryByText("Cluster offline")).toBeNull();
+    expect(screen.queryByText("Cluster not reachable")).toBeNull();
+  });
+
   it("warns when the cluster stops answering, and keeps the last state it got", async () => {
     mockCluster(cluster());
     renderCluster();

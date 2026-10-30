@@ -91,13 +91,13 @@ function App() {
         </nav>
         <div className="sidebar-foot">
           <a className="health" href={appPath("cluster")} data-page="cluster" title="Open Cluster">
-            <span className={`dot ${!cluster ? "tone-bad" : up === total ? "tone-ok" : "tone-warn"}`} aria-hidden="true" />
+            <span className={`dot ${!cluster ? (failed ? "tone-bad" : "tone-warn") : up === total ? "tone-ok" : "tone-warn"}`} aria-hidden="true" />
             {cluster ? (
               <span>
                 <strong>{up}</strong> of {total} boards online
               </span>
             ) : (
-              <span>Cluster offline</span>
+              <span>{failed ? "Cluster offline" : "Connecting…"}</span>
             )}
           </a>
           <button className="button quiet small about-button" type="button" onClick={() => setAboutOpen(true)}>
