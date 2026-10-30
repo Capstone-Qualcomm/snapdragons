@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ago, ErrorBanner, Stat } from "../../components/ui";
 import { api } from "../../lib/api";
-import { refreshes } from "../Cluster/cluster";
+import { lastRefresh, refreshes } from "../Cluster/cluster";
 import type { ClusterState } from "../Cluster/cluster";
 import { signInError } from "./Connections";
 import { rank, toItems } from "./rank";
@@ -134,7 +134,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   // Until every source has answered once, the counts are not known yet.
   const checking = sources.some((source) => source.status === "loading");
   const missing = sample ? "No source connected yet" : "Loading your sources…";
-  const last = cluster ? refreshes(cluster.jobs).filter((entry) => entry.doneAt !== null).at(-1) : undefined;
+  const last = lastRefresh(cluster);
   const now = Date.now() + offset;
 
   return (

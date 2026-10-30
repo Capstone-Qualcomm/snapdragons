@@ -1,7 +1,7 @@
 import { ago, Stat } from "../../components/ui";
 import { Activity } from "./Activity";
 import { AgentCommands } from "./AgentCommands";
-import { boardName, refreshes, send } from "./cluster";
+import { boardName, lastRefresh, refreshes, send } from "./cluster";
 import type { ClusterState } from "./cluster";
 import { ClusterPanel } from "./ClusterPanel";
 import { RefreshChart } from "./Refresh";
@@ -19,8 +19,7 @@ export function ClusterPage({ cluster, failed, reload, serverNow }: { cluster: C
   const now = Date.now() + offset;
   const nodes = cluster?.nodes ?? [];
   const up = nodes.filter((node) => node.up).length;
-  const done = cluster ? refreshes(cluster.jobs).filter((job) => job.doneAt !== null) : [];
-  const last = done.at(-1);
+  const last = lastRefresh(cluster);
   const term = cluster?.terms.at(-1);
   // Before the first answer the cluster is only unreachable once a poll has failed.
   const missing = failed ? "Cluster not reachable" : "Connecting…";

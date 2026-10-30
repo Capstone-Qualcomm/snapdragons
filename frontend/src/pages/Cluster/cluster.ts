@@ -59,6 +59,8 @@ export function stalled(cluster: ClusterState) {
 
 // Today's refreshes, without the Assistant's plans.
 export const refreshes = (jobs: Job[]) => jobs.filter((job) => !job.plan);
+// The newest refresh that finished, for the Last refresh stat.
+export const lastRefresh = (cluster: ClusterState | null) => (cluster ? refreshes(cluster.jobs).filter((job) => job.doneAt !== null).at(-1) : undefined);
 export type QueueWorker = { id: string; alive: boolean; leaving: boolean; done: number; current: string | null };
 export type Term = { term: number; orchestrator: string; at: number };
 export type RaftNode = {
