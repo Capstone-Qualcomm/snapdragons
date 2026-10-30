@@ -44,6 +44,19 @@ export type Result = { headline: string; stats: Array<{ value: string; label: st
 export type Plan = { scenario: string; prompt: string; pace: number; stage: number; stages: Array<{ label: string; short: string; icon: string }>; result: Result | null; error?: string };
 export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null; plan?: Plan };
 
+// Raft needs a majority of the members up to elect an orchestrator or commit anything.
+export const majority = (members: number) => Math.floor(members / 2) + 1;
+
+// Set while too few members are up for any board to win an election, so the
+// cluster waits until a board restarts.
+export function stalled(cluster: ClusterState) {
+  if (cluster.orchestrator) return null;
+  const members = cluster.members.length;
+  const up = cluster.nodes.filter((node) => node.up && node.member).length;
+  const needed = majority(members);
+  return members > 0 && up < needed ? { up, members, needed } : null;
+}
+
 // Today's refreshes, without the Assistant's plans.
 export const refreshes = (jobs: Job[]) => jobs.filter((job) => !job.plan);
 export type QueueWorker = { id: string; alive: boolean; leaving: boolean; done: number; current: string | null };

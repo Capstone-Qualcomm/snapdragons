@@ -62,6 +62,7 @@
 
 .pace select { width: auto; padding: 5px 8px; font-size: 13px; }
 .run-button { min-width: 96px; }
+.run-waiting { color: var(--ink-soft); font-size: 13px; }
 
 .scenario-grid {
   display: grid;

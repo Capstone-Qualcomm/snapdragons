@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import type { CSSProperties } from "react";
 import { appPath } from "../../lib/urls";
 import "./Boards.css";
-import { boardName, seconds, sourceOf, stepLabel } from "./cluster";
+import { boardName, majority, seconds, sourceOf, stepLabel } from "./cluster";
 import type { ClusterState, RaftNode, Task } from "./cluster";
 
 type BoardState = "dead" | "left" | "joining" | "leaving" | "working" | "idle";
@@ -71,7 +71,7 @@ export function BoardsTable({ cluster }: { cluster: ClusterState }) {
 
 function BoardRow({ node, cluster, open, onToggle }: { node: RaftNode; cluster: ClusterState; open: boolean; onToggle: () => void }) {
   const { task, state, worker, isOrchestrator } = boardOf(node, cluster);
-  const needed = Math.floor((node.members?.length ?? 0) / 2) + 1;
+  const needed = majority(node.members?.length ?? 0);
   // While there is no orchestrator, each worker counts down its own random
   // timeout; the first to reach zero asks the others for their votes.
   const electing = node.up && node.member && !cluster.orchestrator;

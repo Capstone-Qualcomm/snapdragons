@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Icon, IconTile } from "../../components/Icon";
-import { boardName } from "../Cluster/cluster";
+import { boardName, stalled } from "../Cluster/cluster";
 import type { ClusterState, Job, RaftNode, Task } from "../Cluster/cluster";
 import { Dispatch, Preview } from "./Preview";
 import { caption } from "./story";
@@ -89,7 +89,7 @@ export function Stage({ job, tasks, cluster, events, now, act }: { job: Job; tas
         })}
       </svg>
 
-      <OrchestratorNode id={orchestrator} job={job} tasks={tasks} act={act} style={{ left: layout.orchestrator.x, top: layout.orchestrator.y }} />
+      <OrchestratorNode id={orchestrator} stuck={Boolean(stalled(cluster))} job={job} tasks={tasks} act={act} style={{ left: layout.orchestrator.x, top: layout.orchestrator.y }} />
 
       {workers.map((node) => {
         const card = layout.cards.get(node.id)!;
@@ -159,7 +159,7 @@ function Kebab({ items }: { items: Array<{ label: string; kill?: boolean; onClic
   );
 }
 
-function OrchestratorNode({ id, job, tasks, act, style }: { id: string | null; job: Job; tasks: Task[]; act: (path: string) => void; style: CSSProperties }) {
+function OrchestratorNode({ id, stuck, job, tasks, act, style }: { id: string | null; stuck: boolean; job: Job; tasks: Task[]; act: (path: string) => void; style: CSSProperties }) {
   const plan = job.plan!;
   const stageTasks = tasks.filter((task) => task.stage === plan.stage);
   const own = stageTasks.find((task) => task.role === "orchestrator");
@@ -175,9 +175,9 @@ function OrchestratorNode({ id, job, tasks, act, style }: { id: string | null; j
         <div className="orchestrator-info">
           <div className="node-head">
             <Icon name="crown" size={16} className="crown" />
-            <strong>Electing…</strong>
+            <strong>{stuck ? "No orchestrator" : "Electing…"}</strong>
           </div>
-          <p className="node-caption">Boards are voting for a new orchestrator</p>
+          <p className="node-caption">{stuck ? "Too few boards are up to elect one" : "Boards are voting for a new orchestrator"}</p>
           <p className="node-caption muted">The plan is saved on every board</p>
         </div>
         <Dispatch tasks={pieces} />

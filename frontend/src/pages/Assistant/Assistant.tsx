@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ErrorBanner, ago } from "../../components/ui";
 import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
-import { boardName, send } from "../Cluster/cluster";
+import { boardName, send, stalled } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
 import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
@@ -51,6 +51,9 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const stale = failed ? (cluster ? "The cluster is not reachable. Showing the last received state." : "The cluster is not reachable. Start it with ./scripts/start-cluster.sh.") : null;
   const banner = error ?? stale;
   const scenario = scenarios.find((entry) => entry.id === (job?.plan!.scenario ?? selected));
+  // Why Run is off while the cluster answers but has no orchestrator to plan the job.
+  const stuck = cluster && stalled(cluster);
+  const waiting = stuck ? `Only ${stuck.up} of ${stuck.members} boards are up. Restart a board to run a job.` : cluster && !cluster.orchestrator ? "Waiting for the boards to elect an orchestrator." : null;
 
   function pick(id: string) {
     setSelected(id);
@@ -87,6 +90,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         pace={pace}
         error={banner}
         canRun={Boolean(cluster?.orchestrator && scenarios.length) && !starting}
+        waiting={waiting}
         onPick={pick}
         onPrompt={setPrompt}
         onPace={setPace}
@@ -111,13 +115,14 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   );
 }
 
-function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPrompt, onPace, onRun }: {
+function Ask({ scenarios, selected, prompt, pace, error, canRun, waiting, onPick, onPrompt, onPace, onRun }: {
   scenarios: ScenarioInfo[];
   selected: string;
   prompt: string;
   pace: string;
   error: string | null;
   canRun: boolean;
+  waiting: string | null;
   onPick: (id: string) => void;
   onPrompt: (prompt: string) => void;
   onPace: (pace: string) => void;
@@ -156,6 +161,7 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
               <option value="fast">Fast</option>
             </select>
           </label>
+          {waiting && <span className="run-waiting">{waiting}</span>}
           <button className="button primary run-button" type="button" disabled={!canRun} onClick={onRun}>
             <Icon name="play" size={14} />
             Run

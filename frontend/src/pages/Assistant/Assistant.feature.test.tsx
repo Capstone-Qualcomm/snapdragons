@@ -116,6 +116,12 @@ describe("Assistant: ask", () => {
     await act(async () => answer());
     expect(posts).toEqual(["/api/assistant/run"]);
   });
+
+  it("says why Run is off while too few boards are up", async () => {
+    mock(cluster({ jobs: [], tasks: [], orchestrator: null, nodes: [node("Q-01", { up: false }), node("Q-02"), node("Q-03"), node("Q-04", { up: false })] }));
+    expect(await screen.findByText("Only 2 of 4 boards are up. Restart a board to run a job.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Run" }).hasAttribute("disabled")).toBe(true);
+  });
 });
 
 describe("Assistant: watch", () => {
@@ -181,11 +187,18 @@ describe("Assistant: watch", () => {
   });
 
   it("while the boards elect a new orchestrator, says so", async () => {
-    mock(cluster({ orchestrator: null, nodes: [node("Q-01", { up: false }), node("Q-02", { role: "candidate" }), node("Q-03")] }));
+    mock(cluster({ orchestrator: null, nodes: [node("Q-01", { up: false }), node("Q-02", { role: "candidate" }), node("Q-03"), node("Q-04")] }));
     const stage = await screen.findByRole("region", { name: "Cluster" });
     expect(stage.querySelector(".narration")?.textContent).toBe("Orchestrator died. Boards are electing a new one…");
     expect(within(stage).getByLabelText("Orchestrator").textContent).toContain("Electing…");
     expect(within(within(stage).getByRole("group", { name: "Board 2" })).getByText("Voting")).toBeTruthy();
+  });
+
+  it("when too few boards are up to elect an orchestrator, says how many it takes", async () => {
+    mock(cluster({ orchestrator: null, nodes: [node("Q-01", { up: false }), node("Q-02"), node("Q-03"), node("Q-04", { up: false })] }));
+    const stage = await screen.findByRole("region", { name: "Cluster" });
+    expect(stage.querySelector(".narration")?.textContent).toBe("Only 2 of 4 boards are up, and it takes 3 to elect an orchestrator. Restart a board to carry on.");
+    expect(within(stage).getByLabelText("Orchestrator").textContent).toContain("No orchestrator");
   });
 });
 

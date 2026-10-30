@@ -1,4 +1,4 @@
-import { boardName } from "../Cluster/cluster";
+import { boardName, stalled } from "../Cluster/cluster";
 import type { ClusterState, Job, Task } from "../Cluster/cluster";
 
 // What happened in one run, as events a person can follow: the orchestrator
@@ -70,6 +70,8 @@ const names = (ids: string[]) => {
 export function narrate(job: Job, tasks: Task[], cluster: ClusterState, events: StoryEvent[], now: number): string {
   const plan = job.plan!;
   if (job.doneAt !== null) return plan.error ? "Stopped before it finished" : `Done in ${((job.doneAt - job.queuedAt) / 1000).toFixed(0)} s on ${job.nodes} boards`;
+  const stuck = stalled(cluster);
+  if (stuck) return `Only ${stuck.up} of ${stuck.members} boards are up, and it takes ${stuck.needed} to elect an orchestrator. Restart a board to carry on.`;
   if (!cluster.orchestrator) return "Orchestrator died. Boards are electing a new one…";
   const recent = events.filter((event) => now - event.at < 3500);
   const first = (kind: StoryEvent["kind"]) => recent.find((event) => event.kind === kind);
