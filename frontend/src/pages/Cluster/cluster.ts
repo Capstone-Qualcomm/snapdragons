@@ -151,7 +151,9 @@ export function useCluster() {
     };
   }, [load]);
 
-  return { cluster, failed, reload: load, serverNow: () => Date.now() + offset.current };
+  // Stable, so the clocks that read it are not restarted after every poll.
+  const serverNow = useCallback(() => Date.now() + offset.current, []);
+  return { cluster, failed, reload: load, serverNow };
 }
 
 // The cluster's time, re-read a few times a second so the timeline's blocks and
