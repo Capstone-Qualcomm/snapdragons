@@ -235,6 +235,15 @@ describe("Today connections", () => {
     expect(await screen.findByText("Jira: Jira is down.")).toBeTruthy();
     expect(screen.queryByText("Sample data")).toBeNull();
   });
+
+  it("says the sources are loading, not that none is connected, before they answer", () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    renderToday();
+    const stats = within(screen.getByRole("list", { name: "Summary" }));
+    expect(stats.queryByText("No source connected yet")).toBeNull();
+    expect(stats.queryByText("0 / 4")).toBeNull();
+    expect(stats.getAllByText("Loading your sources…")).toHaveLength(3);
+  });
 });
 
 describe("Today refresh", () => {
