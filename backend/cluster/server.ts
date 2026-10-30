@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -191,8 +192,10 @@ export function createClusterServer(options: ServerOptions = {}) {
   const orchestratorOf = (nodes: NodeStatus[]) => nodes.filter((node) => node.role === "orchestrator").sort((a, b) => b.term - a.term)[0] ?? null;
 
   // Sends a request into the cluster through any running node, which passes it to
-  // the orchestrator. Keeps trying through an election, for a few seconds.
-  async function clusterRequest(body: Record<string, unknown>, timeoutMs = 6000): Promise<unknown> {
+  // the orchestrator. Keeps trying through an election, for a few seconds. Every try carries
+  // the same requestId, so a job or plan the queue took before its orchestrator died is not made twice.
+  async function clusterRequest(given: Record<string, unknown>, timeoutMs = 6000): Promise<unknown> {
+    const body = { ...given, requestId: randomUUID() };
     const deadline = Date.now() + timeoutMs;
     let lastError = new Error("No node is running.");
     while (Date.now() < deadline) {

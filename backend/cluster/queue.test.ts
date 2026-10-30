@@ -188,3 +188,12 @@ test("a new cluster's first membership entry, which has no time, adds no event",
 
   assert.deepEqual(queue.state().events, [{ at: 5, text: "Members are now Q-01, Q-02, Q-03" }]);
 });
+
+test("a request sent again after its orchestrator died gets the job it made the first time", () => {
+  const q = testQueue();
+  const first = q.queue.apply({ type: "plan", scenario: "student", prompt: "Go", requestId: "r-1", at: 0 }) as Job;
+  const again = q.queue.apply({ type: "plan", scenario: "student", prompt: "Go", requestId: "r-1", at: 0 }) as Job;
+  assert.equal(again.id, first.id);
+  assert.equal(q.queue.state().jobs.length, 1);
+  assert.notEqual((q.queue.apply({ type: "plan", scenario: "student", prompt: "Go", requestId: "r-2", at: 0 }) as Job).id, first.id);
+});

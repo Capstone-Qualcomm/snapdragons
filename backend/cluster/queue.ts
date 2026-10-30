@@ -55,7 +55,8 @@ export type ClusterEvent = { at: number; text: string };
 export type Term = { term: number; orchestrator: string; at: number };
 export type ClaimResult = { task: Task | null; leave?: boolean };
 
-type Data = { nextTask: number; nextJob: number; tasks: Task[]; jobs: Job[]; workers: Worker[]; events: ClusterEvent[]; terms: Term[] };
+// requests are the gateway's last few job and plan requests, by the id it gave each, and the job each made.
+type Data = { nextTask: number; nextJob: number; tasks: Task[]; jobs: Job[]; workers: Worker[]; events: ClusterEvent[]; terms: Term[]; requests: Array<{ id: string; job: string }> };
 
 // Old finished work is dropped past these, so an always-on cluster does not grow forever.
 // The last two plans and their steps are kept, so their results stay on screen.
@@ -63,11 +64,12 @@ const KEEP_DONE = 80;
 const KEEP_JOBS = 30;
 const KEEP_EVENTS = 60;
 const KEEP_PLANS = 2;
+const KEEP_REQUESTS = 20;
 
 const percent = (progress: number) => `${Math.round(progress * 100)}%`;
 
 export function createQueue() {
-  let data: Data = { nextTask: 1, nextJob: 1, tasks: [], jobs: [], workers: [], events: [], terms: [] };
+  let data: Data = { nextTask: 1, nextJob: 1, tasks: [], jobs: [], workers: [], events: [], terms: [], requests: [] };
 
   function log(at: number, text: string): void {
     data.events.push({ at, text });
@@ -378,11 +380,21 @@ export function createQueue() {
         if (at !== undefined) log(at, `Members are now ${(command.members as string[]).join(", ") || "none"}`);
         return null;
       case "job":
-        return addJob(command.name as string, command.steps as string[], command.then as string | undefined, at);
+      case "plan": {
+        // The gateway sends a request again when the orchestrator died before answering it, so a request
+        // the queue already took gets back the job it made instead of making a second one.
+        const seen = data.requests.find((request) => request.id === command.requestId);
+        if (seen) return data.jobs.find((job) => job.id === seen.job) ?? null;
+        const job =
+          command.type === "job"
+            ? addJob(command.name as string, command.steps as string[], command.then as string | undefined, at)
+            : addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at);
+        if (typeof command.requestId === "string") data.requests.push({ id: command.requestId, job: job.id });
+        if (data.requests.length > KEEP_REQUESTS) data.requests.shift();
+        return job;
+      }
       case "cancel":
         return cancel(command.job as string, at);
-      case "plan":
-        return addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at);
       case "claim":
         return claim(worker, at);
       case "progress":
@@ -421,6 +433,8 @@ export function createQueue() {
     save: () => structuredClone(data),
     load: (saved: unknown) => {
       data = structuredClone(saved as Data);
+      // A queue saved before requests were kept has none.
+      data.requests ??= [];
     },
   };
 }
