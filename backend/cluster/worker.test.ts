@@ -77,3 +77,26 @@ test("a plan step's first heartbeat carries what the skill found, and its comple
   const complete = calls.find((call) => call.type === "complete")!;
   assert.equal((complete.output as { short: string }).short, "2 replies");
 });
+
+test("a worker drops a step the queue took back or stopped, and asks for another", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  let claims = 0;
+  const startedAt = Date.now();
+  await runWorker({
+    id: "Q-02",
+    workMs: 5000,
+    pollMs: 20,
+    heartbeatMs: 50,
+    call: async (command) => {
+      calls.push(command);
+      if (command.type === "claim") return claims++ ? { task: null, leave: true } : { task: { id: "T-1", progress: 0 } };
+      // The step is no longer this worker's.
+      return command.type === "progress" ? false : true;
+    },
+  });
+
+  // The step would take at least 3.75 s; dropped at the first beat, the worker is back claiming at once.
+  assert.ok(Date.now() - startedAt < 1000);
+  assert.equal(calls.filter((call) => call.type === "progress").length, 1);
+  assert.equal(calls.filter((call) => call.type === "complete").length, 0);
+});
