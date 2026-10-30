@@ -118,6 +118,8 @@ export function createRaft(options: RaftOptions) {
     if (newTerm > term) {
       term = newTerm;
       votedFor = null;
+      // Whoever led the old term no longer does; the new term's orchestrator says so when it is heard from.
+      orchestrator = null;
       persist();
     }
     if (role === "orchestrator") {
