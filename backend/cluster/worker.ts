@@ -59,13 +59,20 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
       // so this node drops it and asks for another instead of running it next to its new owner.
       const dropped = new AbortController();
       const stepSignal = signal ? AbortSignal.any([signal, dropped.signal]) : dropped.signal;
+      // A beat waits for the one before to land: through a slow relay they would pile up, and an
+      // older beat landing after a newer one would move the checkpoint back.
+      let beating = false;
       const beat = setInterval(() => {
+        if (beating) return;
+        beating = true;
         const changes = pending;
         pending = {};
-        call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes }).then(
-          (mine) => mine === false && dropped.abort(),
-          () => (pending = { ...changes, ...pending }),
-        );
+        call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes })
+          .then(
+            (mine) => mine === false && dropped.abort(),
+            () => (pending = { ...changes, ...pending }),
+          )
+          .finally(() => (beating = false));
       }, heartbeatMs);
       // A board losing power mid-step stops reporting at once, so its lease runs out and the step moves.
       const silence = () => clearInterval(beat);

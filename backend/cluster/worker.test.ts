@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 import { runWorker } from "./worker.ts";
 
@@ -99,4 +100,26 @@ test("a worker drops a step the queue took back or stopped, and asks for another
   assert.ok(Date.now() - startedAt < 1000);
   assert.equal(calls.filter((call) => call.type === "progress").length, 1);
   assert.equal(calls.filter((call) => call.type === "complete").length, 0);
+});
+
+test("a heartbeat waits for the one before it to land, so slow beats neither pile up nor arrive out of order", async () => {
+  let inFlight = 0;
+  let most = 0;
+  let claims = 0;
+  await runWorker({
+    id: "Q-02",
+    workMs: 600,
+    pollMs: 20,
+    heartbeatMs: 20,
+    call: async (command) => {
+      if (command.type === "claim") return claims++ ? { task: null, leave: true } : { task: { id: "T-1", progress: 0 } };
+      if (command.type !== "progress") return true;
+      // A relay that takes 100 ms a beat.
+      most = Math.max(most, ++inFlight);
+      await sleep(100);
+      inFlight--;
+      return true;
+    },
+  });
+  assert.equal(most, 1);
 });
