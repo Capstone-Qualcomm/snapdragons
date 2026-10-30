@@ -40,20 +40,6 @@
 .stat.is-bad .stat-note { color: var(--fail); }
 .stat.is-warn .stat-note { color: var(--waiting); }
 
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
-  align-items: start;
-  gap: var(--s5);
-}
-
-.column-main,
-.column-side {
-  display: grid;
-  min-width: 0;
-  gap: var(--s5);
-}
-
 .page-body { display: grid; gap: var(--s5); }
 .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--s5); }
 @media (max-width: 1000px) { .pair { grid-template-columns: minmax(0, 1fr); } }
@@ -98,6 +84,4 @@
   .stats .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .stat { padding: 10px var(--s3) var(--s3); }
   .stat-value { font-size: 24px; }
-  .columns { gap: var(--s3); }
-  .column-main, .column-side { gap: var(--s3); }
 }

@@ -326,14 +326,6 @@ textarea {
 .panel-meta { color: var(--ink-soft); font-size: 13px; }
 .panel-meta b { color: var(--ink); font-weight: 600; }
 
-.panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2) var(--s3);
-  margin-left: auto;
-}
-
 .panel-note {
   margin: 0 var(--s5) var(--s3);
   padding: 10px var(--s4);
