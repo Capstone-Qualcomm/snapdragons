@@ -34,3 +34,30 @@ test("an expired, revoked or missing Slack token asks the user to reconnect", as
     await assert.rejects(slack.getMessages(), /Reconnect Slack/, error);
   }
 });
+
+test("a DM Slack won't read is skipped, and the other DMs and mentions still load", async () => {
+  const now = String(Date.now() / 1000);
+  const replies: Record<string, unknown> = {
+    "auth.test": { ok: true },
+    "search.messages": { ok: true, messages: { matches: [{ user: "U2", ts: now, text: "<@ME> ping", channel: { id: "C1", name: "dev" }, username: "Jordan" }] } },
+    "conversations.list": { ok: true, channels: [{ id: "D1", user: "U1" }, { id: "D2", user: "U3" }, { id: "D3", user: "U4", is_user_deleted: true }] },
+    "users.info": { ok: true, user: { real_name: "Priya" } },
+    "chat.getPermalink": { ok: true, permalink: "https://slack.com/p" },
+  };
+  const connected = { ...noopConnection, connected: true, userId: "ME", token: { accessToken: "xoxp-test" } } as unknown as typeof noopConnection;
+  const slack = createSlackApi({
+    slackConnection: connected,
+    fetchImpl: async (input) => {
+      const url = new URL(String(input));
+      const method = url.pathname.replace("/api/", "");
+      if (method === "conversations.history") {
+        if (url.searchParams.get("channel") === "D2") return Response.json({ ok: false, error: "ratelimited" });
+        return Response.json({ ok: true, messages: [{ user: "U1", ts: now, text: "got a sec?" }] });
+      }
+      return Response.json(replies[method]);
+    },
+  });
+
+  const messages = await slack.getMessages();
+  assert.deepEqual(messages.map((message) => [message.kind, message.from]).sort(), [["dm", "Priya"], ["mention", "Jordan"]]);
+});
