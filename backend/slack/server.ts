@@ -4,7 +4,7 @@ import { createSlackAuth } from "./slack-auth.ts";
 import type { SlackConnection } from "./slack-auth.ts";
 import { createSourceActivity } from "../source-activity.mts";
 import { createSessions } from "../sessions.mts";
-import { createSourceServer } from "../source-server.mts";
+import { createSourceServer, readJson, send } from "../source-server.mts";
 
 type ServerOptions = {
   port?: number;
@@ -45,13 +45,44 @@ export function createSlackServer(options: ServerOptions = {}) {
     }),
     items: "messages",
     loadItems: ({ slackApi }) => slackApi.getMessages(),
-    async routes(req, res, url, { auth }) {
+    async routes(req, res, url, { auth, connection, slackApi }) {
       if (req.method === "GET" && url.pathname === "/auth/slack/start") {
         auth.startAuthorization(res);
         return true;
       }
       if (req.method === "GET" && url.pathname === "/auth/slack/callback") {
         await auth.handleCallback(url, res);
+        return true;
+      }
+      const contextPath = req.method === "GET" && url.pathname.match(/^\/api\/slack\/messages\/([^/]+)\/context$/);
+      if (contextPath) {
+        if (!connection.connected) { send(res, 401, { error: "Slack is not connected. Connect Slack." }); return true; }
+        if (!connection.enabled) { send(res, 403, { error: "Slack is turned off. Turn it on in Connections." }); return true; }
+        try {
+          const id = decodeURIComponent(contextPath[1]);
+          const separator = id.indexOf(":");
+          if (separator < 1) throw new Error("Slack channel could not be identified.");
+          send(res, 200, { messages: await slackApi.getContext(id.slice(0, separator)) });
+        } catch (error) {
+          send(res, 400, { error: error instanceof Error ? error.message : "Could not load Slack messages." });
+        }
+        return true;
+      }
+      const messagePath = req.method === "POST" && url.pathname.match(/^\/api\/slack\/messages\/([^/]+)\/message$/);
+      if (messagePath) {
+        if (!connection.connected) { send(res, 401, { error: "Slack is not connected. Connect Slack." }); return true; }
+        if (!connection.enabled) { send(res, 403, { error: "Slack is turned off. Turn it on in Connections." }); return true; }
+        try {
+          const id = decodeURIComponent(messagePath[1]);
+          const separator = id.indexOf(":");
+          const channel = id.slice(0, separator);
+          const body = await readJson(req) as { text?: unknown };
+          if (separator < 1) throw new Error("Slack channel could not be identified.");
+          if (typeof body.text !== "string" || !body.text.trim()) throw new Error("Message must be text.");
+          send(res, 200, await slackApi.sendMessage(channel, body.text.trim()));
+        } catch (error) {
+          send(res, 400, { error: error instanceof Error ? error.message : "Could not send the Slack message." });
+        }
         return true;
       }
       return false;

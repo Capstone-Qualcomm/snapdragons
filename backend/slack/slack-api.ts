@@ -15,15 +15,24 @@ export type SlackMessage = {
   url: string;
 };
 
+export type SlackContextMessage = { id: string; from: string; sentAt: string; text: string };
+
 const lookback = 3 * 24 * 60 * 60;
 
 export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) {
-  async function slackRequest(method: string, params: Record<string, string> = {}): Promise<Record<string, unknown>> {
+  async function slackRequest(method: string, params: Record<string, string> = {}, post = false): Promise<Record<string, unknown>> {
     const token = slackConnection.token?.accessToken;
     if (!token) throw new Error("Slack is not connected. Connect Slack.");
     const url = new URL(`https://slack.com/api/${method}`);
-    for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
-    const response = await fetchImpl(url, { headers: { Authorization: `Bearer ${token}` } });
+    const init: RequestInit = { headers: { Authorization: `Bearer ${token}` } };
+    if (post) {
+      init.method = "POST";
+      init.headers = { ...init.headers, "Content-Type": "application/json; charset=utf-8" };
+      init.body = JSON.stringify(params);
+    } else {
+      for (const [name, value] of Object.entries(params)) url.searchParams.set(name, String(value));
+    }
+    const response = await fetchImpl(url, init);
     const result = await response.json() as Record<string, unknown>;
     if (!result.ok) {
       if (result.error === "invalid_auth" || result.error === "token_revoked") {
@@ -125,5 +134,45 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
     return [...byId.values()].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
   }
 
-  return { getMessages, cleanText, needsReply, toItem };
+  async function sendMessage(channel: string, text: string) {
+    const result = await slackRequest("chat.postMessage", { channel, text }, true);
+    return { ok: true, ts: String(result.ts ?? "") };
+  }
+
+  async function getContext(channel: string): Promise<SlackContextMessage[]> {
+    const info = await slackRequest("conversations.info", { channel }) as { channel?: Record<string, unknown> };
+    const lastRead = String(info.channel?.last_read ?? "0");
+
+    const messages: Array<Record<string, unknown>> = [];
+    let cursor = "";
+    do {
+      const result = await slackRequest("conversations.history", {
+        channel,
+        oldest: lastRead,
+        limit: "100",
+        ...(cursor ? { cursor } : {}),
+      }) as { messages?: Array<Record<string, unknown>>; response_metadata?: { next_cursor?: string } };
+      messages.push(...(result.messages ?? []));
+      cursor = result.response_metadata?.next_cursor ?? "";
+    } while (cursor);
+
+    const me = slackConnection.userId ?? "";
+    const authors = [...new Set(messages.map((message) => String(message.user ?? "")).filter((user) => user && user !== me))];
+    const names = new Map<string, string>();
+    await Promise.all(authors.map(async (userId) => {
+      try {
+        const result = await slackRequest("users.info", { user: userId }) as { user?: Record<string, unknown> };
+        const profile = result.user?.profile && typeof result.user.profile === "object" ? result.user.profile as Record<string, unknown> : {};
+        names.set(userId, String(profile.display_name || profile.real_name || result.user?.real_name || result.user?.name || "Someone"));
+      } catch { names.set(userId, "Someone"); }
+    }));
+    return messages.reverse().map((message) => ({
+      id: String(message.ts ?? ""),
+      from: String(message.user ?? "") === me ? "You" : names.get(String(message.user ?? "")) ?? "Someone",
+      sentAt: new Date(Number(message.ts ?? 0) * 1000).toISOString(),
+      text: cleanText(String(message.text ?? ""), { [me]: "you" }),
+    }));
+  }
+
+  return { getMessages, getContext, sendMessage, cleanText, needsReply, toItem };
 }
