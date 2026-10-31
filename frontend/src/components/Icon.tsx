@@ -36,6 +36,7 @@ const PATHS: Record<string, string> = {
   restart: "M20 12a8 8 0 1 1-2.3-5.7 M20 4v4h-4",
   chevron: "M9 6l6 6-6 6",
   info: "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z M12 11v5 M12 8h.01",
+  launch: "M14 4h6v6 M20 4l-9 9 M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5",
 };
 
 export type IconName = keyof typeof PATHS | "slack" | "jira" | "github" | "outlook";

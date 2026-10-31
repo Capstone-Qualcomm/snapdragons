@@ -187,7 +187,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
   const [slackBusy, setSlackBusy] = useState(false);
   const [slackStatus, setSlackStatus] = useState({ text: "", isError: false });
   const editorId = `edit-${item.key}`;
-  const link = sample || item.source === "outlook" ? undefined : item.data.url;
+  const link = sample ? undefined : item.data.url;
 
   async function deleteOutlook() {
     if (item.source !== "outlook") return;
@@ -282,9 +282,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
           {item.source === "jira" && (link ? <a className="jira-key" href={link} target="_blank" rel="noreferrer">{item.data.key}</a> : <span className="jira-key">{item.data.key}</span>)}
           {item.source === "github" && <span className="item-number">#{item.data.number}</span>}
           <span className="what">
-            {item.source === "slack" ? withMentions(item.data.text) : item.source === "github" && link
-              ? <a className="github-title" href={link} target="_blank" rel="noreferrer">{item.data.title}</a>
-              : textOf(item)}
+            {item.source === "slack" ? withMentions(item.data.text) : textOf(item)}
           </span>
         </td>
         <td className="col-from">{fromOf(item)}</td>
@@ -292,25 +290,30 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
         <td className="col-updated num">{item.at > 0 ? <RelativeTime value={item.at} /> : "—"}</td>
         <td className="col-action">
           {sample ? null : item.source === "jira" || item.source === "github" ? (
-            <button className={editing ? "button small is-on" : "button small"} type="button" disabled={item.source === "github" && githubPosting} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
-              {item.source === "jira" ? "Edit" : "Comment"}
-            </button>
+            <>
+              <button className={editing ? "button small is-on" : "button small"} type="button" disabled={item.source === "github" && githubPosting} aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}>
+                {item.source === "jira" ? "Edit" : "Comment"}
+              </button>
+              {link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>}
+            </>
           ) : item.source === "outlook" ? (
             <div className="outlook-row-actions">
               <button className={replying ? "button small is-on" : "button small"} type="button" aria-expanded={replying} aria-controls={`${editorId}-reply`} disabled={outlookBusy || replyBusy} onClick={toggleReply}>Reply</button>
               <button className="button small outlook-icon-button is-delete" type="button" aria-label="Delete email" title="Delete email" disabled={outlookBusy} onClick={() => void deleteOutlook()}>
                 <Icon name="trash" size={15} />
               </button>
+              {link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>}
               {outlookError && <span className="outlook-action-error" role="alert">{outlookError}</span>}
               {replyStatus.text && <span className={replyStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={replyStatus.isError ? "alert" : "status"}>{replyStatus.text}</span>}
             </div>
           ) : item.source === "slack" ? (
             <div className="outlook-row-actions">
-              <button className={slackReplying ? "button small is-on" : "button small"} type="button" aria-expanded={slackReplying} aria-controls={`${editorId}-reply`} onClick={() => { const open = !slackReplying; setSlackReplying(open); setSlackStatus({ text: "", isError: false }); if (open) void loadSlackContext(); }}>Message</button>
+              <button className={slackReplying ? "button small is-on" : "button small"} type="button" aria-expanded={slackReplying} aria-controls={`${editorId}-reply`} onClick={() => { const open = !slackReplying; setSlackReplying(open); setSlackStatus({ text: "", isError: false }); if (open) void loadSlackContext(); }}>Reply</button>
+              {link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>}
               {slackStatus.text && <span className={slackStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={slackStatus.isError ? "alert" : "status"}>{slackStatus.text}</span>}
             </div>
           ) : (
-            <a className="button small" href={link} target="_blank" rel="noreferrer">Open</a>
+            link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>
           )}
         </td>
       </tr>
@@ -373,7 +376,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
                 <textarea autoFocus rows={3} value={slackDraft} onChange={(event) => setSlackDraft(event.target.value)} placeholder="Write a message…" disabled={slackBusy} />
               </label>
               <div className="jira-actions">
-                <button className="button small primary" type="button" disabled={slackBusy || !slackDraft.trim()} onClick={() => void sendSlackMessage()}>{slackBusy ? "Sending…" : "Send message"}</button>
+                <button className="button small primary" type="button" disabled={slackBusy || !slackDraft.trim()} onClick={() => void sendSlackMessage()}>{slackBusy ? "Sending…" : "Send reply"}</button>
                 <button className="button small quiet" type="button" disabled={slackBusy} onClick={() => setSlackReplying(false)}>Cancel</button>
               </div>
             </div>

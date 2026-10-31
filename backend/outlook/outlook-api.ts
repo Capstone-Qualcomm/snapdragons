@@ -5,6 +5,7 @@ export type OutlookMessage = {
   from: string;
   subject: string;
   receivedAt: string;
+  url: string;
 };
 
 export type OutlookThreadMessage = {
@@ -22,6 +23,7 @@ type GraphMessage = {
   from?: { emailAddress?: { name?: unknown; address?: unknown } };
   subject?: unknown;
   receivedDateTime?: unknown;
+  webLink?: unknown;
   uniqueBody?: { content?: unknown };
   body?: { content?: unknown };
 };
@@ -43,7 +45,7 @@ export function createOutlookApi({ outlookConnection, fetchImpl = globalThis.fet
     const receivedAfter = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
     // Graph requires the ordered property first in the filter when both are used.
     first.searchParams.set("$filter", `receivedDateTime ge ${receivedAfter} and isRead eq false`);
-    first.searchParams.set("$select", "id,isRead,from,subject,receivedDateTime");
+    first.searchParams.set("$select", "id,isRead,from,subject,receivedDateTime,webLink");
     first.searchParams.set("$orderby", "receivedDateTime desc");
     first.searchParams.set("$top", "50");
     let next: string | null = first.toString();
@@ -204,6 +206,7 @@ function toMessage(message: GraphMessage): OutlookMessage {
     from: typeof sender?.name === "string" ? sender.name : typeof sender?.address === "string" ? sender.address : "Unknown sender",
     subject: typeof message.subject === "string" && message.subject ? message.subject : "(no subject)",
     receivedAt: message.receivedDateTime as string,
+    url: typeof message.webLink === "string" ? message.webLink : "",
   };
 }
 
