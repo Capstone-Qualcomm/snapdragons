@@ -70,6 +70,12 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     return result.markedRead;
   }, [outlook.reload]);
 
+  const sendSlackMessage = useCallback(async (messageId: string, text: string) => {
+    const result = await api<{ markedRead: boolean }>(`/api/slack/messages/${encodeURIComponent(messageId)}/message`, { text });
+    await slack.reload();
+    return result.markedRead;
+  }, [slack.reload]);
+
   useEffect(() => {
     const currentIds = new Set(outlook.items.map((item) => item.id));
     setHandledOutlookIds((current) => {
@@ -162,7 +168,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       </ul>
 
       <div className="page-body">
-        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} />
+        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} onSlackMessage={sendSlackMessage} />
       </div>
     </div>
   );

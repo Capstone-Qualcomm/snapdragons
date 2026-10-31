@@ -13,6 +13,8 @@ OAuth server for the Slack integration. Connects a user's Slack workspace so the
 |--------|------|---------|
 | GET | `/api/slack/connection` | Current connection status |
 | GET | `/api/slack/messages` | Mentions and unanswered DMs |
+| GET | `/api/slack/messages/:channel:timestamp/context` | Unread messages in that conversation |
+| POST | `/api/slack/messages/:channel:timestamp/message` | Send a new message in the message's channel |
 | GET | `/auth/slack/start` | Start OAuth flow |
 | GET | `/auth/slack/callback` | OAuth callback |
 | POST | `/api/slack/connection/enabled` | Toggle on/off |
@@ -20,6 +22,6 @@ OAuth server for the Slack integration. Connects a user's Slack workspace so the
 
 ## Scopes
 
-User scopes: `search:read`, `im:read`, `im:history`, `users:read`
+User scopes: `search:read`, `channels:history`, `groups:history`, `im:read`, `im:history`, `im:write`, `mpim:history`, `users:read`, `chat:write`
 
 The app reads messages as the user who authorizes it; no bot token or workspace-wide access.

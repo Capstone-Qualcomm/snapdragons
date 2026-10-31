@@ -54,7 +54,7 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 // Today's work as a table: ranked, filterable by source, sortable by rank,
 // source or time. With nothing connected it shows sample rows, marked as such.
-export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply }: {
+export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply, onSlackMessage }: {
   items: Item[];
   cleared: Item[];
   loading: boolean;
@@ -66,6 +66,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
   onSaved: () => Promise<void>;
   onOutlookAction: (messageId: string) => Promise<void>;
   onOutlookReply: (messageId: string, comment: string) => Promise<boolean>;
+  onSlackMessage: (messageId: string, text: string) => Promise<boolean>;
 }) {
   const [filter, setFilter] = useState<SourceName | "all">("all");
   const [sort, setSort] = useState<Sort>("rank");
@@ -119,7 +120,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} onOutlookAction={onOutlookAction} onOutlookReply={onOutlookReply} />)}
+                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} onOutlookAction={onOutlookAction} onOutlookReply={onOutlookReply} onSlackMessage={onSlackMessage} />)}
               </tbody>
             </table>
           )}
@@ -168,8 +169,9 @@ export function textOf(item: Item) {
 }
 
 type OutlookThreadMessage = { id: string; from: string; subject: string; receivedAt: string; content: string };
+type SlackContextMessage = { id: string; from: string; sentAt: string; text: string };
 
-function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean> }) {
+function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply, onSlackMessage }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean>; onSlackMessage: (messageId: string, text: string) => Promise<boolean> }) {
   const [editing, setEditing] = useState(false);
   const [githubPosting, setGithubPosting] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -179,6 +181,11 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
   const [thread, setThread] = useState<{ messages: OutlookThreadMessage[] | null; loading: boolean; error: string }>({ messages: null, loading: false, error: "" });
   const [outlookBusy, setOutlookBusy] = useState(false);
   const [outlookError, setOutlookError] = useState("");
+  const [slackReplying, setSlackReplying] = useState(false);
+  const [slackContext, setSlackContext] = useState<{ messages: SlackContextMessage[] | null; loading: boolean; error: string }>({ messages: null, loading: false, error: "" });
+  const [slackDraft, setSlackDraft] = useState("");
+  const [slackBusy, setSlackBusy] = useState(false);
+  const [slackStatus, setSlackStatus] = useState({ text: "", isError: false });
   const editorId = `edit-${item.key}`;
   const link = sample || item.source === "outlook" ? undefined : item.data.url;
 
@@ -220,6 +227,33 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
       setThread({ messages: result.messages, loading: false, error: "" });
     } catch (cause) {
       setThread({ messages: null, loading: false, error: (cause as Error).message });
+    }
+  }
+
+  async function sendSlackMessage() {
+    if (item.source !== "slack" || !slackDraft.trim()) return;
+    setSlackBusy(true);
+    setSlackStatus({ text: "", isError: false });
+    try {
+      const markedRead = await onSlackMessage(item.data.id, slackDraft);
+      setSlackDraft("");
+      setSlackReplying(false);
+      setSlackStatus({ text: markedRead ? "Message sent and DM marked read." : "Message sent, but Slack could not mark the DM read.", isError: !markedRead });
+    } catch (cause) {
+      setSlackStatus({ text: (cause as Error).message, isError: true });
+    } finally {
+      setSlackBusy(false);
+    }
+  }
+
+  async function loadSlackContext() {
+    if (item.source !== "slack" || slackContext.loading || slackContext.messages) return;
+    setSlackContext({ messages: null, loading: true, error: "" });
+    try {
+      const result = await api<{ messages: SlackContextMessage[] }>(`/api/slack/messages/${encodeURIComponent(item.data.id)}/context`);
+      setSlackContext({ messages: result.messages, loading: false, error: "" });
+    } catch (cause) {
+      setSlackContext({ messages: null, loading: false, error: (cause as Error).message });
     }
   }
 
@@ -270,9 +304,13 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
               {outlookError && <span className="outlook-action-error" role="alert">{outlookError}</span>}
               {replyStatus.text && <span className={replyStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={replyStatus.isError ? "alert" : "status"}>{replyStatus.text}</span>}
             </div>
+          ) : item.source === "slack" ? (
+            <div className="outlook-row-actions">
+              <button className={slackReplying ? "button small is-on" : "button small"} type="button" aria-expanded={slackReplying} aria-controls={`${editorId}-reply`} onClick={() => { const open = !slackReplying; setSlackReplying(open); setSlackStatus({ text: "", isError: false }); if (open) void loadSlackContext(); }}>Message</button>
+              {slackStatus.text && <span className={slackStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={slackStatus.isError ? "alert" : "status"}>{slackStatus.text}</span>}
+            </div>
           ) : (
-            // Only Slack is left here: it is answered in Slack itself.
-            <a className="button small" href={link} target="_blank" rel="noreferrer">Reply</a>
+            <a className="button small" href={link} target="_blank" rel="noreferrer">Open</a>
           )}
         </td>
       </tr>
@@ -311,6 +349,32 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
               <div className="jira-actions">
                 <button className="button small primary" type="button" disabled={replyBusy || !replyDraft.trim()} onClick={() => void sendOutlookReply()}>{replyBusy ? "Sending…" : "Send reply"}</button>
                 <button className="button small quiet" type="button" disabled={replyBusy} onClick={() => setReplying(false)}>Cancel</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+      {item.source === "slack" && slackReplying && (
+        <tr className="editor-row" hidden={hidden}>
+          <td colSpan={8}>
+            <div className="jira-details outlook-reply-editor" id={`${editorId}-reply`}>
+              <section className="outlook-thread" aria-label="Recent Slack messages">
+                <h3>Unread messages</h3>
+                {slackContext.loading && <p className="outlook-thread-note" role="status">Loading messages…</p>}
+                {slackContext.error && <p className="outlook-thread-error" role="alert">{slackContext.error} <button className="button small" type="button" onClick={() => void loadSlackContext()}>Retry</button></p>}
+                {slackContext.messages?.map((message) => (
+                  <article className="outlook-thread-message" key={message.id}>
+                    <header className="outlook-thread-head"><strong>{message.from}</strong><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleString()}</time></header>
+                    <div className="outlook-thread-content">{withMentions(message.text)}</div>
+                  </article>
+                ))}
+              </section>
+              <label className="outlook-reply-label">New message in {item.data.where}
+                <textarea autoFocus rows={3} value={slackDraft} onChange={(event) => setSlackDraft(event.target.value)} placeholder="Write a message…" disabled={slackBusy} />
+              </label>
+              <div className="jira-actions">
+                <button className="button small primary" type="button" disabled={slackBusy || !slackDraft.trim()} onClick={() => void sendSlackMessage()}>{slackBusy ? "Sending…" : "Send message"}</button>
+                <button className="button small quiet" type="button" disabled={slackBusy} onClick={() => setSlackReplying(false)}>Cancel</button>
               </div>
             </div>
           </td>
