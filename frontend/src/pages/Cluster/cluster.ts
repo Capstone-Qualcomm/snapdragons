@@ -77,6 +77,9 @@ export type ClusterState = {
   term: number | null;
   members: string[];
   nodes: RaftNode[];
+  // Set when the cluster is the real Uno Q boards: join is the command a new board runs.
+  boards?: boolean;
+  join?: string;
 };
 
 const POLL_MS = 500;
@@ -156,15 +159,18 @@ export function stepLabel(step: string): string {
   return name === step ? step : `Fetching ${name}`;
 }
 
-// "Q-02" is the board's id on the network; people see "Board 2".
+// "Q-02" is a simulated board's id on the network; people see "Board 2".
+// A real board is named for its owner: "q-sanyam" is "Sanyam".
 export function boardName(id: string): string {
   const number = id.match(/^Q-0*(\d+)$/)?.[1];
-  return number ? `Board ${number}` : id;
+  if (number) return `Board ${number}`;
+  const owner = id.match(/^q-([a-z0-9-]+)$/)?.[1];
+  return owner ? owner.charAt(0).toUpperCase() + owner.slice(1) : id;
 }
 
 // The same, for every board id inside a sentence from the cluster's log.
 export function withBoardNames(text: string): string {
-  return text.replace(/\bQ-\d+\b/g, boardName);
+  return text.replace(/\b(Q-\d+|q-[a-z0-9-]+)\b/g, boardName);
 }
 
 // One line of the cluster's log as a plain sentence, with task and job ids

@@ -1,0 +1,99 @@
+/* The demo inbox and calendar a live scenario runs on. */
+
+.sample-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(11 11 13 / 35%);
+}
+
+.sample-dialog {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  width: min(72rem, 100%);
+  height: min(48rem, 100%);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.sample-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+.sample-head .header-button { margin-left: auto; }
+
+.sample-tabs { display: flex; gap: var(--s1); }
+.sample-tabs button {
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  cursor: pointer;
+}
+.sample-tabs button[aria-selected="true"] { background: var(--wash); color: var(--ink); font-weight: 600; }
+
+.sample-inbox {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) 1fr;
+  min-height: 0;
+}
+
+.sample-list {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--rule);
+  list-style: none;
+}
+.sample-list button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--s2);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.sample-list button:hover { background: var(--wash); }
+.sample-list button[aria-current="true"] { background: var(--wash); }
+.sample-from { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.sample-list time { color: var(--ink-faint); font-size: 12px; }
+.sample-subject { grid-column: 1 / -1; overflow: hidden; color: var(--ink-soft); text-overflow: ellipsis; white-space: nowrap; }
+
+.sample-email { padding: var(--s4) var(--s5, 24px); overflow-y: auto; }
+.sample-email h3 { margin: 0 0 4px; font-size: 17px; }
+.sample-body { margin-top: var(--s3); font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.sample-attachment { margin-top: var(--s4); padding: var(--s3); border: 1px solid var(--rule-strong); border-radius: 8px; }
+.sample-attachment summary { font-weight: 600; cursor: pointer; }
+
+.sample-calendar { padding: var(--s4); overflow: auto; }
+.sample-calendar td { vertical-align: top; }
+.sample-block {
+  display: block;
+  margin-bottom: 4px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: var(--wash);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .sample-inbox { grid-template-columns: 1fr; grid-template-rows: 40% 1fr; }
+  .sample-list { border-right: 0; border-bottom: 1px solid var(--rule); }
+}

@@ -19,7 +19,8 @@ export type Icon = "mail" | "globe" | "calendar" | "doc" | "slack" | "jira" | "g
 // paper, a log, a draft), or a week of calendar blocks.
 export type Preview =
   | { kind: "list"; look: "inbox" | "resume" | "invoice" | "chat" | "items" | "search"; rows: Array<[string, string]> }
-  | { kind: "page"; look: "browser" | "paper" | "log" | "doc"; pages: Array<{ url: string; lines: string[] }> }
+  // A "draft" page is something the board is writing: what it found is the text so far.
+  | { kind: "page"; look: "browser" | "paper" | "log" | "doc" | "draft"; pages: Array<{ url: string; lines: string[] }> }
   | { kind: "calendar"; days: string[]; busy: Array<[number, number, number]> };
 
 // What a step found, to light up its preview: matching rows with a tag, link
@@ -43,13 +44,19 @@ export type StepSpec = {
   assign?: "previous" | "fresh";
 };
 
+// What a live skill gets besides its params: the work a board that died on this step had
+// already done (null on a fresh step), and a way to say how far it really is, what it has
+// found so far and what it has done, which goes in the log so the next board can pick up after it.
+export type SkillContext = { partial: Json | null; report: (progress: number, found?: Found, partial?: Json) => void };
+
 // summary is the sentence; short is the 1–3 words on the chip that flies back ("3 replies").
 export type StepOutput = { summary: string; short: string; data: Json; found?: Found };
 
 // A finished step, as the next stage sees it.
 export type DoneStep = { skill: string; stage: number; params: Json; output: StepOutput; worker: string };
 
-export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[]) => StepSpec[] };
+// prompt is what the person asked for; only a scenario that works from it needs it.
+export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[], prompt: string) => StepSpec[] };
 
 // The result a scenario ends with, drawn the same way for every scenario.
 export type Section =
@@ -69,9 +76,11 @@ export type Scenario = {
   // What the demo data is, said plainly so nobody mistakes it for theirs.
   data: { label: string; items: string[] };
   stages: Stage[];
+  // Whether the page can show the demo data it runs on (the gateway's mail and calendar).
+  sample?: boolean;
   // Each skill turns a step's params into its output. The final stage's single step returns a Result as its data.
-  // ponytail: skills read the scenario's canned dataset; swap a skill for an API or LLM call without touching the scheduler.
-  skills: Record<string, (params: any) => StepOutput>;
+  // Most skills read the scenario's canned dataset; the live one calls the model, so a skill may take its time.
+  skills: Record<string, (params: any, context: SkillContext) => StepOutput | Promise<StepOutput>>;
 };
 
 // The outputs of one skill, in the order the steps were made.

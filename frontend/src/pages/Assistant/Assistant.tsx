@@ -4,13 +4,14 @@ import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
 import { boardName, send } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
+import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
 import { eventsOf, narrate } from "./story";
 import type { StoryEvent } from "./story";
 import "./Assistant.css";
 
 export type StageInfo = { label: string; short: string; icon: string };
-export type ScenarioInfo = { id: string; audience: string; icon: string; title: string; prompt: string; data: { label: string; items: string[] }; stages: StageInfo[] };
+export type ScenarioInfo = { id: string; audience: string; icon: string; title: string; prompt: string; data: { label: string; items: string[] }; hasSample?: boolean; stages: StageInfo[] };
 
 // The Assistant, one focus at a time: ask (an empty page with the prompt),
 // watch (the boards splitting the job), read (the report).
@@ -34,6 +35,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   useEffect(() => {
     api<{ scenarios: ScenarioInfo[] }>("/api/assistant/scenarios").then(({ scenarios }) => {
       setScenarios(scenarios);
+      // The first scenario is picked to start with, its prompt in the box.
+      if (scenarios[0]) setSelected(scenarios[0].id);
       setPrompt((current) => current || scenarios[0]?.prompt || "");
     }, (cause: Error) => setError(cause.message));
   }, []);
@@ -120,6 +123,7 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
   onPace: (pace: string) => void;
   onRun: () => void;
 }) {
+  const [browsing, setBrowsing] = useState(false);
   const scenario = scenarios.find((entry) => entry.id === selected);
   return (
     <div className="ask">
@@ -136,8 +140,14 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
             <span className="prompt-data" title={scenario.data.items.join("\n")}>
               <Icon name="info" size={14} />
               {scenario.data.label}
+              {scenario.hasSample && (
+                <button className="text-button" type="button" onClick={() => setBrowsing(true)}>
+                  Open the demo inbox
+                </button>
+              )}
             </span>
           )}
+          {browsing && scenario && <SampleData scenario={scenario.id} title={`${scenario.audience}: demo data`} onClose={() => setBrowsing(false)} />}
           <label className="pace">
             <span>Speed</span>
             <select value={pace} onChange={(event) => onPace(event.target.value)}>
@@ -160,12 +170,17 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
               <strong>{entry.audience}</strong>
               <span>{entry.title}</span>
             </span>
-            <span className="badge is-sample">Demo data</span>
+            <DataBadge scenario={entry} />
           </button>
         ))}
       </div>
     </div>
   );
+}
+
+// Says what a job runs on: canned demo data, or the model live.
+function DataBadge({ scenario }: { scenario: ScenarioInfo }) {
+  return /^Live/.test(scenario.data.label) ? <span className="badge is-ok">Live AI</span> : <span className="badge is-sample">Demo data</span>;
 }
 
 function RunHeader({ job, scenario, onStop, onAgain }: { job: Job; scenario?: ScenarioInfo; onStop: () => void; onAgain: () => void }) {
@@ -179,7 +194,7 @@ function RunHeader({ job, scenario, onStop, onAgain }: { job: Job; scenario?: Sc
           <span>“{job.plan!.prompt}”</span>
         </div>
       </div>
-      <span className="badge is-sample">Demo data</span>
+      {scenario && <DataBadge scenario={scenario} />}
       {done ? (
         <button className="button primary" type="button" onClick={onAgain}>
           Run another job
@@ -225,7 +240,8 @@ function Watching({ job, tasks, cluster, events, now, offset, act }: { job: Job;
       <section className="panel stage-card" aria-label="Cluster">
         <header className="stage-head">
           <p className="narration" aria-live="polite">{narrate(job, tasks, cluster, events, now)}</p>
-          {job.doneAt === null && (
+          {/* Real boards fail for real: someone pulls a plug. */}
+          {job.doneAt === null && !cluster.boards && (
             <button className="button small" type="button" onClick={failure} title="Kill a random working board and watch its work move">
               <Icon name="bolt" size={14} />
               Simulate a failure
@@ -249,7 +265,7 @@ function Log({ events, offset }: { events: StoryEvent[]; offset: number }) {
     <ol className="log-rows" aria-label="Log">
       {events.map((event) => (
         <li key={event.key} title={event.task?.input}>
-          <span className="avatar">{event.board ? boardName(event.board).replace("Board ", "") : <Icon name="crown" size={11} />}</span>
+          <span className="avatar">{event.board ? boardName(event.board).replace("Board ", "").slice(0, 2) : <Icon name="crown" size={11} />}</span>
           <span className="log-text">{event.text}</span>
           <time className="muted">{ago(Date.now() - (event.at - offset))}</time>
         </li>

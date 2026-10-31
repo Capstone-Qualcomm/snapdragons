@@ -70,7 +70,13 @@ export function Preview({ task, progress, frozen = false }: { task: Task; progre
           {count > 1 && <span className="num">{index + 1}/{count}</span>}
         </div>
         <div className="sheet">
-          {summing && summary.length ? (
+          {preview.look === "draft" && summary.length ? (
+            // Text the board is writing, shown as it streams in, with a caret while it goes.
+            <div className="page-draft">
+              {summary.map((line, at) => <p key={at}>{line}</p>)}
+              {!done && <i className="caret" />}
+            </div>
+          ) : summing && summary.length ? (
             <ul className="page-summary">
               {summary.map((line) => <li key={line}>✓ {line}</li>)}
             </ul>

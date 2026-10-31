@@ -60,6 +60,26 @@
 .command-status.is-ok { background: var(--live-wash); color: var(--live); }
 .command-status.is-bad { background: var(--fail-wash); color: var(--fail); }
 
+/* Connect a Board, with real boards: the one command a new board runs. */
+.join-board {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.join-board p { flex-basis: 100%; margin: 0; color: var(--ink-soft); }
+.join-board code {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: var(--s2) var(--s3);
+  overflow-x: auto;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .command-group { grid-template-columns: minmax(0, 1fr); padding: var(--s3) var(--s4); }
   .command-group .command-row { grid-column: 1; }
