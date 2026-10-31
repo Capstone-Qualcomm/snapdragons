@@ -19,7 +19,7 @@ type SlackAuthOptions = {
   slackConnection: SlackConnection;
 };
 
-const userScopes = "search:read,im:read,im:history,users:read";
+const userScopes = "search:read,channels:history,groups:history,im:read,im:history,mpim:history,users:read,chat:write";
 
 export function createSlackAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, slackConnection }: SlackAuthOptions) {
   const pendingStates = createPendingStates();
