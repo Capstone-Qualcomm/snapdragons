@@ -6,6 +6,7 @@
 .tasks-table .col-from { width: 140px; color: var(--ink-soft); }
 .tasks-table .col-status { width: 150px; }
 .tasks-table .col-updated { width: 96px; white-space: nowrap; }
+.tasks-table td.col-updated { text-align: left; }
 .tasks-table .col-action { width: 112px; }
 .tasks-table td.col-from { overflow: hidden; max-width: 140px; text-overflow: ellipsis; white-space: nowrap; }
 
