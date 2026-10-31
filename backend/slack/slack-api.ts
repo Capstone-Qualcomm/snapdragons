@@ -15,7 +15,7 @@ export type SlackMessage = {
   url: string;
 };
 
-const lookback = 24 * 60 * 60;
+const lookback = 3 * 24 * 60 * 60;
 
 export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) {
   async function slackRequest(method: string, params: Record<string, string> = {}): Promise<Record<string, unknown>> {
