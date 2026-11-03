@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -175,14 +176,35 @@ export function createClusterServer(options: ServerOptions = {}) {
   // How long each node took to answer its last status check, so the queue is read from the quickest.
   const answeredIn = new Map<string, number>();
 
+  // Boards that missed their last status check, and when they were last asked. An unplugged board
+  // never answers, so waiting on it would hold every read for the whole timeout; it is asked again
+  // in the background every few seconds instead, and read normally once it answers.
+  const missing = new Map<string, number>();
+  const recheckMs = 5000;
+
   async function statuses(): Promise<NodeStatus[]> {
     const timed = async (id: string) => {
       const started = Date.now();
-      const status = await nodeJson<NodeStatus>(id, "/status");
-      answeredIn.set(id, Date.now() - started);
-      return status;
+      try {
+        const status = await nodeJson<NodeStatus>(id, "/status");
+        answeredIn.set(id, Date.now() - started);
+        missing.delete(id);
+        return status;
+      } catch {
+        if (boards) missing.set(id, Date.now());
+        return null;
+      }
     };
-    const all = (await Promise.all(ids().map((id) => timed(id).catch(() => null)))).filter((status): status is NodeStatus => status !== null);
+    const ask = (id: string) => {
+      const askedAt = missing.get(id);
+      if (askedAt === undefined) return timed(id);
+      if (Date.now() - askedAt >= recheckMs) {
+        missing.set(id, Date.now());
+        void timed(id);
+      }
+      return null;
+    };
+    const all = (await Promise.all(ids().map(ask))).filter((status): status is NodeStatus => status !== null);
     for (const status of all) for (const member of status.members) known.add(member);
     return all;
   }
@@ -191,8 +213,10 @@ export function createClusterServer(options: ServerOptions = {}) {
   const orchestratorOf = (nodes: NodeStatus[]) => nodes.filter((node) => node.role === "orchestrator").sort((a, b) => b.term - a.term)[0] ?? null;
 
   // Sends a request into the cluster through any running node, which passes it to
-  // the orchestrator. Keeps trying through an election, for a few seconds.
-  async function clusterRequest(body: Record<string, unknown>, timeoutMs = 6000): Promise<unknown> {
+  // the orchestrator. Keeps trying through an election, for a few seconds. Every try carries
+  // the same requestId, so a job or plan the queue took before its orchestrator died is not made twice.
+  async function clusterRequest(given: Record<string, unknown>, timeoutMs = 6000): Promise<unknown> {
+    const body = { ...given, requestId: randomUUID() };
     const deadline = Date.now() + timeoutMs;
     let lastError = new Error("No node is running.");
     while (Date.now() < deadline) {
@@ -273,7 +297,21 @@ export function createClusterServer(options: ServerOptions = {}) {
     if (!id) return [409, { error: `All ${NODE_IDS.length} nodes are in use.` }];
     if (!orchestrator) return [409, { error: "There is no orchestrator to add a node to. Restart a dead node first." }];
     startNode(id, { fresh: true });
-    await clusterRequest({ members: { add: id } });
+    try {
+      await clusterRequest({ members: { add: id } });
+    } catch (cause) {
+      // A request can time out with the add already in the log, and committing it can need this very node.
+      const after = await statuses();
+      if (after.some((node) => node.members.includes(id))) return [201, { id }];
+      // Never added, the new node would wait for the cluster forever, so it goes as if it never started.
+      // With no orchestrator to ask, the add may still be in a log, so the node and its saved state stay.
+      if (orchestratorOf(after)) {
+        children.get(id)?.kill("SIGKILL");
+        children.delete(id);
+        rmSync(join(dataDir, `${id}.json`), { force: true });
+      }
+      throw cause;
+    }
     return [201, { id }];
   }
 

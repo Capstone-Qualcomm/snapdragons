@@ -118,6 +118,8 @@ export function createRaft(options: RaftOptions) {
     if (newTerm > term) {
       term = newTerm;
       votedFor = null;
+      // Whoever led the old term no longer does; the new term's orchestrator says so when it is heard from.
+      orchestrator = null;
       persist();
     }
     if (role === "orchestrator") {
@@ -158,6 +160,8 @@ export function createRaft(options: RaftOptions) {
     orchestrator = id;
     nextIndex.clear();
     matchIndex.clear();
+    // Each node is first sent from the end of this log, so its first message carries the empty entry below.
+    for (const peer of others()) nextIndex.set(peer, lastIndex() + 1);
     // An orchestrator can only commit entries from its own term by counting copies, so
     // it starts with an empty one. Committing it commits everything before it.
     append({ type: "noop", orchestrator: id, term, at: now() });
@@ -222,12 +226,20 @@ export function createRaft(options: RaftOptions) {
     while (lastApplied < commitIndex) {
       lastApplied += 1;
       const entry = entryAt(lastApplied);
-      const result = machine.apply(entry.command);
+      // A command the state machine refuses is still applied, the same on every node; its client gets the error.
+      let result: unknown;
+      let failure: Error | null = null;
+      try {
+        result = machine.apply(entry.command);
+      } catch (cause) {
+        failure = cause as Error;
+      }
       const waiter = waiting.get(lastApplied);
       if (waiter) {
         waiting.delete(lastApplied);
-        if (waiter.term === entry.term) waiter.resolve(result);
-        else waiter.reject(new NotOrchestrator(orchestrator));
+        if (waiter.term !== entry.term) waiter.reject(new NotOrchestrator(orchestrator));
+        else if (failure) waiter.reject(failure);
+        else waiter.resolve(result);
       }
     }
     if (role === "orchestrator" && !membersAt(commitIndex).includes(id)) {

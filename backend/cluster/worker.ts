@@ -55,22 +55,38 @@ export async function runWorker({ id, call, workMs = 1000, pollMs = 500, heartbe
         real = Math.max(real ?? 0, Math.min(progress, 0.99));
         pending = { ...pending, ...(found && { found }), ...(partial !== undefined && { partial }) };
       };
+      // A beat the queue answers with false means the step was taken back or its plan stopped,
+      // so this node drops it and asks for another instead of running it next to its new owner.
+      const dropped = new AbortController();
+      const stepSignal = signal ? AbortSignal.any([signal, dropped.signal]) : dropped.signal;
+      // A beat waits for the one before to land: through a slow relay they would pile up, and an
+      // older beat landing after a newer one would move the checkpoint back.
+      let beating = false;
       const beat = setInterval(() => {
+        if (beating) return;
+        beating = true;
         const changes = pending;
         pending = {};
-        call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes }).catch(() => (pending = { ...changes, ...pending }));
+        call({ type: "progress", worker: id, task: task.id, progress: real ?? done(), ...changes })
+          .then(
+            (mine) => mine === false && dropped.abort(),
+            () => (pending = { ...changes, ...pending }),
+          )
+          .finally(() => (beating = false));
       }, heartbeatMs);
       // A board losing power mid-step stops reporting at once, so its lease runs out and the step moves.
       const silence = () => clearInterval(beat);
-      signal?.addEventListener("abort", silence, { once: true });
+      stepSignal.addEventListener("abort", silence, { once: true });
       try {
-        output = await outputOf(task, { partial: (task.partial as Json) ?? null, report });
+        // A live skill can take many seconds, so the node stops waiting on it once the step is dropped.
+        const stop = new Promise<never>((_, reject) => stepSignal.addEventListener("abort", () => reject(stepSignal.reason), { once: true }));
+        output = await Promise.race([outputOf(task, { partial: (task.partial as Json) ?? null, report }), stop]);
         if (output?.found && !real) pending.found = output.found;
         // Demo data answers at once, so the step then takes the rest of its time for a person to watch.
-        await sleep(Math.max(0, total * (1 - from) - (Date.now() - startedAt)), undefined, { signal });
+        await sleep(Math.max(0, total * (1 - from) - (Date.now() - startedAt)), undefined, { signal: stepSignal });
       } finally {
         clearInterval(beat);
-        signal?.removeEventListener("abort", silence);
+        stepSignal.removeEventListener("abort", silence);
       }
       // The finished step must not be lost to a leader election, so keep trying until the queue answers.
       while (true) {
