@@ -116,6 +116,39 @@ test("a board that never answers holds up only the first read of the state, not 
   assert.ok(second < 500, `the next read answers without waiting, took ${second} ms`);
 });
 
+// One node that answers as the orchestrator and fails every membership change, like a request that timed out.
+// The add lands in its log only if logsTheAdd, as Raft keeps a change it could not commit in time.
+async function addThatFails(logsTheAdd: boolean) {
+  const members = ["Q-01"];
+  const orchestrator = createServer((req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    if (req.url === "/status") return res.end(JSON.stringify({ id: "Q-01", role: "orchestrator", term: 1, orchestrator: "Q-01", votedFor: "Q-01", votes: ["Q-01"], members, commitIndex: 1, lastIndex: 1 }));
+    if (logsTheAdd && !members.includes("Q-02")) members.push("Q-02");
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: "timed out" }));
+  });
+  servers.add(orchestrator);
+  await new Promise<void>((resolve) => orchestrator.listen(4921, "127.0.0.1", resolve));
+  const { server } = createClusterServer({ port: 0, nodePort: 4921, dataDir: mkdtempSync(join(tmpdir(), "add-node-")) });
+  servers.add(server);
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  return `http://localhost:${(server.address() as AddressInfo).port}`;
+}
+
+test("a node whose add timed out but reached the log keeps running, since the cluster needs it to commit that add", async () => {
+  const base = await addThatFails(true);
+  const added = await post(base, "/api/cluster/nodes");
+  assert.equal(added.status, 201);
+  assert.deepEqual(await added.json(), { id: "Q-02" });
+  assert.equal((await post(base, "/api/cluster/nodes/Q-02/kill")).status, 200, "the node is still running");
+});
+
+test("a node the orchestrator never added goes away again", async () => {
+  const base = await addThatFails(false);
+  assert.ok((await post(base, "/api/cluster/nodes")).status >= 400);
+  assert.equal((await post(base, "/api/cluster/nodes/Q-02/kill")).status, 409, "the node is gone");
+});
+
 test("the services answer the boards' mail and calendar, and refuse the model without a key instead of calling themselves", async () => {
   const { server, servicesServer } = createClusterServer({ port: 0 });
   servers.add(server);

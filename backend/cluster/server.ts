@@ -300,10 +300,16 @@ export function createClusterServer(options: ServerOptions = {}) {
     try {
       await clusterRequest({ members: { add: id } });
     } catch (cause) {
+      // A request can time out with the add already in the log, and committing it can need this very node.
+      const after = await statuses();
+      if (after.some((node) => node.members.includes(id))) return [201, { id }];
       // Never added, the new node would wait for the cluster forever, so it goes as if it never started.
-      children.get(id)?.kill("SIGKILL");
-      children.delete(id);
-      rmSync(join(dataDir, `${id}.json`), { force: true });
+      // With no orchestrator to ask, the add may still be in a log, so the node and its saved state stay.
+      if (orchestratorOf(after)) {
+        children.get(id)?.kill("SIGKILL");
+        children.delete(id);
+        rmSync(join(dataDir, `${id}.json`), { force: true });
+      }
       throw cause;
     }
     return [201, { id }];
