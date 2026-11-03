@@ -24,6 +24,8 @@ npm run dev
 
 Open the local URL printed by Vite (usually `http://localhost:5173`). Leave the terminal running while you use the app. Press `Ctrl+C` to stop the development server.
 
+Today uses local ranking immediately and asks Azure to rerank when source data changes. For Azure ranking locally, also run `./scripts/start-cluster.sh` and configure `AZURE_AI_ENDPOINT`, `AZURE_AI_KEY`, and optionally `AZURE_AI_MODEL` in `backend/.env`. If the gateway or model is unavailable, Today keeps its local ranking.
+
 When pulling changes from Git, run `npm install` again if `package.json` or `package-lock.json` changed.
 
 ## Build and share changes

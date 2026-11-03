@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ago, ErrorBanner, Stat } from "../../components/ui";
 import { api } from "../../lib/api";
 import { refreshes } from "../Cluster/cluster";
 import type { ClusterState } from "../Cluster/cluster";
 import { signInError } from "./Connections";
-import { rank, toItems } from "./rank";
+import { rank, rankWithAzure, rankingSignature, toItems } from "./rank";
+import type { Item } from "./rank";
 import type { Source, SourceName } from "./sources";
 import { titles } from "./sources";
 import { isWaiting, TasksPanel, useDone } from "./Today";
@@ -17,13 +18,41 @@ const off = (source: Source<any>) => ["unconfigured", "disconnected", "disabled"
 export function TodayPage({ sources, cluster, failed, offset, active }: { sources: Source<any>[]; cluster: ClusterState | null; failed: boolean; offset: number; active: boolean }) {
   const [slack, jira, github, outlook] = sources;
   const { isDone, markDone, undo } = useDone();
+  const sourceItems = useMemo(() => toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }), [slack.items, jira.items, github.items, outlook.items]);
+  const signature = rankingSignature(sourceItems);
+  const syncingSources = sources.some((source) => source.syncing);
+  const [ranking, setRanking] = useState<{ signature: string; items: Item[]; mode: "local" | "updating" | "azure" }>({ signature: "", items: [], mode: "local" });
+  const requestedSignature = useRef("");
+  const rankingRequest = useRef(0);
   const [jobId, setJobId] = useState<string | null>(null);
   const [signInErrors, setSignInErrors] = useState<string[]>([]);
   const [handledOutlookIds, setHandledOutlookIds] = useState<Set<string>>(() => new Set());
   const lastRefreshAt = useRef(Date.now());
 
-  const ranked = rank(toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }))
+  useEffect(() => {
+    if (syncingSources || requestedSignature.current === signature) return;
+    requestedSignature.current = signature;
+    const request = ++rankingRequest.current;
+    const local = rank(sourceItems);
+    if (!sourceItems.length) {
+      setRanking({ signature, items: local, mode: "local" });
+      return;
+    }
+    setRanking({ signature, items: local, mode: "updating" });
+    void rankWithAzure(sourceItems).then((ordered) => {
+      if (request === rankingRequest.current) setRanking({ signature, items: ordered, mode: "azure" });
+    }).catch(() => {
+      if (request === rankingRequest.current) {
+        setRanking({ signature, items: local, mode: "local" });
+        // A later completed refresh can retry a failed Azure request.
+        requestedSignature.current = "";
+      }
+    });
+  }, [sourceItems, signature, syncingSources]);
+
+  const ranked = (ranking.signature === signature ? ranking.items : rank(sourceItems))
     .filter((item) => item.source !== "outlook" || !handledOutlookIds.has(item.data.id));
+  const rankingMode = ranking.signature === signature ? ranking.mode : "local";
   const open = ranked.filter((item) => !isDone(item));
   const cleared = ranked.filter(isDone);
   // A visitor with no source connected sees sample rows, never counted as real work.
@@ -168,7 +197,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       </ul>
 
       <div className="page-body">
-        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} onSlackMessage={sendSlackMessage} />
+        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} rankingMode={rankingMode} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} onSlackMessage={sendSlackMessage} />
       </div>
     </div>
   );
