@@ -1,8 +1,9 @@
 import { Fragment, useState } from "react";
 import type { CSSProperties } from "react";
+import { ago } from "../../components/ui";
 import { appPath } from "../../lib/urls";
 import "./Boards.css";
-import { boardName, seconds, sourceOf, stepLabel } from "./cluster";
+import { boardName, majority, seconds, sourceOf, stepLabel } from "./cluster";
 import type { ClusterState, RaftNode, Task } from "./cluster";
 
 type BoardState = "dead" | "left" | "joining" | "leaving" | "working" | "idle";
@@ -71,7 +72,7 @@ export function BoardsTable({ cluster }: { cluster: ClusterState }) {
 
 function BoardRow({ node, cluster, open, onToggle }: { node: RaftNode; cluster: ClusterState; open: boolean; onToggle: () => void }) {
   const { task, state, worker, isOrchestrator } = boardOf(node, cluster);
-  const needed = Math.floor((node.members?.length ?? 0) / 2) + 1;
+  const needed = majority(node.members?.length ?? 0);
   // While there is no orchestrator, each worker counts down its own random
   // timeout; the first to reach zero asks the others for their votes.
   const electing = node.up && node.member && !cluster.orchestrator;
@@ -105,11 +106,12 @@ function BoardRow({ node, cluster, open, onToggle }: { node: RaftNode; cluster: 
 }
 
 // Workers hear the orchestrator's heartbeat every 300 ms; the orchestrator sends it.
+// With no orchestrator the silence can run to hours, so past a minute it reads like the rest of the app.
 function heartbeat(node: RaftNode, isOrchestrator: boolean) {
   if (!node.up) return "—";
   if (isOrchestrator) return "Sending";
   if (node.quietFor == null) return "—";
-  return node.quietFor < 1000 ? `${node.quietFor} ms ago` : `${seconds(node.quietFor)} ago`;
+  return node.quietFor < 1000 ? `${node.quietFor} ms ago` : node.quietFor < 60_000 ? `${seconds(node.quietFor)} ago` : ago(node.quietFor);
 }
 
 // The step a board is on, in words, with its progress. A step taken over from

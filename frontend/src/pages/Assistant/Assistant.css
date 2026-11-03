@@ -62,6 +62,7 @@
 
 .pace select { width: auto; padding: 5px 8px; font-size: 13px; }
 .run-button { min-width: 96px; }
+.run-waiting { color: var(--ink-soft); font-size: 13px; }
 
 .scenario-grid {
   display: grid;
@@ -222,10 +223,14 @@
 
 .node-head strong { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .node-head .badge { margin-left: auto; }
-.node-head .kebab { margin-right: -6px; opacity: 0; transition: opacity var(--snappy); }
-.node:hover .kebab,
-.node .kebab[open],
-.node:focus-within .kebab { opacity: 1; }
+.node-head .kebab { margin-right: -6px; transition: opacity var(--snappy); }
+/* Hidden until hovered only where there is a pointer to hover with; a touch screen always shows it. */
+@media (hover: hover) {
+  .node-head .kebab { opacity: 0; }
+  .node:hover .kebab,
+  .node .kebab[open],
+  .node:focus-within .kebab { opacity: 1; }
+}
 .node-role { color: var(--ink-soft); font-size: 13px; margin-left: auto; }
 
 .node-caption {

@@ -44,8 +44,23 @@ export type Result = { headline: string; stats: Array<{ value: string; label: st
 export type Plan = { scenario: string; prompt: string; pace: number; stage: number; stages: Array<{ label: string; short: string; icon: string }>; result: Result | null; error?: string };
 export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null; plan?: Plan };
 
+// Raft needs a majority of the members up to elect an orchestrator or commit anything.
+export const majority = (members: number) => Math.floor(members / 2) + 1;
+
+// Set while too few members are up for any board to win an election, so the
+// cluster waits until a board restarts.
+export function stalled(cluster: ClusterState) {
+  if (cluster.orchestrator) return null;
+  const members = cluster.members.length;
+  const up = cluster.nodes.filter((node) => node.up && node.member).length;
+  const needed = majority(members);
+  return members > 0 && up < needed ? { up, members, needed } : null;
+}
+
 // Today's refreshes, without the Assistant's plans.
 export const refreshes = (jobs: Job[]) => jobs.filter((job) => !job.plan);
+// The newest refresh that finished, for the Last refresh stat.
+export const lastRefresh = (cluster: ClusterState | null) => (cluster ? refreshes(cluster.jobs).filter((job) => job.doneAt !== null).at(-1) : undefined);
 export type QueueWorker = { id: string; alive: boolean; leaving: boolean; done: number; current: string | null };
 export type Term = { term: number; orchestrator: string; at: number };
 export type RaftNode = {
@@ -103,27 +118,53 @@ export function useCluster() {
   const [cluster, setCluster] = useState<ClusterState | null>(null);
   const [failed, setFailed] = useState(false);
   const offset = useRef(0);
+  // Only the newest request's answer is kept, so a slow poll cannot undo a reload.
+  const latest = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const id = ++latest.current;
     try {
-      const response = await fetch(apiPath("/api/cluster/state"), { cache: "no-store" });
+      const response = await fetch(apiPath("/api/cluster/state"), { cache: "no-store", signal });
       const state: unknown = await response.json();
+      if (id !== latest.current) return;
       if (!response.ok || !isClusterState(state)) throw new Error("Cluster unavailable");
       offset.current = state.now - Date.now();
       setCluster({ ...state, events: Array.isArray(state.events) ? state.events : [] });
       setFailed(false);
     } catch {
-      setFailed(true);
+      if (id === latest.current && !signal?.aborted) setFailed(true);
     }
   }, []);
 
+  // The next poll waits for the last one to answer, and none go out while the tab is hidden.
   useEffect(() => {
-    void load();
-    const timer = setInterval(load, POLL_MS);
-    return () => clearInterval(timer);
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      if (document.visibilityState !== "hidden") await load(controller.signal);
+      if (!controller.signal.aborted) timer = setTimeout(poll, POLL_MS);
+    }
+    void poll();
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
   }, [load]);
 
-  return { cluster, failed, reload: load, serverNow: () => Date.now() + offset.current };
+  // Stable, so the clocks that read it are not restarted after every poll.
+  const serverNow = useCallback(() => Date.now() + offset.current, []);
+  return { cluster, failed, reload: load, serverNow };
+}
+
+// The cluster's time, re-read a few times a second so the timeline's blocks and
+// the Assistant's chips move between polls.
+export function useClock(serverNow: () => number) {
+  const [now, setNow] = useState(serverNow);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(serverNow()), 200);
+    return () => clearInterval(timer);
+  }, [serverNow]);
+  return now;
 }
 
 // Sends a Cluster view action to the gateway. Resolves with the error message, or null.

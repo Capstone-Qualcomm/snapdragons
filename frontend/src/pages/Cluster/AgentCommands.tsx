@@ -3,7 +3,7 @@ import { Icon } from "../../components/Icon";
 import { StatusDot } from "../../components/ui";
 import type { Tone } from "../../components/ui";
 import { boardOf } from "./Boards";
-import { boardName } from "./cluster";
+import { boardName, majority } from "./cluster";
 import type { ClusterState } from "./cluster";
 
 // Sends a command to the gateway and reloads the state. Resolves to the
@@ -62,7 +62,7 @@ export function AgentCommands({ cluster, run }: { cluster: ClusterState | null; 
   // Raft needs a majority of the members up to elect an orchestrator or commit
   // anything. If this terminate leaves fewer, nothing recovers until a board restarts.
   const members = cluster?.members.length ?? 0;
-  const needed = Math.floor(members / 2) + 1;
+  const needed = majority(members);
   const upAfter = nodes.filter((node) => node.up && node.member && node.id !== target?.id).length;
   const breaksQuorum = Boolean(target?.member) && upAfter < needed;
   const stall = `Only ${upAfter} of ${members} boards would be up and Raft needs ${needed}, so the cluster stops until you restart a board.`;

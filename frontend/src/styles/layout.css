@@ -110,15 +110,7 @@
   line-height: 1.2;
 }
 
-.page-head > .button,
-.page-head > .page-actions { margin-left: auto; }
-
-.page-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2);
-}
+.page-head > .button { margin-left: auto; }
 
 @media (max-width: 860px) {
   .app-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { ago, ErrorBanner, Stat } from "../../components/ui";
 import { api } from "../../lib/api";
-import { refreshes } from "../Cluster/cluster";
+import { lastRefresh, refreshes } from "../Cluster/cluster";
 import type { ClusterState } from "../Cluster/cluster";
 import { signInError } from "./Connections";
 import { rank, toItems } from "./rank";
@@ -131,7 +131,10 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   const items = sample || loading ? null : open;
   const waiting = items?.filter(isWaiting).length ?? 0;
   const connected = sources.filter((source) => source.status === "ready").length;
-  const last = cluster ? refreshes(cluster.jobs).filter((entry) => entry.doneAt !== null).at(-1) : undefined;
+  // Until every source has answered once, the counts are not known yet.
+  const checking = sources.some((source) => source.status === "loading");
+  const missing = sample ? "No source connected yet" : "Loading your sources…";
+  const last = lastRefresh(cluster);
   const now = Date.now() + offset;
 
   return (
@@ -157,9 +160,9 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       {sources.map((source) => source.status === "error" && <ErrorBanner key={source.name} message={`${source.title}: ${source.error}`} onRetry={() => void source.reload()} />)}
 
       <ul className="stats is-4" aria-label="Summary">
-        <Stat label="Open tasks" value={items ? String(items.length) : "—"} note={items ? "From Slack, Jira, GitHub and Outlook" : "No source connected yet"} />
-        <Stat label="Waiting on you" value={items ? String(waiting) : "—"} note={items ? "Direct messages, pull requests and unread email" : "No source connected yet"} tone={waiting ? "is-ember" : ""} />
-        <Stat label="Sources connected" value={`${connected} / ${sources.length}`} note={connected === sources.length ? "All four sources connected" : "Connect the rest on Connections"} />
+        <Stat label="Open tasks" value={items ? String(items.length) : "—"} note={items ? "From Slack, Jira, GitHub and Outlook" : missing} />
+        <Stat label="Waiting on you" value={items ? String(waiting) : "—"} note={items ? "Direct messages, pull requests and unread email" : missing} tone={waiting ? "is-ember" : ""} />
+        <Stat label="Sources connected" value={checking ? "—" : `${connected} / ${sources.length}`} note={checking ? "Loading your sources…" : connected === sources.length ? "All four sources connected" : "Connect the rest on Connections"} />
         <Stat
           label="Last refresh"
           value={last ? `${((last.doneAt! - last.queuedAt) / 1000).toFixed(1)} s` : "—"}

@@ -59,6 +59,8 @@ const boardsLoaded = () => screen.findByRole("row", { name: "Board 1" });
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  Reflect.deleteProperty(document, "visibilityState");
   window.history.replaceState({}, "", "/");
 });
 
@@ -86,6 +88,15 @@ describe("Cluster boards", () => {
     expect(screen.queryByText("Orchestrator", { selector: "td" })).toBeNull();
     expect(within(row("Board 1")).getByText("Worker, election in 1.2 s")).toBeTruthy();
     expect(within(row("Board 3")).getByText("Candidate, 1 of 2 votes")).toBeTruthy();
+  });
+
+  it("gives a long wait for a heartbeat in hours, a short one in seconds", async () => {
+    mockCluster(cluster({ orchestrator: null, nodes: [node("Q-01", { quietFor: 65_524_400 }), node("Q-02", { quietFor: 1500 })] }));
+    renderCluster();
+    await boardsLoaded();
+
+    expect(within(row("Board 1")).getByText("18 h ago")).toBeTruthy();
+    expect(within(row("Board 2")).getByText("1.5 s ago")).toBeTruthy();
   });
 
   it("shows a step picked up from a dead board continuing from its checkpoint", async () => {
@@ -243,6 +254,15 @@ describe("Agent Commands", () => {
     expect(screen.queryByRole("table", { name: "Boards" })).toBeNull();
   });
 
+  it("says it is connecting, not that the cluster is down, until the first state comes in", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+    renderCluster();
+
+    expect(screen.getAllByText("Connecting…")).toHaveLength(3);
+    expect(screen.queryByText("Cluster offline")).toBeNull();
+    expect(screen.queryByText("Cluster not reachable")).toBeNull();
+  });
+
   it("warns when the cluster stops answering, and keeps the last state it got", async () => {
     mockCluster(cluster());
     renderCluster();
@@ -253,10 +273,32 @@ describe("Agent Commands", () => {
     expect(row("Board 1")).toBeTruthy();
   });
 
+  it("asks for the next state only after the last one answered, and not while the tab is hidden", async () => {
+    vi.useFakeTimers();
+    let answer = () => {};
+    const fetch = vi.fn(async (url: string) => {
+      if (!String(url).endsWith("/api/cluster/state")) return Response.json({ error: "Not found" }, { status: 404 });
+      return new Promise<Response>((resolve) => { answer = () => resolve(Response.json(cluster())); });
+    });
+    vi.stubGlobal("fetch", fetch);
+    const polls = () => fetch.mock.calls.filter(([url]) => String(url).endsWith("/api/cluster/state")).length;
+    renderCluster();
+
+    // A slow server: nothing more goes out while the first poll waits.
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(polls()).toBe(1);
+    await act(async () => { answer(); await vi.advanceTimersByTimeAsync(500); });
+    expect(polls()).toBe(2);
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    await act(async () => { answer(); await vi.advanceTimersByTimeAsync(5000); });
+    expect(polls()).toBe(2);
+  });
+
   it("says why no orchestrator can be elected while too few boards are up", async () => {
     mockCluster(cluster({ orchestrator: null, nodes: [node("Q-01"), node("Q-02", { up: false }), node("Q-03", { up: false })] }));
     renderCluster();
     expect((await screen.findByText(/No orchestrator:/)).textContent).toBe("No orchestrator: 1 of 3 boards are up, and an election needs 2. Restart a board to carry on.");
+    expect(screen.getByText("2 boards needed to elect one")).toBeTruthy();
   });
 });
 

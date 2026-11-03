@@ -1,4 +1,5 @@
 import { BoardsTable } from "./Boards";
+import { stalled } from "./cluster";
 import type { ClusterState } from "./cluster";
 import "./Cluster.css";
 
@@ -6,11 +7,7 @@ import "./Cluster.css";
 export function ClusterPanel({ cluster, failed }: { cluster: ClusterState | null; failed: boolean }) {
   const nodes = cluster?.nodes ?? [];
   const up = nodes.filter((node) => node.up).length;
-  // With too few members up, no board can win an election, so the cluster waits.
-  const members = cluster?.members.length ?? 0;
-  const membersUp = nodes.filter((node) => node.up && node.member).length;
-  const needed = Math.floor(members / 2) + 1;
-  const stuck = cluster && !cluster.orchestrator && members > 0 && membersUp < needed;
+  const stuck = cluster && stalled(cluster);
 
   return (
     <section className="panel" id="cluster" aria-labelledby="cluster-title">
@@ -25,7 +22,7 @@ export function ClusterPanel({ cluster, failed }: { cluster: ClusterState | null
       )}
       {stuck && (
         <p className="notice" role="status">
-          No orchestrator: {membersUp} of {members} boards are up, and an election needs {needed}. Restart a board to carry on.
+          No orchestrator: {stuck.up} of {stuck.members} boards are up, and an election needs {stuck.needed}. Restart a board to carry on.
         </p>
       )}
       {cluster && <BoardsTable cluster={cluster} />}

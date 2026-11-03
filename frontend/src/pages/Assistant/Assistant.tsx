@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ErrorBanner, ago } from "../../components/ui";
 import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
-import { boardName, send } from "../Cluster/cluster";
+import { boardName, send, stalled, useClock } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
 import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
@@ -32,7 +32,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const [starting, setStarting] = useState(false);
   const now = useClock(serverNow);
 
-  useEffect(() => {
+  const loadScenarios = useCallback(() => {
     api<{ scenarios: ScenarioInfo[] }>("/api/assistant/scenarios").then(({ scenarios }) => {
       setScenarios(scenarios);
       // The first scenario is picked to start with, its prompt in the box.
@@ -40,6 +40,10 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
       setPrompt((current) => current || scenarios[0]?.prompt || "");
     }, (cause: Error) => setError(cause.message));
   }, []);
+
+  useEffect(() => {
+    loadScenarios();
+  }, [loadScenarios]);
 
   const plans = cluster?.jobs.filter((job) => job.plan) ?? [];
   const running = plans.find((job) => job.doneAt === null) ?? null;
@@ -51,6 +55,9 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const stale = failed ? (cluster ? "The cluster is not reachable. Showing the last received state." : "The cluster is not reachable. Start it with ./scripts/start-cluster.sh.") : null;
   const banner = error ?? stale;
   const scenario = scenarios.find((entry) => entry.id === (job?.plan!.scenario ?? selected));
+  // Why Run is off while the cluster answers but has no orchestrator to plan the job.
+  const stuck = cluster && stalled(cluster);
+  const waiting = stuck ? `Only ${stuck.up} of ${stuck.members} boards are up. Restart a board to run a job.` : cluster && !cluster.orchestrator ? "Waiting for the boards to elect an orchestrator." : null;
 
   function pick(id: string) {
     setSelected(id);
@@ -86,7 +93,10 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         prompt={prompt}
         pace={pace}
         error={banner}
+        // Without the example jobs there is nothing to run, so their error offers another try.
+        onRetry={error && !scenarios.length ? () => { setError(null); loadScenarios(); } : undefined}
         canRun={Boolean(cluster?.orchestrator && scenarios.length) && !starting}
+        waiting={waiting}
         onPick={pick}
         onPrompt={setPrompt}
         onPace={setPace}
@@ -101,7 +111,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   return (
     <div className="assistant">
       {banner && <ErrorBanner message={banner} />}
-      <RunHeader job={job} scenario={scenario} onStop={() => void act("/api/assistant/stop", { job: job.id })} onAgain={() => setShown(null)} />
+      <RunHeader job={job} scenario={scenario} onStop={() => void act("/api/assistant/stop", { job: job.id })} onAgain={() => { setError(null); setShown(null); }} />
       {job.doneAt === null || !job.plan!.result ? (
         <Watching job={job} tasks={tasks} cluster={cluster} events={events} now={now} offset={serverNow() - Date.now()} act={(path) => void act(path)} />
       ) : (
@@ -111,13 +121,15 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   );
 }
 
-function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPrompt, onPace, onRun }: {
+function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun }: {
   scenarios: ScenarioInfo[];
   selected: string;
   prompt: string;
   pace: string;
   error: string | null;
+  onRetry?: () => void;
   canRun: boolean;
+  waiting: string | null;
   onPick: (id: string) => void;
   onPrompt: (prompt: string) => void;
   onPace: (pace: string) => void;
@@ -131,7 +143,7 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
         <h1>What should your boards do?</h1>
         <p className="lede">Describe a job. One board splits it up, the others work on the pieces at the same time.</p>
       </div>
-      {error && <ErrorBanner message={error} />}
+      {error && <ErrorBanner message={error} onRetry={onRetry} />}
       <div className="prompt-card">
         <label className="sr-only" htmlFor="prompt">Job</label>
         <textarea id="prompt" value={prompt} rows={3} onChange={(event) => onPrompt(event.target.value)} />
@@ -156,6 +168,7 @@ function Ask({ scenarios, selected, prompt, pace, error, canRun, onPick, onPromp
               <option value="fast">Fast</option>
             </select>
           </label>
+          {waiting && <span className="run-waiting">{waiting}</span>}
           <button className="button primary run-button" type="button" disabled={!canRun} onClick={onRun}>
             <Icon name="play" size={14} />
             Run
@@ -394,14 +407,4 @@ function Breakdown({ job, tasks, events, offset }: { job: Job; tasks: Task[]; ev
       {log && <Log events={events} offset={offset} />}
     </div>
   );
-}
-
-// Re-renders a few times a second so chips fly and the narration keeps up.
-function useClock(serverNow: () => number) {
-  const [now, setNow] = useState(serverNow);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(serverNow()), 200);
-    return () => clearInterval(timer);
-  }, [serverNow]);
-  return now;
 }
