@@ -58,7 +58,8 @@ export function rankingSignature(items: Item[]): string {
 // The gateway calls GCP with temporary row numbers instead of source IDs or
 // URLs, then maps the returned order back to the local items.
 export async function rankWithGcp(items: Item[]): Promise<Item[]> {
-  const input = items.map((item, index) => {
+  const prioritized = rank(items);
+  const input = prioritized.map((item, index) => {
     const id = String(index);
     switch (item.source) {
       case "slack": return { id, source: item.source, at: item.at, kind: item.data.kind, from: item.data.from, channel: item.data.where, text: item.data.text.slice(0, 800) };
@@ -69,8 +70,8 @@ export async function rankWithGcp(items: Item[]): Promise<Item[]> {
   });
   const { order } = await api<{ order: string[] }>("/api/today/rank", { items: input });
   const byId = new Map<string, Item>();
-  items.forEach((item, index) => byId.set(String(index), item));
-  if (!Array.isArray(order) || order.length !== items.length || new Set(order).size !== items.length || order.some((id) => !byId.has(id))) {
+  input.forEach((item, index) => byId.set(item.id, prioritized[index]));
+  if (!Array.isArray(order) || order.length !== prioritized.length || new Set(order).size !== prioritized.length || order.some((id) => !byId.has(id))) {
     throw new Error("The model returned an invalid ranking.");
   }
   return order.map((id) => byId.get(id)!);

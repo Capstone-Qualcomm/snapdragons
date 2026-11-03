@@ -59,7 +59,7 @@ The model runs on GCP. The gateway signs in with the service account in `GCP_AI_
 |--------|------|---------|
 | GET | `/api/cluster/state` | The queue, recent jobs and events, and each node's Raft status |
 | POST | `/api/cluster/refresh` | Queue one morning refresh: a fetch for each of Jira, Slack and GitHub, then a ranking step that waits for them |
-| POST | `/api/today/rank` | Rank up to 100 Today items with the configured GCP model; the app keeps its local order if this call fails |
+| POST | `/api/today/rank` | Rank up to 2,000 Today items for a connected browser session; the gateway sends batches of at most 100 to GCP and limits each session to six requests per minute |
 | POST | `/api/cluster/auto` | `{ "on": true }` starts the next refresh shortly after each one finishes |
 | POST | `/api/cluster/nodes` | Add the next unused node, up to six. With every node down, start the saved members again |
 | POST | `/api/cluster/nodes/:id/start` | Restart a dead node from what it saved |

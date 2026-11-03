@@ -15,6 +15,24 @@ const SIGN_IN_MS = 10 * 60_000;
 // ponytail: past MAX_SESSIONS even recent browsers go, so a flood can still cut off sign-ins in progress
 const MAX_SESSIONS = 20_000;
 
+// A Today ranking request may call the paid model, so the public gateway only
+// accepts it from a browser session that has connected at least one source.
+// All source backends use the same sid cookie and persist connected sessions
+// under DATA_DIR.
+export function hasConnectedSession(sid: string): boolean {
+  if (!/^[0-9a-f]{64}$/.test(sid)) return false;
+  const dataDir = process.env.DATA_DIR ?? fileURLToPath(new URL("../.data", import.meta.url));
+  for (const source of ["jira", "slack", "github", "outlook"]) {
+    try {
+      const saved = JSON.parse(readFileSync(join(dataDir, `${source}-sessions.json`), "utf8")) as Record<string, { connected?: unknown }>;
+      if (saved[sid]?.connected === true) return true;
+    } catch {
+      // Missing or unreadable source sessions do not authorize model spending.
+    }
+  }
+  return false;
+}
+
 export function createSessions<T, Saved extends { connected: boolean }>(
   name: string,
   create: (saved?: Saved) => T,
