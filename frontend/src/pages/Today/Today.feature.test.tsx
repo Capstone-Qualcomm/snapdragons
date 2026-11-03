@@ -101,8 +101,9 @@ describe("Today list", () => {
   it("ranks every source into one list: the DM and the pull request, then started Jira work, then the mention", async () => {
     await openToday();
     expect(rows().map((item) => item.getAttribute("aria-label"))).toEqual(["Can you look at the demo?", "Snapshot the queue", "Worker hands back its task", "@you the deploy failed"]);
-    expect(within(row("Can you look at the demo?")).getByRole("link", { name: "Reply" }).getAttribute("href")).toBe("https://slack.test/dm");
-    expect(within(row("Snapshot the queue")).getByRole("link", { name: "Snapshot the queue" }).getAttribute("href")).toBe("https://github.test/15");
+    expect(within(row("Can you look at the demo?")).getByRole("button", { name: "Reply" })).toBeTruthy();
+    expect(within(row("Can you look at the demo?")).getByRole("link", { name: "Open in app" }).getAttribute("href")).toBe("https://slack.test/dm");
+    expect(within(row("Snapshot the queue")).getByRole("link", { name: "Open in app" }).getAttribute("href")).toBe("https://github.test/15");
     expect(within(row("Snapshot the queue")).getByRole("button", { name: "Comment" })).toBeTruthy();
     expect(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" })).toBeTruthy();
   });
