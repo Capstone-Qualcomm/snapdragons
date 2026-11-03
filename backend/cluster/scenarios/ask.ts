@@ -4,7 +4,7 @@ import type { Result, Scenario } from "../plan.ts";
 
 // Anything a person types, done live by the model: the orchestrator splits the job into
 // parts, each board works one part at the same time, and the orchestrator combines them.
-// No demo data: every answer comes from DeepSeek-V4.1-Flash as the steps run.
+// No demo data: every answer comes from the model as the steps run.
 
 type Part = { label: string; instruction: string };
 type Work = { label: string; bullets: string[]; text: string };
@@ -26,7 +26,7 @@ export const ask: Scenario = {
   title: "Your own job, live",
   prompt: "Compare the four best laptops for a computer science student under $1,200 and tell me which one to buy.",
   data: {
-    label: "Live: DeepSeek-V4.1-Flash on Azure, no demo data",
+    label: "Live: the team's model on GCP, no demo data",
     items: ["Type any job. The orchestrator splits it into parts with the model,", "each board works one part at the same time, and the orchestrator combines them."],
   },
   stages: [
@@ -82,7 +82,7 @@ export const ask: Scenario = {
         stats: [
           { value: String(parts.length), label: "parts worked at once" },
           { value: String(parts.reduce((sum, part) => sum + part.bullets.length, 0)), label: "findings" },
-          { value: "Live", label: "DeepSeek-V4.1-Flash" },
+          { value: "Live", label: "Model on GCP" },
         ],
         sections: [
           { title: "Answer", kind: "text", body: answer },
