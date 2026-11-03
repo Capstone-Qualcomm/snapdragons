@@ -109,10 +109,6 @@ export function createOutlookApi({ outlookConnection, fetchImpl = globalThis.fet
     return thread.sort((a, b) => Date.parse(a.receivedAt) - Date.parse(b.receivedAt));
   }
 
-  async function markAsRead(messageId: string): Promise<void> {
-    await updateMessage(messageId, { isRead: true });
-  }
-
   async function deleteMessage(messageId: string): Promise<void> {
     await updateMessage(messageId, undefined, "DELETE");
   }
@@ -169,7 +165,7 @@ export function createOutlookApi({ outlookConnection, fetchImpl = globalThis.fet
     if (!response.ok) throw new Error(`Outlook could not ${method === "DELETE" ? "delete" : "mark as read"} this message (HTTP ${response.status}). Please try again.`);
   }
 
-  return { getUnreadMessages, getConversation, markAsRead, deleteMessage, replyToMessage };
+  return { getUnreadMessages, getConversation, deleteMessage, replyToMessage };
 }
 
 function formatReplyBody(text: string): string {

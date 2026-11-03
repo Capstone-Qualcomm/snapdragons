@@ -124,13 +124,6 @@ test("reports Jira as configured before connecting", async () => {
   assert.equal(body.jira.connected, false);
 });
 
-test("logs each connection check on the Logs page", async () => {
-  const baseUrl = await startServer();
-  await fetch(`${baseUrl}/api/jira/connection`);
-  const { logs } = await (await fetch(`${baseUrl}/api/jira/logs`)).json();
-  assert.equal(logs[0].path, "/api/jira/connection");
-});
-
 test("reports Jira as unconfigured when OAuth credentials are missing", async () => {
   const baseUrl = await startServer({ configured: false });
   const { body } = await request(baseUrl, "/api/jira/connection");
@@ -339,17 +332,6 @@ test("rejects an update when no changes are provided", async () => {
   assert.match(body.error, /No changes/);
 });
 
-test("records Jira API requests in the request log", async () => {
-  const baseUrl = await startServer();
-  await connectJira(baseUrl);
-  await request(baseUrl, "/api/jira/issues/SD-7/transitions");
-  const { body } = await request(baseUrl, "/api/jira/logs");
-
-  const transitionLog = body.logs.find((log: { path: string }) => log.path === "/api/jira/issues/SD-7/transitions");
-  assert.equal(transitionLog.method, "GET");
-  assert.equal("node" in transitionLog, false);
-});
-
 test("rejects an issue edit from another site", async () => {
   let issueWasUpdated = false;
   const baseUrl = await startServer({ fetch: createJiraFetch({
@@ -363,6 +345,22 @@ test("rejects an issue edit from another site", async () => {
     headers: { Origin: "https://attacker.example", "Content-Type": "application/json" },
     body: JSON.stringify({ description: "Changed" }),
   });
+
+  assert.equal(response.status, 403);
+  assert.equal(issueWasUpdated, false);
+});
+
+test("does not edit an issue while Jira is turned off", async () => {
+  let issueWasUpdated = false;
+  const baseUrl = await startServer({ fetch: createJiraFetch({
+    onRequest: ({ url, init }) => {
+      if (url.pathname.includes("/rest/api/3/issue/") && init.method === "PUT") issueWasUpdated = true;
+    },
+  }) });
+  await connectJira(baseUrl);
+  const headers = { "Content-Type": "application/json" };
+  await request(baseUrl, "/api/jira/connection/enabled", { method: "POST", headers, body: JSON.stringify({ enabled: false }) });
+  const { response } = await request(baseUrl, "/api/jira/issues/SD-7", { method: "POST", headers, body: JSON.stringify({ description: "Changed" }) });
 
   assert.equal(response.status, 403);
   assert.equal(issueWasUpdated, false);

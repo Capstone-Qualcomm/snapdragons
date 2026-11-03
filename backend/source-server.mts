@@ -14,11 +14,17 @@ export function redirect(res: ServerResponse, location: string): void {
   res.end();
 }
 
-// Throws when the body is not JSON, so callers can answer 400.
+const maxBodyLength = 1024 * 1024;
+
+// Throws when the body is not a JSON object or is over 1 MB, so callers can answer 400.
 export async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
   let body = "";
-  for await (const chunk of req) body += chunk;
-  return JSON.parse(body);
+  // Past the limit, keep reading but drop the rest, so the client finishes sending and gets the answer.
+  for await (const chunk of req) if (body.length <= maxBodyLength) body += chunk;
+  if (body.length > maxBodyLength) throw new Error("Request body is too large.");
+  const value: unknown = JSON.parse(body);
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Request body must be a JSON object.");
+  return value as Record<string, unknown>;
 }
 
 // OAuth state values handed out by /auth/<source>/start. Each one works once,
@@ -63,14 +69,12 @@ type SourceServerOptions<S extends Session> = {
   loadItems: (session: S) => Promise<unknown[]>;
   // Sign-in and anything else the source needs. Returns false when it has no such route.
   routes: (req: IncomingMessage, res: ServerResponse, url: URL, session: S) => Promise<boolean>;
-  // Called with each connection check, for sources that keep their own request log.
-  onConnection?: (session: S, result: Record<string, unknown>) => void;
 };
 
 // What the Jira, Slack and GitHub backends have in common: connection status,
 // turning a source on or off, disconnecting, the items list with its activity
 // log, and only taking POSTs from the app's own pages.
-export function createSourceServer<S extends Session>({ name, title, port, appUrl, session, status, items, loadItems, routes, onConnection }: SourceServerOptions<S>) {
+export function createSourceServer<S extends Session>({ name, title, port, appUrl, session, status, items, loadItems, routes }: SourceServerOptions<S>) {
   const appOrigin = new URL(appUrl).origin;
 
   const server = createServer(async (req, res) => {
@@ -86,9 +90,7 @@ export function createSourceServer<S extends Session>({ name, title, port, appUr
       }
 
       if (route === `GET /api/${name}/connection`) {
-        const result = { [name]: status(current) };
-        onConnection?.(current, result);
-        send(res, 200, result);
+        send(res, 200, { [name]: status(current) });
         return;
       }
 
@@ -142,6 +144,19 @@ export function createSourceServer<S extends Session>({ name, title, port, appUr
         connection.enabled = enabled;
         send(res, 200, { [name]: status(current) });
         return;
+      }
+
+      // The source's own API routes (reading a thread, posting a comment, editing an issue) need it
+      // connected and turned on, like the items list. Sign-in routes don't.
+      if (url.pathname.startsWith(`/api/${name}/`)) {
+        if (!connection.connected) {
+          send(res, 401, { error: `${title} is not connected. Connect ${title}.` });
+          return;
+        }
+        if (!connection.enabled) {
+          send(res, 403, { error: `${title} is turned off. Turn it on.` });
+          return;
+        }
       }
 
       if (!(await routes(req, res, url, current))) send(res, 404, { error: "Not found" });

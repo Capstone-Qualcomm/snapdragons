@@ -27,7 +27,7 @@ GITHUB_REDIRECT_URI=http://localhost:3004/auth/github/callback
 
 Never put real credentials in `.env.example`, frontend code, or a commit. The local GitHub service binds to `127.0.0.1` and accepts connection-changing requests only from the configured frontend origin.
 
-Start the project using `scripts/start-dev.sh`, open the frontend, and choose **Connect GitHub**. After authorizing the app, assigned open issues and pull requests appear in Today. Use **Comment** on a row to write and post a comment, or **Refresh** to load the list again. If you change the GitHub App's permissions, approve the updated permissions when prompted on the next GitHub authorization.
+Start the project using `scripts/start-dev.sh`, open the frontend, and choose **Connect GitHub** on the Connections page. After authorizing the app, assigned open issues and pull requests appear in Today. Use **Comment** on a row to write and post a comment, or **Refresh** to load the list again. If you change the GitHub App's permissions, approve the updated permissions when prompted on the next GitHub authorization.
 
 ## Verify the GitHub backend
 

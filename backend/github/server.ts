@@ -45,7 +45,7 @@ export function createGitHubServer(options: ServerOptions = {}) {
     }),
     items: "issues",
     loadItems: async ({ auth }) => githubApi.getAssignedOpenIssues(await auth.getAccessToken()),
-    async routes(req, res, url, { auth, connection }) {
+    async routes(req, res, url, { auth }) {
       if (req.method === "GET" && url.pathname === "/auth/github/start") {
         auth.startAuthorization(res);
         return true;
@@ -56,10 +56,6 @@ export function createGitHubServer(options: ServerOptions = {}) {
       }
       const commentPath = req.method === "POST" && url.pathname.match(/^\/api\/github\/repos\/([^/]+)\/([^/]+)\/issues\/(\d+)\/comments$/);
       if (commentPath) {
-        if (!connection.connected) {
-          send(res, 401, { error: "GitHub is not connected. Connect GitHub." });
-          return true;
-        }
         try {
           const body = (await readJson(req)).body;
           const repository = `${decodeURIComponent(commentPath[1])}/${decodeURIComponent(commentPath[2])}`;

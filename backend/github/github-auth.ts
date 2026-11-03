@@ -104,6 +104,10 @@ export function createGitHubAuth({
     }
   }
 
+  // One refresh at a time: GitHub refresh tokens work once, so a second refresh with the
+  // same token would be rejected and sign the user out.
+  let refreshing: Promise<string> | null = null;
+
   async function getAccessToken(): Promise<string> {
     const token = githubConnection.token;
     if (!githubConnection.connected || !token) {
@@ -116,31 +120,39 @@ export function createGitHubAuth({
       reset();
       throw new Error("GitHub authorization expired. Reconnect GitHub.");
     }
+    refreshing ??= refresh(token, token.refreshToken).finally(() => { refreshing = null; });
+    return refreshing;
+  }
 
+  async function refresh(token: NonNullable<GitHubConnection["token"]>, refreshToken: string): Promise<string> {
+    let refreshed: NonNullable<GitHubConnection["token"]>;
     try {
-      const refreshed = await requestToken({
+      refreshed = await requestToken({
         client_id: clientId!,
         client_secret: clientSecret!,
         grant_type: "refresh_token",
-        refresh_token: token.refreshToken,
+        refresh_token: refreshToken,
       });
-      if (githubConnection.token !== token || !githubConnection.connected) {
-        throw new Error("GitHub connection changed during token refresh. Please retry.");
-      }
-      const refreshedToken = {
-        ...refreshed,
-        refreshToken: refreshed.refreshToken ?? token.refreshToken,
-        refreshTokenExpiresAt: refreshed.refreshTokenExpiresAt ?? token.refreshTokenExpiresAt,
-      };
-      githubConnection.token = refreshedToken;
-      return refreshedToken.accessToken;
     } catch (error) {
       if (githubConnection.token !== token || !githubConnection.connected) {
         throw new Error("GitHub connection changed during token refresh. Please retry.");
       }
+      // Only GitHub saying the refresh token is dead signs the user out; a network blip doesn't.
+      if ((error as { code?: string }).code !== "bad_refresh_token") {
+        throw new Error("GitHub could not refresh the sign-in. Try again.");
+      }
       reset();
       throw new Error("GitHub authorization expired. Reconnect GitHub.");
     }
+    if (githubConnection.token !== token || !githubConnection.connected) {
+      throw new Error("GitHub connection changed during token refresh. Please retry.");
+    }
+    githubConnection.token = {
+      ...refreshed,
+      refreshToken: refreshed.refreshToken ?? token.refreshToken,
+      refreshTokenExpiresAt: refreshed.refreshTokenExpiresAt ?? token.refreshTokenExpiresAt,
+    };
+    return refreshed.accessToken;
   }
 
   async function requestToken(parameters: Record<string, string>): Promise<NonNullable<GitHubConnection["token"]>> {
@@ -155,7 +167,7 @@ export function createGitHubAuth({
     });
     const result = await response.json() as TokenResponse;
     if (!response.ok || !result.access_token) {
-      throw new Error(result.error_description ?? result.error ?? "GitHub token exchange failed.");
+      throw Object.assign(new Error(result.error_description ?? result.error ?? "GitHub token exchange failed."), { code: result.error });
     }
 
     const now = Date.now();
@@ -184,6 +196,7 @@ export function createGitHubAuth({
   }
 
   function reset() {
+    refreshing = null;
     githubConnection.connected = false;
     githubConnection.enabled = false;
     githubConnection.connectedAt = null;

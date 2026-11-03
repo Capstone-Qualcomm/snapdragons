@@ -116,6 +116,18 @@ test("accepts same-origin requests far enough to validate their payload", async 
   assert.equal(response.status, 400);
 });
 
+test("answers 400 to a body that is not a JSON object or is too large", async () => {
+  const base = await startServer();
+  for (const body of ["null", "[]", JSON.stringify({ enabled: false, padding: "x".repeat(2 * 1024 * 1024) })]) {
+    const response = await fetch(base + "/api/github/connection/enabled", {
+      method: "POST",
+      headers: { Origin: "http://localhost:5173", "Content-Type": "application/json" },
+      body,
+    });
+    assert.equal(response.status, 400, `${body.slice(0, 20)} should be rejected`);
+  }
+});
+
 test("posts a GitHub issue or pull request comment with the connected user's token", async () => {
   let request: RequestInit | undefined;
   const base = await startServer(githubWithCommentResponse((_input, init) => {
@@ -140,6 +152,23 @@ test("rejects GitHub comments when disconnected or when the comment is blank", a
   const blank = await submitComment(base, "team/repo", 7, "  ");
   assert.equal(blank.status, 400);
   assert.match((await blank.json() as { error: string }).error, /cannot be empty/i);
+});
+
+test("does not post a comment while GitHub is turned off", async () => {
+  let posted = false;
+  const base = await startServer(githubWithCommentResponse(() => {
+    posted = true;
+    return Response.json({ id: 1 }, { status: 201 });
+  }));
+  await connectGitHub(base);
+  await fetch(base + "/api/github/connection/enabled", {
+    method: "POST",
+    headers: { Origin: "http://localhost:5173", "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled: false }),
+  });
+
+  assert.equal((await submitComment(base)).status, 403);
+  assert.equal(posted, false);
 });
 
 test("explains GitHub comment permission failures", async () => {

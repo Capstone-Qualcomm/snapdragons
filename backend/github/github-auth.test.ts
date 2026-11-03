@@ -83,3 +83,44 @@ test("a failed stale refresh cannot reset a newer connection", async () => {
   assert.equal(connection.user?.login, "new-account");
   assert.equal(connection.token, newToken);
 });
+
+function refreshingAuth(connection: GitHubConnection, fetchImpl: typeof fetch) {
+  return createGitHubAuth({
+    clientId: "client-id",
+    clientSecret: "client-secret",
+    redirectUri: "http://localhost:3004/auth/github/callback",
+    appUrl: "http://localhost:5173",
+    githubConnection: connection,
+    fetchImpl,
+  });
+}
+
+test("a network error while refreshing keeps GitHub connected", async () => {
+  const connection = connectedAccount(token("old-access"));
+  const auth = refreshingAuth(connection, async () => { throw new TypeError("fetch failed"); });
+
+  await assert.rejects(auth.getAccessToken(), /try again/i);
+  assert.equal(connection.connected, true);
+  assert.equal(connection.token?.refreshToken, "old-access-refresh");
+});
+
+test("a refresh token GitHub rejects signs the user out", async () => {
+  const connection = connectedAccount(token("old-access"));
+  const auth = refreshingAuth(connection, async () => Response.json({ error: "bad_refresh_token" }));
+
+  await assert.rejects(auth.getAccessToken(), /Reconnect GitHub/);
+  assert.equal(connection.connected, false);
+});
+
+test("requests that need a refresh at the same time share one", async () => {
+  const connection = connectedAccount(token("old-access"));
+  let calls = 0;
+  const auth = refreshingAuth(connection, async () => {
+    calls += 1;
+    return Response.json({ access_token: "new-access", expires_in: 28800, refresh_token: "new-refresh" });
+  });
+
+  assert.deepEqual(await Promise.all([auth.getAccessToken(), auth.getAccessToken()]), ["new-access", "new-access"]);
+  assert.equal(calls, 1);
+  assert.equal(connection.token?.refreshToken, "new-refresh");
+});

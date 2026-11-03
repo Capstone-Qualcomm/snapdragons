@@ -35,7 +35,7 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
     const response = await fetchImpl(url, init);
     const result = await response.json() as Record<string, unknown>;
     if (!result.ok) {
-      if (result.error === "invalid_auth" || result.error === "token_revoked") {
+      if (["invalid_auth", "token_revoked", "token_expired", "not_authed", "account_inactive"].includes(String(result.error))) {
         throw new Error("Slack authorization expired. Reconnect Slack.");
       }
       throw new Error(`Slack returned ${result.error ?? "an error"} while loading messages.`);
@@ -91,13 +91,14 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
 
   async function loadUnansweredDms(me: string, since: number) {
     const { channels } = await slackRequest("conversations.list", { types: "im", exclude_archived: "true", limit: "200" }) as { channels?: Array<Record<string, unknown>> };
-    const ims = channels ?? [];
-    const latest = await Promise.all(ims.map(async (im) => {
+    const ims = (channels ?? []).filter((im) => !im.is_user_deleted);
+    // One DM Slack won't read (rate limited, gone) skips that DM instead of failing the whole list.
+    const latest = settled(await Promise.allSettled(ims.map(async (im) => {
       const { messages } = await slackRequest("conversations.history", { channel: String(im.id ?? ""), limit: "1" }) as { messages?: Array<Record<string, unknown>> };
       return { im, message: messages?.[0] };
-    }));
+    })));
     const pending = latest.filter(({ message }) => needsReply(message, me, since));
-    return Promise.all(pending.map(async ({ im, message }) => {
+    return settled(await Promise.allSettled(pending.map(async ({ im, message }) => {
       const [userResult, permalinkResult] = await Promise.all([
         slackRequest("users.info", { user: String(im.user ?? "") }) as Promise<{ user?: Record<string, unknown> }>,
         slackRequest("chat.getPermalink", { channel: String(im.id ?? ""), message_ts: String(message!.ts) }) as Promise<{ permalink?: string }>,
@@ -114,7 +115,14 @@ export function createSlackApi({ slackConnection, fetchImpl }: SlackApiOptions) 
         ts: String(message!.ts),
         url: String(permalinkResult.permalink ?? ""),
       };
-    }));
+    })));
+  }
+
+  // The results that came back, unless Slack signed the user out, which the user has to see.
+  function settled<T>(results: PromiseSettledResult<T>[]): T[] {
+    const signedOut = results.find((result) => result.status === "rejected" && String(result.reason?.message).includes("Reconnect Slack"));
+    if (signedOut) throw (signedOut as PromiseRejectedResult).reason;
+    return results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
   }
 
   async function getMessages(): Promise<SlackMessage[]> {

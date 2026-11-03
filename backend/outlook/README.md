@@ -1,10 +1,11 @@
 # Outlook backend
 
-Microsoft identity platform OAuth server and Microsoft Graph reader. Outlook is connected as the signed-in user and this version only reads unread messages in the Inbox.
+Microsoft identity platform OAuth server and Microsoft Graph reader. Outlook is connected as the signed-in user. Today shows unread Inbox messages, and you can read a conversation, reply to a message or delete it.
 
 - `outlook-auth.ts` — authorization code flow with PKCE, refresh tokens, profile lookup, and reset
 - `outlook-api.ts` — unread Inbox messages from Microsoft Graph, reduced to the fields Today needs
-- `server.ts` — connection, message, activity, enable/disable, disconnect, and OAuth routes
+- `server.ts` — connection, message, thread, reply, delete, activity, enable/disable, disconnect, and OAuth routes
+- `server.test.ts` — the routes against a fake Microsoft Graph (`npm test`)
 
 ## Microsoft Entra app setup
 
