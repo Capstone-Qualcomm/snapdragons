@@ -469,7 +469,7 @@ export function createClusterServer(options: ServerOptions = {}) {
       if (req.method === "GET" && serveDemo(url.pathname, url.searchParams, send, res)) return;
       if (req.method !== "POST" || url.pathname !== "/llm") return send(res, 404, { error: "Not found." });
       // Without a key of its own the gateway would forward the call to itself, over and over.
-      if (!process.env.AZURE_AI_ENDPOINT || !process.env.AZURE_AI_KEY) return send(res, 503, { error: "The model is not configured on the gateway. Set AZURE_AI_ENDPOINT and AZURE_AI_KEY." });
+      if (!process.env.GCP_AI_ENDPOINT || !process.env.GCP_AI_KEY || !process.env.GCP_AI_MODEL) return send(res, 503, { error: "The model is not configured on the gateway. Set GCP_AI_ENDPOINT, GCP_AI_KEY and GCP_AI_MODEL." });
       const { messages, maxTokens, stream } = (await readBody(req)) as { messages: Message[]; maxTokens?: number; stream?: boolean };
       const tokens = Math.min(Number(maxTokens) || 800, 3000);
       if (!stream) return send(res, 200, { text: await complete(messages, tokens) });
