@@ -58,13 +58,13 @@ function accessToken(key: string): Promise<string> {
   return token;
 }
 
-export async function complete(messages: Message[], maxTokens = 800, onText?: (text: string) => void): Promise<string> {
+export async function complete(messages: Message[], maxTokens = 800, onText?: (text: string) => void, signal?: AbortSignal): Promise<string> {
   const { GCP_AI_ENDPOINT: endpoint, GCP_AI_KEY: key, GCP_AI_MODEL: model, SERVICES_URL: services } = process.env;
   const proxy = services && `${services.replace(/\/$/, "")}/llm`;
   const stream = Boolean(onText);
   if (!(endpoint && key && model)) {
     if (!proxy) throw new Error("The model is not configured. Set GCP_AI_ENDPOINT, GCP_AI_KEY and GCP_AI_MODEL, or SERVICES_URL on a board.");
-    const response = await fetch(proxy, { method: "POST", body: JSON.stringify({ messages, maxTokens, stream }), signal: AbortSignal.timeout(120_000) });
+    const response = await fetch(proxy, { method: "POST", body: JSON.stringify({ messages, maxTokens, stream }), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000) });
     if (!response.ok) throw new Error(((await response.json().catch(() => ({}))) as { error?: string }).error ?? `The model call failed (HTTP ${response.status}).`);
     if (!stream) return ((await response.json()) as { text?: string }).text ?? "";
     // The gateway streams the reply as plain text.
@@ -81,7 +81,7 @@ export async function complete(messages: Message[], maxTokens = 800, onText?: (t
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages, max_tokens: maxTokens, stream }),
-    signal: AbortSignal.timeout(120_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000),
   });
   if (!response.ok) throw new Error(`The model call failed (HTTP ${response.status}).`);
   if (!stream) {

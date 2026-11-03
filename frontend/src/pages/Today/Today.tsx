@@ -54,11 +54,12 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 // Today's work as a table: ranked, filterable by source, sortable by rank,
 // source or time. With nothing connected it shows sample rows, marked as such.
-export function TasksPanel({ items, cleared, loading, sample, checked, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply, onSlackMessage }: {
+export function TasksPanel({ items, cleared, loading, sample, checked, rankingMode, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply, onSlackMessage }: {
   items: Item[];
   cleared: Item[];
   loading: boolean;
   sample: boolean;
+  rankingMode: "local" | "updating" | "gcp";
   // Every source that is on loaded, so an empty list really is empty.
   checked: boolean;
   onDone: (item: Item) => void;
@@ -83,6 +84,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, onDone, o
       <header className="panel-head">
         <h2 id="tasks-title">Today's tasks</h2>
         {sample && <span className="badge is-sample">Sample data</span>}
+        {!sample && <span className="badge">{rankingMode === "updating" ? "Updating ranking…" : rankingMode === "gcp" ? "GCP ranked" : "Local ranking"}</span>}
         <div className="chips" role="group" aria-label="Filter by source">
           <button className="chip-button" type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
             All <span className="count">{shown.length}</span>

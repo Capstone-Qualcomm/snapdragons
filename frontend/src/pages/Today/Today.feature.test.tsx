@@ -39,6 +39,7 @@ let lists: Record<string, unknown>;
 let jiraIssues: () => Response | Promise<Response>;
 let githubComment: (() => Promise<Response>) | undefined;
 let posts: Array<{ path: string; body: unknown }>;
+let rankingCalls: Array<{ path: string; body: { items: Array<{ id: string }> } }>;
 
 function idleCluster(fields: Record<string, unknown> = {}) {
   return { tasks: [], jobs: [], workers: [], terms: [], events: [], now, auto: false, maxNodes: 6, orchestrator: "Q-01", term: 2, members: ["Q-01", "Q-02"], nodes: [node("Q-01", { role: "orchestrator" }), node("Q-02")], ...fields };
@@ -53,10 +54,16 @@ beforeEach(() => {
   jiraIssues = () => Response.json({ issues: [issue] });
   githubComment = undefined;
   posts = [];
+  rankingCalls = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const path = String(url).replace(/^\/snapdragons/, "");
     if (init?.method === "POST") {
-      posts.push({ path, body: JSON.parse(String(init.body)) });
+      const body = JSON.parse(String(init.body));
+      if (path === "/api/today/rank") {
+        rankingCalls.push({ path, body });
+        return Response.json({ order: body.items.map((item: { id: string }) => item.id) });
+      }
+      posts.push({ path, body });
       if (path === "/api/cluster/refresh") return Response.json({ job: { id: "J-7" } }, { status: 201 });
       if (path.endsWith("/comments") && githubComment) return githubComment();
       return Response.json({ ok: true });

@@ -24,6 +24,8 @@ npm run dev
 
 Open the local URL printed by Vite (usually `http://localhost:5173/snapdragons/`). Leave the terminal running while you use the app. Press `Ctrl+C` to stop the development server.
 
+Today uses local ranking immediately and asks the GCP model to rerank when source data changes. For GCP ranking locally, run `./scripts/start-cluster.sh` and configure `GCP_AI_ENDPOINT`, `GCP_AI_MODEL`, and `GCP_AI_KEY` in `backend/.env`. `GCP_AI_KEY` is the service account JSON encoded as base64; keep it out of Git. If the gateway or model is unavailable, Today keeps its local ranking.
+
 When pulling changes from Git, run `npm install` again if `package.json` or `package-lock.json` changed.
 
 ## Build and share changes

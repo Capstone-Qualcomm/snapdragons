@@ -3,7 +3,7 @@
 :80 {
 	redir / /snapdragons/
 
-	@cluster path /snapdragons/api/cluster/* /snapdragons/api/assistant/*
+	@cluster path /snapdragons/api/cluster/* /snapdragons/api/assistant/* /snapdragons/api/today/*
 	handle @cluster {
 		uri strip_prefix /snapdragons
 		reverse_proxy localhost:3003

@@ -12,4 +12,4 @@ export CLUSTER_AUTO="${CLUSTER_AUTO:-1}"
 
 cd "$ROOT/backend/cluster"
 # exec, so Ctrl+C reaches the gateway and it takes the nodes down with it.
-exec node server.ts
+exec node --env-file-if-exists=../.env server.ts

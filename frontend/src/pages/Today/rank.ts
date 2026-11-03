@@ -1,5 +1,6 @@
 import type { GitHubIssue, ItemsOf, OutlookMessage, SlackMessage } from "./sources";
 import type { JiraIssue } from "./jira";
+import { api } from "../../lib/api";
 
 // One thing on today's list, from any source.
 export type Item =
@@ -35,8 +36,43 @@ export function score(item: Item): number {
   }
 }
 
-// The order Today shows. Newer first within the same score.
-// ponytail: fixed rules; swap this one function for an LLM call (QT1S-26) without touching the page.
+// Fast local fallback shown immediately while GCP ranks changed lists.
+// Newer items come first within the same local priority band.
 export function rank(items: Item[]): Item[] {
   return [...items].sort((a, b) => score(b) - score(a) || b.at - a.at);
+}
+
+// Only these fields affect the model's decision. Keep the signature local so
+// refreshes with an unchanged list do not make another GCP call.
+export function rankingSignature(items: Item[]): string {
+  return JSON.stringify(items.map((item) => {
+    switch (item.source) {
+      case "slack": return [item.key, item.at, item.data.kind, item.data.from, item.data.where, item.data.text];
+      case "jira": return [item.key, item.at, item.data.summary, item.data.status, item.data.issueType, item.data.sprints, item.data.labels];
+      case "github": return [item.key, item.at, item.data.kind, item.data.title, item.data.repository, item.data.state];
+      case "outlook": return [item.key, item.at, item.data.subject, item.data.from];
+    }
+  }));
+}
+
+// The gateway calls GCP with temporary row numbers instead of source IDs or
+// URLs, then maps the returned order back to the local items.
+export async function rankWithGcp(items: Item[]): Promise<Item[]> {
+  const prioritized = rank(items);
+  const input = prioritized.map((item, index) => {
+    const id = String(index);
+    switch (item.source) {
+      case "slack": return { id, source: item.source, at: item.at, kind: item.data.kind, from: item.data.from, channel: item.data.where, text: item.data.text.slice(0, 800) };
+      case "jira": return { id, source: item.source, at: item.at, summary: item.data.summary.slice(0, 800), status: item.data.status, type: item.data.issueType, sprints: item.data.sprints, labels: item.data.labels };
+      case "github": return { id, source: item.source, at: item.at, kind: item.data.kind, title: item.data.title.slice(0, 800), repository: item.data.repository, state: item.data.state };
+      case "outlook": return { id, source: item.source, at: item.at, subject: item.data.subject.slice(0, 800), from: item.data.from };
+    }
+  });
+  const { order } = await api<{ order: string[] }>("/api/today/rank", { items: input });
+  const byId = new Map<string, Item>();
+  input.forEach((item, index) => byId.set(item.id, prioritized[index]));
+  if (!Array.isArray(order) || order.length !== prioritized.length || new Set(order).size !== prioritized.length || order.some((id) => !byId.has(id))) {
+    throw new Error("The model returned an invalid ranking.");
+  }
+  return order.map((id) => byId.get(id)!);
 }
