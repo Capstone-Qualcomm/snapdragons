@@ -5,7 +5,7 @@ import { api } from "../../lib/api";
 import { refreshes } from "../Cluster/cluster";
 import type { ClusterState } from "../Cluster/cluster";
 import { signInError } from "./Connections";
-import { rank, rankWithAzure, rankingSignature, toItems } from "./rank";
+import { rank, rankWithGcp, rankingSignature, toItems } from "./rank";
 import type { Item } from "./rank";
 import type { Source, SourceName } from "./sources";
 import { titles } from "./sources";
@@ -21,7 +21,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   const sourceItems = useMemo(() => toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }), [slack.items, jira.items, github.items, outlook.items]);
   const signature = rankingSignature(sourceItems);
   const syncingSources = sources.some((source) => source.syncing);
-  const [ranking, setRanking] = useState<{ signature: string; items: Item[]; mode: "local" | "updating" | "azure" }>({ signature: "", items: [], mode: "local" });
+  const [ranking, setRanking] = useState<{ signature: string; items: Item[]; mode: "local" | "updating" | "gcp" }>({ signature: "", items: [], mode: "local" });
   const requestedSignature = useRef("");
   const rankingRequest = useRef(0);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -39,12 +39,12 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       return;
     }
     setRanking({ signature, items: local, mode: "updating" });
-    void rankWithAzure(sourceItems).then((ordered) => {
-      if (request === rankingRequest.current) setRanking({ signature, items: ordered, mode: "azure" });
+    void rankWithGcp(sourceItems).then((ordered) => {
+      if (request === rankingRequest.current) setRanking({ signature, items: ordered, mode: "gcp" });
     }).catch(() => {
       if (request === rankingRequest.current) {
         setRanking({ signature, items: local, mode: "local" });
-        // A later completed refresh can retry a failed Azure request.
+        // A later completed refresh can retry a failed GCP request.
         requestedSignature.current = "";
       }
     });

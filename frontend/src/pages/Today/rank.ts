@@ -36,14 +36,14 @@ export function score(item: Item): number {
   }
 }
 
-// Fast local fallback shown immediately while Azure ranks changed lists.
+// Fast local fallback shown immediately while GCP ranks changed lists.
 // Newer items come first within the same local priority band.
 export function rank(items: Item[]): Item[] {
   return [...items].sort((a, b) => score(b) - score(a) || b.at - a.at);
 }
 
 // Only these fields affect the model's decision. Keep the signature local so
-// refreshes with an unchanged list do not make another Azure call.
+// refreshes with an unchanged list do not make another GCP call.
 export function rankingSignature(items: Item[]): string {
   return JSON.stringify(items.map((item) => {
     switch (item.source) {
@@ -55,9 +55,9 @@ export function rankingSignature(items: Item[]): string {
   }));
 }
 
-// The gateway calls Azure with temporary row numbers instead of source IDs or
+// The gateway calls GCP with temporary row numbers instead of source IDs or
 // URLs, then maps the returned order back to the local items.
-export async function rankWithAzure(items: Item[]): Promise<Item[]> {
+export async function rankWithGcp(items: Item[]): Promise<Item[]> {
   const input = items.map((item, index) => {
     const id = String(index);
     switch (item.source) {

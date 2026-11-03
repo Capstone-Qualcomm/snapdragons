@@ -104,14 +104,14 @@ test("the services answer the boards' mail and calendar, and refuse the model wi
   const inbox = await (await fetch(base + "/mail/inbox")).json();
   assert.ok(inbox.messages.length > 50 && !("body" in inbox.messages[0]), "the inbox lists emails without their bodies");
   assert.ok((await (await fetch(`${base}/mail/messages/${inbox.messages[0].id}`)).json()).body);
-  const saved = { endpoint: process.env.AZURE_AI_ENDPOINT, key: process.env.AZURE_AI_KEY };
-  delete process.env.AZURE_AI_ENDPOINT;
-  delete process.env.AZURE_AI_KEY;
+  const saved = { endpoint: process.env.GCP_AI_ENDPOINT, key: process.env.GCP_AI_KEY };
+  delete process.env.GCP_AI_ENDPOINT;
+  delete process.env.GCP_AI_KEY;
   try {
     const response = await fetch(base + "/llm", { method: "POST", body: JSON.stringify({ messages: [] }), signal: AbortSignal.timeout(3000) });
     assert.equal(response.status, 503);
   } finally {
-    if (saved.endpoint) process.env.AZURE_AI_ENDPOINT = saved.endpoint;
-    if (saved.key) process.env.AZURE_AI_KEY = saved.key;
+    if (saved.endpoint) process.env.GCP_AI_ENDPOINT = saved.endpoint;
+    if (saved.key) process.env.GCP_AI_KEY = saved.key;
   }
 });

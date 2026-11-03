@@ -1,15 +1,69 @@
-// One chat completion from the team's model on Azure AI Foundry (DeepSeek-V4.1-Flash unless
-// AZURE_AI_MODEL says otherwise). With AZURE_AI_ENDPOINT and AZURE_AI_KEY set it calls Azure
-// itself. A board has no key, so it asks the gateway's services (SERVICES_URL), which call Azure for it.
+import { createSign } from "node:crypto";
+
+// One chat completion from the team's model on GCP (GCP_AI_MODEL). With GCP_AI_ENDPOINT, GCP_AI_KEY
+// and GCP_AI_MODEL set it calls GCP itself. A board has no key, so it asks the gateway's services
+// (SERVICES_URL), which call GCP for it.
 // With onText, the reply streams in and onText gets all of it so far after each piece.
 export type Message = { role: "system" | "user" | "assistant"; content: string };
 
+const base64url = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+
+// GCP's org policy forbids static API keys, so GCP_AI_KEY is a service account's JSON, base64-encoded,
+// traded here for an hour-long token. No error may quote the key or the signed request.
+async function mintToken(key: string): Promise<{ token: string; expiresAt: number }> {
+  let assertion: string;
+  let tokenUri: string;
+  try {
+    const account = JSON.parse(Buffer.from(key, "base64").toString("utf8")) as { client_email: string; private_key: string; token_uri: string };
+    tokenUri = account.token_uri;
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const claims = { iss: account.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: tokenUri, iat: issuedAt, exp: issuedAt + 3600 };
+    const unsigned = `${base64url({ alg: "RS256", typ: "JWT" })}.${base64url(claims)}`;
+    assertion = `${unsigned}.${createSign("RSA-SHA256").update(unsigned).sign(account.private_key, "base64url")}`;
+  } catch {
+    throw new Error("GCP_AI_KEY is not a usable base64-encoded service account JSON.");
+  }
+  let response: Response;
+  try {
+    response = await fetch(tokenUri, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch {
+    throw new Error("Could not reach GCP for a model token.");
+  }
+  const result = (await response.json().catch(() => ({}))) as { access_token?: string; expires_in?: number };
+  if (!response.ok || !result.access_token) throw new Error(`GCP refused the model token (HTTP ${response.status}).`);
+  return { token: result.access_token, expiresAt: Date.now() + Number(result.expires_in ?? 0) * 1000 };
+}
+
+let cached: { key: string; token: string; expiresAt: number } | null = null;
+let refreshing: { key: string; token: Promise<string> } | null = null;
+
+// One token per key, refreshed a minute before it expires, and callers during a refresh share it.
+function accessToken(key: string): Promise<string> {
+  if (cached?.key === key && Date.now() < cached.expiresAt - 60_000) return Promise.resolve(cached.token);
+  if (refreshing?.key === key) return refreshing.token;
+  const token = mintToken(key)
+    .then((minted) => {
+      cached = { key, ...minted };
+      return minted.token;
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  refreshing = { key, token };
+  return token;
+}
+
 export async function complete(messages: Message[], maxTokens = 800, onText?: (text: string) => void): Promise<string> {
-  const { AZURE_AI_ENDPOINT: endpoint, AZURE_AI_KEY: key, SERVICES_URL: services } = process.env;
+  const { GCP_AI_ENDPOINT: endpoint, GCP_AI_KEY: key, GCP_AI_MODEL: model, SERVICES_URL: services } = process.env;
   const proxy = services && `${services.replace(/\/$/, "")}/llm`;
   const stream = Boolean(onText);
-  if (!(endpoint && key)) {
-    if (!proxy) throw new Error("The model is not configured. Set AZURE_AI_ENDPOINT and AZURE_AI_KEY, or SERVICES_URL on a board.");
+  if (!(endpoint && key && model)) {
+    if (!proxy) throw new Error("The model is not configured. Set GCP_AI_ENDPOINT, GCP_AI_KEY and GCP_AI_MODEL, or SERVICES_URL on a board.");
     const response = await fetch(proxy, { method: "POST", body: JSON.stringify({ messages, maxTokens, stream }), signal: AbortSignal.timeout(120_000) });
     if (!response.ok) throw new Error(((await response.json().catch(() => ({}))) as { error?: string }).error ?? `The model call failed (HTTP ${response.status}).`);
     if (!stream) return ((await response.json()) as { text?: string }).text ?? "";
@@ -22,10 +76,11 @@ export async function complete(messages: Message[], maxTokens = 800, onText?: (t
     }
     return text;
   }
+  const token = await accessToken(key);
   const response = await fetch(`${endpoint.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
-    headers: { "api-key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.AZURE_AI_MODEL ?? "DeepSeek-V4.1-Flash", messages, max_tokens: maxTokens, stream }),
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, max_tokens: maxTokens, stream }),
     signal: AbortSignal.timeout(120_000),
   });
   if (!response.ok) throw new Error(`The model call failed (HTTP ${response.status}).`);
