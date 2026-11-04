@@ -72,6 +72,36 @@ export function fileStorage(file: string) {
   };
 }
 
+// A board whose saved log is damaged gets its copy back from the cluster instead of failing every restart.
+// Only once a majority of the other members answer: a committed entry is on a majority of all the
+// members, so those members hold it even without this board, and it can vote again without losing any.
+// Until then it waits, since this may be the last copy anyone can reach. The damaged file is kept.
+export async function setAsideDamagedLog(
+  file: string,
+  members: () => Promise<string[]>,
+  answers: (member: string) => Promise<boolean>,
+  wait: () => Promise<unknown>,
+): Promise<void> {
+  for (;;) {
+    try {
+      fileStorage(file).load();
+      return;
+    } catch (cause) {
+      console.error((cause as Error).message);
+    }
+    const others = await members().catch(() => []);
+    const answered = (await Promise.all(others.map(answers))).filter(Boolean).length;
+    if (others.length && answered > others.length / 2) {
+      const kept = `${file}.damaged-${Date.now()}`;
+      renameSync(file, kept);
+      console.error(`Kept the damaged log as ${kept}. ${answered} of ${others.length} other members answered, so this board rejoins from them.`);
+      return;
+    }
+    console.error(`Waiting: ${answered} of ${others.length} other members answered, and rejoining needs a majority of them.`);
+    await wait();
+  }
+}
+
 export function startNode({ id, peers, port: givenPort, host = "127.0.0.1", join: seeds = [], dataDir, bootstrap, workMs = 3000, leaseMs = 2000, heartbeatMs = 300, electionMs = [1500, 3000], sendTimeoutMs = 500 }: NodeOptions) {
   const port = givenPort ?? Number(new URL(peers[id]).port);
   const peer = (name: string) => peers[name] ?? `http://${name}:${port}`;
@@ -252,6 +282,14 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   let seeds: string[] | (() => Promise<string[]>) | undefined = list(env.CLUSTER_JOIN);
   let bootstrap = list(env.CLUSTER_BOOTSTRAP);
   const joinUrl = env.CLUSTER_JOIN_URL;
+  if (joinUrl) {
+    const others = async () => {
+      const { join: members } = (await (await fetch(`${joinUrl}?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) })).json()) as { join?: string[] };
+      return (members ?? []).filter((member) => member !== id);
+    };
+    const answers = (member: string) => fetch(`http://${member}:${env.NODE_PORT}/status`, { signal: AbortSignal.timeout(5000) }).then((response) => response.ok, () => false);
+    await setAsideDamagedLog(join(dataDir, `${id}.json`), others, answers, () => new Promise((resolve) => setTimeout(resolve, 10_000)));
+  }
   // A board is in a cluster only if its saved log names members. One that heard from the
   // orchestrator while waiting to be added has saved a log without any, and still has to ask.
   const saved = fileStorage(join(dataDir, `${id}.json`)).load();

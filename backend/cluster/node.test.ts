@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import fs, { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import fs, { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { mock, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { fileStorage } from "./node.ts";
+import { fileStorage, setAsideDamagedLog } from "./node.ts";
 
 // Each test runs a node as its own process, the way the gateway starts them.
 function runNode(port: number, dataDir: string, env: Record<string, string> = {}) {
@@ -84,6 +84,51 @@ test("a node with a damaged log stops and names the file, leaving it as it was",
     node.kill();
   }
   assert.equal(readFileSync(join(dataDir, "Q-01.json"), "utf8"), "{damaged");
+});
+
+test("a board with a damaged log rejoins only once a majority of the other members answer, and keeps the damaged file", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "damaged-"));
+  const file = join(dir, "q-a.json");
+  writeFileSync(file, Buffer.alloc(32));
+  const errors = mock.method(console, "error", () => {});
+  let up = ["q-b"];
+  let waits = 0;
+  const others = async () => ["q-b", "q-c", "q-d"];
+  const answers = async (member: string) => up.includes(member);
+  await setAsideDamagedLog(file, others, answers, async () => {
+    waits++;
+    // One of three is not a majority, so the file stays until a second answers.
+    assert.ok(existsSync(file));
+    up = ["q-b", "q-c"];
+  });
+  errors.mock.restore();
+  assert.equal(waits, 1);
+  assert.equal(existsSync(file), false);
+  const kept = readdirSync(dir).filter((name) => name.startsWith("q-a.json.damaged-"));
+  assert.equal(kept.length, 1);
+  assert.equal(readFileSync(join(dir, kept[0])).length, 32);
+});
+
+test("a good or missing log is left alone, and an unreachable gateway does not count as a majority", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "damaged-"));
+  const file = join(dir, "q-a.json");
+  const never = async () => {
+    throw new Error("nothing should be asked");
+  };
+  await setAsideDamagedLog(file, never, never, never);
+  assert.equal(existsSync(file), false);
+  fileStorage(file).save({ term: 1, votedFor: null, log: [], snapshot: { index: 0, term: 0, members: ["q-a"], state: null } } as never);
+  await setAsideDamagedLog(file, never, never, never);
+  assert.ok(existsSync(file));
+
+  writeFileSync(file, "{damaged");
+  const errors = mock.method(console, "error", () => {});
+  await assert.rejects(setAsideDamagedLog(file, () => Promise.reject(new Error("offline")), never, async () => {
+    assert.ok(existsSync(file));
+    throw new Error("stop");
+  }), /stop/);
+  errors.mock.restore();
+  assert.equal(readFileSync(file, "utf8"), "{damaged");
 });
 
 test("a new node joins a running cluster by asking a member, and a powered-off node stops answering until powered on", async () => {
