@@ -1,7 +1,7 @@
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createQueue } from "./queue.ts";
 import { NotOrchestrator, createRaft } from "./raft.ts";
@@ -53,10 +53,21 @@ export function fileStorage(file: string) {
         throw new Error(`Cannot read the saved log ${file}: ${(cause as Error).message}`);
       }
     },
-    // Written to a temporary file and renamed, so a node killed mid-write keeps the old copy.
+    // Written to a temporary file and renamed, so a node killed mid-write keeps the old copy. Both are
+    // forced to disk: after a power cut, a rename that got there ahead of the data left a file of zeros.
     save: (data: Persisted) => {
-      writeFileSync(`${file}.tmp`, JSON.stringify(data));
+      const flush = (path: string, flags: string, write?: (fd: number) => void) => {
+        const fd = openSync(path, flags);
+        try {
+          write?.(fd);
+          fsyncSync(fd);
+        } finally {
+          closeSync(fd);
+        }
+      };
+      flush(`${file}.tmp`, "w", (fd) => writeFileSync(fd, JSON.stringify(data)));
       renameSync(`${file}.tmp`, file);
+      flush(dirname(file), "r");
     },
   };
 }

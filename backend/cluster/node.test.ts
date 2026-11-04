@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import fs, { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { fileStorage } from "./node.ts";
 
 // Each test runs a node as its own process, the way the gateway starts them.
 function runNode(port: number, dataDir: string, env: Record<string, string> = {}) {
@@ -17,6 +19,32 @@ function runNode(port: number, dataDir: string, env: Record<string, string> = {}
 
 // This machine's address on a network, if it has one.
 const lan = Object.values(networkInterfaces()).flat().find((address) => address?.family === "IPv4" && !address.internal)?.address;
+
+test("a save reaches the disk before the rename, and the rename after it", () => {
+  const file = join(mkdtempSync(join(tmpdir(), "node-test-")), "Q-01.json");
+  const data = { term: 3, votedFor: "Q-02", log: [], snapshot: { index: 0, term: 0, state: null, members: ["Q-01"] } };
+  const steps: string[] = [];
+  const realFsync = fs.fsyncSync;
+  const realRename = fs.renameSync;
+  mock.method(fs, "fsyncSync", (fd: number) => {
+    steps.push(fs.fstatSync(fd).isDirectory() ? "fsync directory" : "fsync file");
+    realFsync(fd);
+  });
+  mock.method(fs, "renameSync", (from: string, to: string) => {
+    steps.push("rename");
+    realRename(from, to);
+  });
+  syncBuiltinESMExports();
+  try {
+    fileStorage(file).save(data as never);
+  } finally {
+    mock.restoreAll();
+    syncBuiltinESMExports();
+  }
+  assert.deepEqual(steps, ["fsync file", "rename", "fsync directory"]);
+  assert.deepEqual(fileStorage(file).load(), data);
+  assert.equal(existsSync(`${file}.tmp`), false);
+});
 
 test("a node only listens on loopback", { skip: !lan && "no network address to try" }, async () => {
   const node = runNode(4981, mkdtempSync(join(tmpdir(), "node-test-")));
