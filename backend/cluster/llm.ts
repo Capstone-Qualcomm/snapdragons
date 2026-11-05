@@ -58,6 +58,24 @@ function accessToken(key: string): Promise<string> {
   return token;
 }
 
+// GCP_AI_ARMOR names a Model Armor template, and each prompt and reply must pass it. If it can't answer, the call
+// fails, so a Model Armor outage stops model calls until it's back. Errors never quote the text being checked.
+async function screen(kind: "UserPrompt" | "ModelResponse", text: string, token: string, signal?: AbortSignal): Promise<void> {
+  const armor = process.env.GCP_AI_ARMOR;
+  if (!armor) return;
+  const what = kind === "UserPrompt" ? "prompt" : "reply";
+  const response = await fetch(`${armor.replace(/\/$/, "")}:sanitize${kind}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ [kind === "UserPrompt" ? "userPromptData" : "modelResponseData"]: { text } }),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Model Armor could not check the ${what} (HTTP ${response.status}).`);
+  const state = ((await response.json()) as { sanitizationResult?: { filterMatchState?: string } }).sanitizationResult?.filterMatchState;
+  if (state === "MATCH_FOUND") throw new Error(`Model Armor blocked the ${what}.`);
+  if (state !== "NO_MATCH_FOUND") throw new Error(`Model Armor could not check the ${what}.`);
+}
+
 export async function complete(messages: Message[], maxTokens = 800, onText?: (text: string) => void, signal?: AbortSignal): Promise<string> {
   const { GCP_AI_ENDPOINT: endpoint, GCP_AI_KEY: key, GCP_AI_MODEL: model, SERVICES_URL: services } = process.env;
   const proxy = services && `${services.replace(/\/$/, "")}/llm`;
@@ -77,6 +95,8 @@ export async function complete(messages: Message[], maxTokens = 800, onText?: (t
     return text;
   }
   const token = await accessToken(key);
+  // Only what came from outside: the system prompts are ours.
+  await screen("UserPrompt", messages.filter((message) => message.role !== "system").map((message) => message.content).join("\n\n"), token, signal);
   const response = await fetch(`${endpoint.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -86,7 +106,9 @@ export async function complete(messages: Message[], maxTokens = 800, onText?: (t
   if (!response.ok) throw new Error(`The model call failed (HTTP ${response.status}).`);
   if (!stream) {
     const result = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return result.choices?.[0]?.message?.content ?? "";
+    const reply = result.choices?.[0]?.message?.content ?? "";
+    await screen("ModelResponse", reply, token, signal);
+    return reply;
   }
   // Server-sent events: one "data: {json}" line per piece, then "data: [DONE]".
   let text = "";
@@ -105,6 +127,8 @@ export async function complete(messages: Message[], maxTokens = 800, onText?: (t
       }
     }
   }
+  // shortcut: a streamed reply is checked once it has finished, so a blocked one has already been shown. Hold it back if a stream ever shows more than a demo invite.
+  await screen("ModelResponse", text, token, signal);
   return text;
 }
 

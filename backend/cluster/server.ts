@@ -617,7 +617,8 @@ export function createClusterServer(options: ServerOptions = {}) {
       }
     } catch (cause) {
       if (res.destroyed) return;
-      if (res.headersSent) return void res.end();
+      // Cut the connection so a board sees a stream that failed partway as a failure, not as a complete reply.
+      if (res.headersSent) return void res.destroy();
       send(res, 502, { error: cause instanceof Error ? cause.message : "The model call failed." });
     }
   });
