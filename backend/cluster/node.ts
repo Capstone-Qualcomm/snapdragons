@@ -67,7 +67,8 @@ export function fileStorage(file: string) {
       };
       flush(`${file}.tmp`, "w", (fd) => writeFileSync(fd, JSON.stringify(data)));
       renameSync(`${file}.tmp`, file);
-      flush(dirname(file), "r");
+      // Windows refuses to sync a folder (EPERM), which stopped every node there. The boards run Linux, where this matters.
+      if (process.platform !== "win32") flush(dirname(file), "r");
     },
   };
 }
