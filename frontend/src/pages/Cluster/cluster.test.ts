@@ -16,4 +16,16 @@ describe("describeEvent", () => {
     expect(describeEvent("Q-03 joined", tasks)).toBe("Board 3 joined");
     expect(describeEvent("Plan J-7 done in 18.2 s on 4 nodes", tasks)).toBe("Job finished in 18.2 s on 4 boards");
   });
+
+  it("says what a finished fetch loaded, and nothing more for a step without a source", () => {
+    const fetched = [
+      { id: "T-2", input: "Fetch Slack messages", source: "slack", output: { summary: "Loaded 12 Slack messages", short: "12 messages", data: null } },
+      { id: "T-3", input: "Fetch Jira tickets", source: "jira" },
+      { id: "T-4", input: "Draft replies", skill: "draft", output: { summary: "3 replies drafted", short: "3 replies", data: null } },
+    ] as Task[];
+    expect(describeEvent("Q-02 completed T-2", fetched)).toBe("Board 2 finished “Fetch Slack messages”: Loaded 12 Slack messages");
+    // A fetch whose result has not reached this page yet, and an Assistant step, read as before.
+    expect(describeEvent("Q-01 completed T-3", fetched)).toBe("Board 1 finished “Fetch Jira tickets”");
+    expect(describeEvent("Q-03 completed T-4", fetched)).toBe("Board 3 finished “Draft replies”");
+  });
 });
