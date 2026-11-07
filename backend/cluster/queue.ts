@@ -45,6 +45,10 @@ export type Task = {
   assignee?: string | null;
   // Planning and merging steps only the current orchestrator runs.
   role?: "orchestrator";
+  // A refresh step that loads one source's list ("slack"), and the gateway's handle for the browser
+  // that asked, or null when nobody did. Only the gateway knows whose sign-in a handle stands for.
+  source?: string;
+  asker?: string | null;
 };
 
 export type Plan = { scenario: string; prompt: string; pace: number; stage: number; stages: Array<{ label: string; short: string; icon: Icon }>; result: Json | null; error?: string };
@@ -139,14 +143,15 @@ export function createQueue() {
     log(at, `${task.id} back in the queue at ${percent(task.progress)}, from ${task.lostBy.at(-1)}`);
   }
 
-  function addJob(name: string, steps: string[], then: string | undefined, at: number): Job {
+  // With fetch, each step loads the source at the same place in fetch.sources, as fetch.asker.
+  function addJob(name: string, steps: string[], then: string | undefined, at: number, fetch?: { sources: string[]; asker: string | null }): Job {
     const job: Job = { id: `J-${data.nextJob++}`, name, queuedAt: at, doneAt: null, nodes: null };
-    const add = (input: string, after: string[] = []) => {
-      const task: Task = { id: `T-${data.nextTask++}`, input, status: "queued", worker: null, lostBy: [], job: job.id, after, progress: 0, runs: [] };
+    const add = (input: string, after: string[] = [], source?: string) => {
+      const task: Task = { id: `T-${data.nextTask++}`, input, status: "queued", worker: null, lostBy: [], job: job.id, after, progress: 0, runs: [], ...(source && { source, asker: fetch!.asker }) };
       data.tasks.push(task);
       return task;
     };
-    const fetches = steps.map((step) => add(step));
+    const fetches = steps.map((step, index) => add(step, [], fetch?.sources[index]));
     if (then) add(then, fetches.map((task) => task.id));
     data.jobs.push(job);
     // Only finished jobs are dropped, so a long queue of unfinished ones keeps every record.
@@ -311,7 +316,7 @@ export function createQueue() {
     task.progress = 1;
     // The output holds everything the checkpoint did.
     delete task.partial;
-    if (task.skill) task.output = output ?? { summary: "Finished without a result", short: "Done", data: null };
+    if (task.skill || task.source) task.output = output ?? { summary: "Finished without a result", short: "Done", data: null };
     Object.assign(currentRun(task), { end: at, heardAt: at, to: 1, outcome: "done" });
     const entry = workerById(worker);
     if (entry) entry.done += 1;
@@ -387,7 +392,7 @@ export function createQueue() {
         if (seen) return data.jobs.find((job) => job.id === seen.job) ?? null;
         const job =
           command.type === "job"
-            ? addJob(command.name as string, command.steps as string[], command.then as string | undefined, at)
+            ? addJob(command.name as string, command.steps as string[], command.then as string | undefined, at, command.fetch as { sources: string[]; asker: string | null } | undefined)
             : addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at);
         if (typeof command.requestId === "string") data.requests.push({ id: command.requestId, job: job.id });
         if (data.requests.length > KEEP_REQUESTS) data.requests.shift();
@@ -422,8 +427,10 @@ export function createQueue() {
       const current = held(worker.id)[0];
       return { ...worker, current: current?.id ?? null, takenFrom: current?.lostBy.at(-1) ?? null };
     });
-    // Newest first, the way the Cluster view shows them.
-    return { tasks: data.tasks, jobs: data.jobs, workers, terms: data.terms, events: [...data.events].reverse() };
+    // Newest first, the way the Cluster view shows them. Every open page reads this, so a refresh's
+    // handle stays out: a board gets it with the step it claims, and nothing else needs it.
+    const tasks = data.tasks.map(({ asker: _asker, ...task }) => task);
+    return { tasks, jobs: data.jobs, workers, terms: data.terms, events: [...data.events].reverse() };
   }
 
   return {
