@@ -64,7 +64,7 @@ type SourceServerOptions<S extends Session> = {
   appUrl: string;
   session: (req: IncomingMessage, res: ServerResponse) => S;
   status: (session: S) => Record<string, unknown>;
-  // The list the Report shows, served at GET /api/<name>/<items>.
+  // The list Today shows, served at GET /api/<name>/<items>.
   items: string;
   loadItems: (session: S) => Promise<unknown[]>;
   // Sign-in and anything else the source needs. Returns false when it has no such route.
