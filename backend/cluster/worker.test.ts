@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 import { test } from "node:test";
 import { runWorker } from "./worker.ts";
@@ -122,4 +124,62 @@ test("a heartbeat waits for the one before it to land, so slow beats neither pil
     },
   });
   assert.equal(most, 1);
+});
+
+// Runs one claimed step to completion against services answering with reply, and returns what was asked and reported.
+async function runFetch(task: Record<string, unknown>, reply: (path: string) => [number, unknown]) {
+  const asked: string[] = [];
+  const services = createServer((req, res) => {
+    asked.push(req.url ?? "");
+    const [status, body] = reply(req.url ?? "");
+    res.writeHead(status, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(body));
+  });
+  await new Promise<void>((resolve) => services.listen(0, "127.0.0.1", resolve));
+  const before = process.env.SERVICES_URL;
+  process.env.SERVICES_URL = `http://127.0.0.1:${(services.address() as AddressInfo).port}`;
+  const completed: Array<Record<string, unknown>> = [];
+  let claims = 0;
+  try {
+    await runWorker({
+      id: "Q-02",
+      workMs: 50,
+      pollMs: 10,
+      heartbeatMs: 20,
+      call: async (command) => {
+        if (command.type === "claim") return claims++ ? { task: null, leave: true } : { task: { progress: 0, ...task } };
+        if (command.type === "complete") completed.push(command);
+        return true;
+      },
+    });
+  } finally {
+    if (before === undefined) delete process.env.SERVICES_URL;
+    else process.env.SERVICES_URL = before;
+    services.close();
+  }
+  return { asked, output: completed[0]?.output as { summary: string; short: string; data: unknown } | undefined };
+}
+
+test("a fetch step loads its source through the services, as the browser that asked, and reports only the count", async () => {
+  const { asked, output } = await runFetch({ id: "T-2", source: "slack", asker: "handle-1" }, () => [200, { items: [{ text: "hi" }, { text: "ship it" }] }]);
+  assert.deepEqual(asked, ["/sources/slack?asker=handle-1"]);
+  assert.deepEqual(output, { summary: "Loaded 2 Slack messages", short: "2 messages", data: { source: "slack", count: 2 } });
+});
+
+test("a fetch step of one item says so in the singular", async () => {
+  const { output } = await runFetch({ id: "T-1", source: "jira", asker: "handle-1" }, () => [200, { items: [{ key: "QT1S-46" }] }]);
+  assert.equal(output?.summary, "Loaded 1 Jira ticket");
+  assert.equal(output?.short, "1 ticket");
+});
+
+test("a fetch step nobody asked for loads nothing, and asks the services nothing", async () => {
+  const { asked, output } = await runFetch({ id: "T-3", source: "github", asker: null }, () => [500, {}]);
+  assert.deepEqual(asked, []);
+  assert.equal(output?.short, "Skipped");
+  assert.equal(output?.data, null);
+});
+
+test("a source that refuses comes back as the step's result, not as a failed board", async () => {
+  const { output } = await runFetch({ id: "T-4", source: "outlook", asker: "handle-1" }, () => [401, { error: "Outlook is not connected. Connect Outlook." }]);
+  assert.deepEqual(output, { summary: "Outlook not loaded: Outlook is not connected. Connect Outlook.", short: "Not loaded", data: null });
 });
