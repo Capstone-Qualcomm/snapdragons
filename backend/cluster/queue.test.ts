@@ -197,3 +197,41 @@ test("a request sent again after its orchestrator died gets the job it made the 
   assert.equal(q.queue.state().jobs.length, 1);
   assert.notEqual((q.queue.apply({ type: "plan", scenario: "student", prompt: "Go", requestId: "r-2", at: 0 }) as Job).id, first.id);
 });
+
+test("a fetching refresh marks each step with its source and the asker, and the ranking step with neither", () => {
+  const queue = createQueue();
+  queue.apply({ type: "job", at: 0, name: "Morning refresh", steps: ["Fetch Jira tickets", "Fetch Slack messages"], then: "Rank today's list", fetch: { sources: ["jira", "slack"], asker: "handle-1" } });
+  const claim = (worker: string) => (queue.apply({ type: "claim", at: 1, worker }) as ClaimResult).task!;
+
+  // A board gets the asker with the step it claims, so it can fetch as that browser.
+  assert.deepEqual([claim("Q-01"), claim("Q-02")].map((task) => [task.source, task.asker]), [["jira", "handle-1"], ["slack", "handle-1"]]);
+  queue.apply({ type: "complete", at: 2, worker: "Q-01", task: "T-1", output: { summary: "Loaded 4 Jira tickets", short: "4 tickets", data: { source: "jira", count: 4 } } });
+  queue.apply({ type: "complete", at: 3, worker: "Q-02", task: "T-2" });
+  const rank = claim("Q-03");
+  assert.equal(rank.source, undefined);
+  assert.equal("asker" in rank, false);
+
+  const tasks = queue.state().tasks;
+  assert.equal(tasks.find((task) => task.id === "T-1")!.output!.summary, "Loaded 4 Jira tickets");
+  // A fetch that came back without an output still says it finished.
+  assert.equal(tasks.find((task) => task.id === "T-2")!.output!.summary, "Finished without a result");
+  // Every open page reads the state, so the asker never appears in it.
+  assert.ok(tasks.every((task) => !("asker" in task)));
+});
+
+test("a refresh nobody asked for fetches as nobody", () => {
+  const queue = createQueue();
+  queue.apply({ type: "job", at: 0, name: "Morning refresh", steps: ["Fetch Slack messages"], fetch: { sources: ["slack"], asker: null } });
+  const { task } = queue.apply({ type: "claim", at: 1, worker: "Q-01" }) as ClaimResult;
+  assert.equal(task!.source, "slack");
+  assert.equal(task!.asker, null);
+});
+
+test("a refresh without fetch is the same as before: no sources, no askers, no outputs", () => {
+  const queue = createQueue();
+  queue.apply({ type: "job", at: 0, name: "Morning refresh", steps: ["Fetch Jira tickets"], then: "Rank today's list" });
+  const { task } = queue.apply({ type: "claim", at: 1, worker: "Q-01" }) as ClaimResult;
+  assert.deepEqual(Object.keys(task!).sort(), ["after", "id", "input", "job", "lostBy", "progress", "runs", "status", "worker"]);
+  queue.apply({ type: "complete", at: 2, worker: "Q-01", task: "T-1", output: { summary: "ignored", short: "", data: null } });
+  assert.equal(queue.state().tasks[0].output, undefined);
+});
