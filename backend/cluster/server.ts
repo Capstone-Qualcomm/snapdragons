@@ -35,7 +35,7 @@ export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
 // waits for all of them. A new source adds its fetch here.
 export const REFRESH = {
   name: "Morning refresh",
-  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues"],
+  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues", "Fetch Outlook messages"],
   then: "Rank today's list",
 };
 
