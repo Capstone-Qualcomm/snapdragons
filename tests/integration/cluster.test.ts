@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,19 +15,29 @@ type State = {
   term: number | null;
   members: string[];
   nodes: Array<{ id: string; up: boolean }>;
-  tasks: Array<{ id: string; status: string; worker: string | null; job: string; progress: number; lostBy: string[]; runs: Run[]; stage?: number }>;
+  tasks: Array<{ id: string; status: string; worker: string | null; job: string; progress: number; lostBy: string[]; runs: Run[]; stage?: number; source?: string; output?: { summary: string; data: unknown } | null }>;
   jobs: Array<{ id: string; doneAt: number | null; nodes: number | null; plan?: { result: { sections: Array<{ title: string; rows?: string[][] }> } | null } }>;
 };
 
-async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(join(tmpdir(), "cluster-test-"))) {
-  const { server, startCluster: startNodes, stopNodes } = createClusterServer({
+// fetching has the boards really load each source in a refresh, from the source backends at sourceUrls.
+type Fetching = { appUrl: string; sourceUrls: Record<string, string> };
+
+async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(join(tmpdir(), "cluster-test-")), fetching?: Fetching) {
+  const nodeEnv: Record<string, string> = { WORK_MS: "1500", LEASE_MS: "1000", RAFT_HEARTBEAT_MS: "100", RAFT_ELECTION_MIN_MS: "500", RAFT_ELECTION_MAX_MS: "1000" };
+  const { server, servicesServer, startCluster: startNodes, stopNodes } = createClusterServer({
     port: 0,
     nodePort,
     dataDir,
-    nodeEnv: { WORK_MS: "1500", LEASE_MS: "1000", RAFT_HEARTBEAT_MS: "100", RAFT_ELECTION_MIN_MS: "500", RAFT_ELECTION_MAX_MS: "1000" },
+    nodeEnv,
+    ...(fetching && { fetchSources: true, ...fetching }),
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${(server.address() as AddressInfo).port}`;
+  if (fetching) {
+    // The boards reach the services the way real ones do, at SERVICES_URL. Set before any node starts.
+    await new Promise<void>((resolve) => servicesServer.listen(0, "127.0.0.1", resolve));
+    nodeEnv.SERVICES_URL = `http://127.0.0.1:${(servicesServer.address() as AddressInfo).port}`;
+  }
 
   const state = async () => (await (await fetch(`${base}/api/cluster/state`)).json()) as State;
   async function until(check: (current: State) => boolean, what: string, attempts = 200): Promise<State> {
@@ -37,12 +48,13 @@ async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(jo
     }
     throw new Error(`Timed out waiting until ${what}.`);
   }
-  const post = (path: string, body: unknown = {}) => fetch(base + path, { method: "POST", body: JSON.stringify(body) });
+  const post = (path: string, body: unknown = {}, headers: Record<string, string> = {}) => fetch(base + path, { method: "POST", body: JSON.stringify(body), headers });
   const refresh = async () => ((await (await post("/api/cluster/refresh")).json()) as { job: { id: string } }).job.id;
   const jobDone = (job: string) => (current: State) => current.jobs.some((entry) => entry.id === job && entry.doneAt !== null);
 
   const close = () => {
     server.close();
+    if (servicesServer.listening) servicesServer.close();
     stopNodes();
   };
   try {
@@ -65,6 +77,8 @@ test("three nodes elect an orchestrator and split a refresh, each step done once
     assert.equal(steps.length, REFRESH.steps.length + 1);
     for (const step of steps) assert.deepEqual(step.runs.map((run) => run.outcome), ["done"]);
     assert.equal(done.jobs.find((entry) => entry.id === job)!.nodes, 3);
+    // With fetching off, as by default, the steps only take time: no sources, no results.
+    assert.ok(steps.every((step) => step.source === undefined && step.output === undefined));
   } finally {
     cluster.close();
   }
@@ -273,5 +287,101 @@ test("an Assistant plan survives a worker and then the orchestrator being killed
     assert.equal(replies.length, 6);
   } finally {
     cluster.close();
+  }
+});
+
+// Stand-in source backends: each serves its list only to the browser whose sid it was given, the way
+// the real ones only serve a connected session, and Outlook says it is not connected.
+const SID = "ab".repeat(32);
+const APP = "http://app.test";
+async function startSources() {
+  const asked: Array<{ path: string; sid: string | null }> = [];
+  const lists: Record<string, [string, unknown[]]> = {
+    "/api/jira/issues": ["issues", [{ key: "QT1S-46" }, { key: "QT1S-10" }, { key: "QT1S-53" }]],
+    "/api/slack/messages": ["messages", [{ text: "Can you review my PR?" }, { text: "Demo is at 2" }]],
+    "/api/github/issues": ["issues", [{ title: "Snapshot the queue" }]],
+  };
+  const server = createServer((req, res) => {
+    const sid = req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1] ?? null;
+    asked.push({ path: req.url ?? "", sid });
+    const list = lists[req.url ?? ""];
+    const [status, body] = sid !== SID || !list ? [401, { error: "Outlook is not connected. Connect Outlook." }] : [200, { [list[0]]: list[1] }];
+    res.writeHead(status, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(body));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return { asked, server, fetching: { appUrl: APP, sourceUrls: { jira: url, slack: url, github: url, outlook: url } } };
+}
+
+const outputs = (state: State, job: string) => Object.fromEntries(state.tasks.filter((task) => task.job === job && task.source).map((task) => [task.source, task.output?.summary]));
+
+test("boards fetch each source as the browser that asked, and only what they loaded reaches the cluster", async () => {
+  const sources = await startSources();
+  const cluster = await startCluster(4701, 3, undefined, sources.fetching);
+  try {
+    const response = await cluster.post("/api/cluster/refresh", {}, { origin: APP, cookie: `sid=${SID}` });
+    const job = ((await response.json()) as { job: { id: string } }).job.id;
+    const done = await cluster.until(cluster.jobDone(job), "the refresh is done");
+
+    assert.deepEqual(outputs(done, job), {
+      jira: "Loaded 3 Jira tickets",
+      slack: "Loaded 2 Slack messages",
+      github: "Loaded 1 GitHub issue",
+      outlook: "Outlook not loaded: Outlook is not connected. Connect Outlook.",
+    });
+    // Each source was asked once, as that browser.
+    assert.deepEqual(sources.asked.map((request) => request.path).sort(), ["/api/github/issues", "/api/jira/issues", "/api/outlook/messages", "/api/slack/messages"]);
+    assert.ok(sources.asked.every((request) => request.sid === SID));
+    // The pages see counts, never the browser's sid, the handle standing for it, or the items themselves.
+    const seen = JSON.stringify(done);
+    assert.ok(!seen.includes(SID) && !seen.includes("asker") && !seen.includes("Can you review my PR?"));
+  } finally {
+    cluster.close();
+    sources.server.close();
+  }
+});
+
+test("a refresh from anywhere but the app's page fetches as nobody, and asks no source", async () => {
+  const sources = await startSources();
+  const cluster = await startCluster(4711, 3, undefined, sources.fetching);
+  try {
+    // The sid comes along, but not from the app's own page: another site cannot fetch as you.
+    const response = await cluster.post("/api/cluster/refresh", {}, { origin: "http://elsewhere.test", cookie: `sid=${SID}` });
+    const job = ((await response.json()) as { job: { id: string } }).job.id;
+    const done = await cluster.until(cluster.jobDone(job), "the refresh is done");
+
+    assert.ok(Object.values(outputs(done, job)).every((summary) => summary === "No signed-in browser asked for this refresh, so nothing was loaded"));
+    assert.equal(Object.keys(outputs(done, job)).length, 4);
+    assert.deepEqual(sources.asked, []);
+  } finally {
+    cluster.close();
+    sources.server.close();
+  }
+});
+
+test("a board that dies mid-fetch: another board fetches the source again and reports what it loaded", async () => {
+  const sources = await startSources();
+  const cluster = await startCluster(4721, 3, undefined, sources.fetching);
+  try {
+    const response = await cluster.post("/api/cluster/refresh", {}, { origin: APP, cookie: `sid=${SID}` });
+    const job = ((await response.json()) as { job: { id: string } }).job.id;
+    const busy = await cluster.until((current) => current.tasks.some((task) => task.job === job && task.source === "slack" && task.status === "claimed" && task.progress >= 0.3), "a board is partway through the Slack fetch");
+    const victim = busy.tasks.find((task) => task.job === job && task.source === "slack")!;
+    const board = victim.worker!;
+
+    // SIGKILL, like pulling the power on the board mid-fetch.
+    assert.equal((await cluster.post(`/api/cluster/nodes/${board}/kill`)).status, 200);
+    const done = await cluster.until(cluster.jobDone(job), "the refresh is done");
+    const resumed = done.tasks.find((task) => task.id === victim.id)!;
+
+    assert.deepEqual(resumed.lostBy, [board]);
+    assert.notEqual(resumed.runs.at(-1)!.worker, board);
+    assert.equal(resumed.output?.summary, "Loaded 2 Slack messages");
+    // The board that took it over fetched again: a read is safe to repeat.
+    assert.equal(sources.asked.filter((request) => request.path === "/api/slack/messages").length, 2);
+  } finally {
+    cluster.close();
+    sources.server.close();
   }
 });
