@@ -41,8 +41,9 @@ export const REFRESH = {
   then: "Rank today's list",
 };
 // Each source's backend: the list it serves at /api/<source>/<list>, and the variable naming its port (deploy/start.sh).
+// Jira's own server reads PORT, but hosts often set PORT to this gateway's port, so here it is JIRA_PORT.
 const SOURCES: Record<string, { title: string; list: string; portVariable: string; defaultPort: number }> = {
-  jira: { title: "Jira", list: "issues", portVariable: "PORT", defaultPort: 3001 },
+  jira: { title: "Jira", list: "issues", portVariable: "JIRA_PORT", defaultPort: 3001 },
   slack: { title: "Slack", list: "messages", portVariable: "SLACK_PORT", defaultPort: 3002 },
   github: { title: "GitHub", list: "issues", portVariable: "GITHUB_PORT", defaultPort: 3004 },
   outlook: { title: "Outlook", list: "messages", portVariable: "OUTLOOK_PORT", defaultPort: 3005 },
