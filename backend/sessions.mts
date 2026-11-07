@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Each browser gets a random "sid" cookie and its own connection state. The
-// Jira, Slack and GitHub backends all read the same cookie because cookies
+// Jira, Slack, GitHub and Outlook backends all read the same cookie because cookies
 // ignore ports. Connected sessions are saved to disk so a restart keeps them.
 // Browsers that never connected are dropped, oldest first, once there are more
 // than MAX_IDLE, so requests without a cookie can't grow the map forever. One
