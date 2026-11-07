@@ -71,7 +71,7 @@ type SourceServerOptions<S extends Session> = {
   routes: (req: IncomingMessage, res: ServerResponse, url: URL, session: S) => Promise<boolean>;
 };
 
-// What the Jira, Slack and GitHub backends have in common: connection status,
+// What the Jira, Slack, GitHub and Outlook backends have in common: connection status,
 // turning a source on or off, disconnecting, the items list with its activity
 // log, and only taking POSTs from the app's own pages.
 export function createSourceServer<S extends Session>({ name, title, port, appUrl, session, status, items, loadItems, routes }: SourceServerOptions<S>) {
