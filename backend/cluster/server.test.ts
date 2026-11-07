@@ -48,6 +48,8 @@ test("the refresh fetches from every source backend", () => {
   const sources = readdirSync(backend).filter((name) => name !== "cluster" && existsSync(join(backend, name, "server.ts")));
   const fetched = REFRESH.steps.map((step) => step.split(" ")[1].toLowerCase());
   assert.deepEqual([...fetched].sort(), [...sources].sort());
+  // Each step's source sits at the same place, since the boards fetch by it.
+  assert.deepEqual(REFRESH.sources, fetched);
 });
 
 test("node routes only know the six node names", async () => {
@@ -176,4 +178,30 @@ test("the services answer the boards' mail and calendar, and refuse the model wi
     if (saved.endpoint) process.env.GCP_AI_ENDPOINT = saved.endpoint;
     if (saved.key) process.env.GCP_AI_KEY = saved.key;
   }
+});
+
+test("the services give no source list for an unknown source, or for a handle the gateway never gave a browser", async () => {
+  // A source backend that would answer anyone, to show the gateway never gets as far as asking it.
+  let asked = 0;
+  const source = createServer((_req, res) => {
+    asked++;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ messages: [{ text: "secret" }] }));
+  });
+  servers.add(source);
+  await new Promise<void>((resolve) => source.listen(0, "127.0.0.1", resolve));
+  const sourceUrl = `http://127.0.0.1:${(source.address() as AddressInfo).port}`;
+  const { server, servicesServer } = createClusterServer({ port: 0, fetchSources: true, sourceUrls: { slack: sourceUrl } });
+  servers.add(server);
+  servers.add(servicesServer);
+  await new Promise<void>((resolve) => servicesServer.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(servicesServer.address() as AddressInfo).port}`;
+
+  assert.equal((await fetch(`${base}/sources/dropbox?asker=x`)).status, 404);
+  assert.equal((await fetch(`${base}/sources/constructor?asker=x`)).status, 404);
+  const guessed = await fetch(`${base}/sources/slack?asker=00000000-0000-0000-0000-000000000000`);
+  assert.equal(guessed.status, 410);
+  assert.match((await guessed.json()).error, /no longer known/);
+  assert.equal((await fetch(`${base}/sources/slack`)).status, 410);
+  assert.equal(asked, 0);
 });
