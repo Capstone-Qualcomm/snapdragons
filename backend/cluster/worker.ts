@@ -1,11 +1,30 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import { plural } from "./plan.ts";
 import type { Found, Json, SkillContext, StepOutput } from "./plan.ts";
 import type { ClaimResult, Task } from "./queue.ts";
 import { runSkill } from "./scenarios/index.ts";
+import { query } from "./services.ts";
 
-// What a plan step produced, from its skill on the scenario's demo data or the model. A
-// skill that throws still finishes the step, with the error as its result.
+// What one of a source's items is called in a step's result: "Loaded 12 Slack messages".
+const ITEMS: Record<string, string> = { jira: "Jira ticket", slack: "Slack message", github: "GitHub issue", outlook: "Outlook message" };
+
+// A refresh step loads its source's list through the gateway, as the browser that asked for the
+// refresh. Only the count goes in the result, and from there into every board's log; the items don't.
+async function fetchOutput(source: string, asker: string | null | undefined): Promise<StepOutput> {
+  const item = ITEMS[source] ?? `${source} item`;
+  if (!asker) return { summary: "No signed-in browser asked for this refresh, so nothing was loaded", short: "Skipped", data: null };
+  try {
+    const { items } = await query<{ items: unknown[] }>(`/sources/${encodeURIComponent(source)}?asker=${encodeURIComponent(asker)}`, 60_000);
+    return { summary: `Loaded ${plural(items.length, item)}`, short: plural(items.length, item.split(" ").slice(1).join(" ")), data: { source, count: items.length } };
+  } catch (cause) {
+    return { summary: `${item.split(" ")[0]} not loaded: ${(cause as Error).message}`, short: "Not loaded", data: null };
+  }
+}
+
+// What a step produced: a refresh step's source list, or a plan step's skill on the scenario's
+// demo data or the model. A skill that throws still finishes the step, with the error as its result.
 async function outputOf(task: Task, context: SkillContext): Promise<StepOutput | undefined> {
+  if (task.source) return fetchOutput(task.source, task.asker);
   if (!task.skill || !task.scenario) return undefined;
   try {
     return await runSkill(task.scenario, task.skill, task.params, context);
