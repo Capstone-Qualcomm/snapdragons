@@ -18,6 +18,15 @@ Besides the fixed refresh, the queue runs plans: a person's job split into stage
 - Planning and merging steps (`role: "orchestrator"`) only the current orchestrator runs, so a new orchestrator picks them up after an election. Other plan steps never go to the orchestrator while another board is up.
 - Stage functions run inside `apply` on every node, so they are pure: only step outputs and the dataset.
 
+## Refresh fetching
+
+With `CLUSTER_FETCH_SOURCES=1`, each fetch step of a refresh really loads its source, on whichever board claims it. Without it (the default), a fetch step only takes time, as before.
+
+- **Who it fetches as.** A refresh asked for by the app's own page (its `Origin` is `APP_URL`'s) carries a random handle for that browser. The gateway keeps which `sid` each handle stands for, in memory only, for 10 minutes, so a browser's sign-in never reaches the log or a board's disk. An automatic refresh, or one from anywhere else, fetches as nobody and loads nothing.
+- **How a board fetches.** It asks the services for `GET /sources/:source?asker=<handle>`, and the gateway loads that source's list from its backend (`PORT`, `SLACK_PORT`, `GITHUB_PORT`, `OUTLOOK_PORT`, on loopback) with that browser's cookie. The board reports how many items came back, or the source's own reason it could not ("Slack is not connected. Connect Slack."). Only that sentence and the count go in the log; the items stay on the board that fetched them.
+- **When a board dies mid-fetch.** Its step goes back in the queue like any other, and the board that takes it fetches again: a read is safe to repeat.
+- **Why it is off.** Today still loads every source itself, so with fetching on each refresh loads every source twice. Slack makes one request per DM, which can run into its rate limits. Turn it on for everyone once Today uses what the boards fetched.
+
 ## Run it
 
 ```
@@ -46,7 +55,7 @@ With `CLUSTER_BOARDS` set (say `q-sanyam`), the gateway runs the real Uno Q boar
 
 - **Joining.** A board runs one command, shown under **Connect a board** on the Cluster page: `curl -fsSL <app>/api/cluster/join.sh | sh -s -- <name> <tailnet auth key>`. The script needs only Docker, which App Lab already runs. It starts the board's own Tailscale container and a `node:24-slim` container running `node.ts` in that container's network, so the node is reachable only on the tailnet. A board with nothing saved asks the app who is in the cluster and joins them, or starts the cluster if nobody is there. A board with a saved log rejoins as it was.
 - **Kill and Restart** power a board off and on (`POST /power` on the node). It stops answering and drops its step, as if unplugged. Unlike pulling the real plug, it keeps what it had in memory, so an orchestrator powered on before another was elected is still the orchestrator, and gives every node a fresh lease.
-- **Services.** Besides the cluster API, the gateway serves what every node can query, on port 4100 (`SERVICES_URL` on a board, over the tailnet only): the model (`POST /llm`, since boards have no key) and the demo company's mail (`/mail/inbox`, `/mail/messages/:id`), calendar (`/calendar/events`) and hiring req (`/hiring/role`), from `scenarios/data/interviews.json`. Boards do not get that file; they ask for what they need (`services.ts`).
+- **Services.** Besides the cluster API, the gateway serves what every node can query, on port 4100 (`SERVICES_URL` on a board, over the tailnet only): the model (`POST /llm`, since boards have no key) and the demo company's mail (`/mail/inbox`, `/mail/messages/:id`), calendar (`/calendar/events`) and hiring req (`/hiring/role`), from `scenarios/data/interviews.json`, and with refresh fetching on, each source's list (`/sources/:source`). Boards do not get that file; they ask for what they need (`services.ts`).
 - **The demo** (`scenarios/interviews.ts`, the Assistant's first card): a hiring manager's inbox of 77 made-up emails (31 applications with resumes, availability replies, withdrawals, referrals, a duplicate, a phishing email and everyday noise) and the panel's calendar. The orchestrator opens the inbox and splits it five ways; each board fetches its emails and reads them with the model four at a time, reporting real progress, what it found so far and a checkpoint (the emails it has read), so a board that takes over a dead board's share starts after them. The orchestrator then merges and ranks the applicants in code and books the best six around the calendar; each board writes one invite, streamed onto the page; the orchestrator writes the report. **Open the demo inbox** on the page shows the data. A run takes about a minute.
 - **The live job** (`scenarios/ask.ts`): anything a person types, split into up to five parts the boards work at once, then combined.
 - Raft needs a majority, so a failover needs at least three boards.
