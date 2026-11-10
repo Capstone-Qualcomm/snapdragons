@@ -67,6 +67,7 @@
 }
 
 .logo-github { filter: var(--logo-filter); }
+.logo-teams { color: #6264a7; }
 
 /* A status dot. Busy ones pulse softly. */
 .dot {

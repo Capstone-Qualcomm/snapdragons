@@ -38,6 +38,7 @@ const ABOUT: Record<string, string> = {
   jira: "Tickets assigned to you, with status, sprint and story points.",
   github: "Pull requests waiting on your review and issues assigned to you.",
   outlook: "Unread messages from your Outlook inbox.",
+  teams: "Recent direct chats and group chat mentions that need your attention.",
 };
 
 // Disconnect asks once more, since connecting again means signing in again.

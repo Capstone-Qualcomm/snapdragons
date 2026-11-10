@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { JiraIssue } from "./jira";
 
-export type SourceName = "jira" | "slack" | "github" | "outlook";
+export type SourceName = "jira" | "slack" | "github" | "outlook" | "teams";
 export type SourceStatus = "loading" | "unconfigured" | "disconnected" | "disabled" | "error" | "ready";
 
 export type SlackMessage = {
@@ -34,7 +34,17 @@ export type OutlookMessage = {
   url: string;
 };
 
-export type ItemsOf = { slack: SlackMessage; jira: JiraIssue; github: GitHubIssue; outlook: OutlookMessage };
+export type TeamsMessage = {
+  id: string;
+  kind: "mention" | "dm";
+  from: string;
+  where: string;
+  text: string;
+  sentAt: string;
+  url: string;
+};
+
+export type ItemsOf = { slack: SlackMessage; jira: JiraIssue; github: GitHubIssue; outlook: OutlookMessage; teams: TeamsMessage };
 
 type Connection = {
   configured: boolean;
@@ -66,8 +76,8 @@ export type Source<T> = {
 
 type State<T> = Pick<Source<T>, "status" | "syncing" | "items" | "error" | "loadedAt" | "account">;
 
-export const titles: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub", outlook: "Outlook" };
-const lists: Record<SourceName, string> = { jira: "issues", slack: "messages", github: "issues", outlook: "messages" };
+export const titles: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub", outlook: "Outlook", teams: "Teams" };
+const lists: Record<SourceName, string> = { jira: "issues", slack: "messages", github: "issues", outlook: "messages", teams: "messages" };
 
 const accountOf = (connection: Connection) =>
   connection.team ?? connection.user ?? connection.email ?? connection.sites?.find((site) => site.id === connection.cloudId)?.name ?? null;

@@ -36,7 +36,8 @@ function App() {
   const jira = useSource("jira");
   const github = useSource("github");
   const outlook = useSource("outlook");
-  const sources = [slack, jira, github, outlook];
+  const teams = useSource("teams");
+  const sources = [slack, jira, github, outlook, teams];
   // What each source loaded, items marked done on Today included.
   const counts = Object.fromEntries(sources.map((source) => [source.name, source.items.length]));
 
