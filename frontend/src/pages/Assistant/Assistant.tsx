@@ -28,7 +28,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   sources: Source<any>[];
 }) {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
-  const [selected, setSelected] = useState("student");
+  const [selected, setSelected] = useState("");
   const [prompt, setPrompt] = useState("");
   const [pace, setPace] = useState("normal");
   const [error, setError] = useState<string | null>(null);
@@ -39,9 +39,6 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const loadScenarios = useCallback(() => {
     api<{ scenarios: ScenarioInfo[] }>("/api/assistant/scenarios").then(({ scenarios }) => {
       setScenarios(scenarios);
-      // The first scenario is picked to start with, its prompt in the box.
-      if (scenarios[0]) setSelected(scenarios[0].id);
-      setPrompt((current) => current || scenarios[0]?.prompt || "");
     }, (cause: Error) => setError(cause.message));
   }, []);
 
@@ -77,6 +74,11 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   }
 
   function pick(id: string) {
+    if (id === selected) {
+      setSelected("");
+      setPrompt("");
+      return;
+    }
     setSelected(id);
     setPrompt(scenarios.find((entry) => entry.id === id)?.prompt ?? "");
   }
@@ -94,7 +96,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         setTodayActionRequest(prompt);
         return;
       }
-      const { job } = await api<{ job: Job }>("/api/assistant/run", { scenario: selected, prompt, pace });
+      // With no example card selected, run the live open-ended job scenario.
+      const { job } = await api<{ job: Job }>("/api/assistant/run", { scenario: selected || "ask", prompt, pace });
       setShown(job.id);
       await reload();
     } catch (cause) {
@@ -125,7 +128,6 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         onPrompt={setPrompt}
         onPace={setPace}
         onRun={() => void run()}
-        sources={sources}
       />
     );
   }
@@ -146,7 +148,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   );
 }
 
-function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun, sources }: {
+function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun }: {
   scenarios: ScenarioInfo[];
   selected: string;
   prompt: string;
@@ -159,19 +161,15 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
   onPrompt: (prompt: string) => void;
   onPace: (pace: string) => void;
   onRun: () => void;
-  sources: Source<any>[];
 }) {
   const [browsing, setBrowsing] = useState(false);
-  const [todayAction, setTodayAction] = useState(false);
   const scenario = scenarios.find((entry) => entry.id === selected);
   return (
     <div className="ask">
       <div className="ask-hero">
-        <h1>What should I do?</h1>
-        <p className="lede">Ask for a multi-step job or a change in a connected app. I’ll understand the request and route it.</p>
-        <button className="text-button" type="button" aria-expanded={todayAction} onClick={() => setTodayAction(!todayAction)}>{todayAction ? "Hide action" : "Make a connected app change"}</button>
+        <h1>What should I take care of?</h1>
+        <p className="lede">Tell me what you need done in your connected apps. The examples below are demos you can try.</p>
       </div>
-      {todayAction && <TodayAction sources={sources} />}
       {error && <ErrorBanner message={error} onRetry={onRetry} />}
       <div className="prompt-card">
         <label className="sr-only" htmlFor="prompt">Job</label>
