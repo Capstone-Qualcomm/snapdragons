@@ -43,6 +43,7 @@ export const REFRESH = {
 const AUTO_PAUSE_MS = 1500;
 const RANK_REQUESTS_PER_MINUTE = 6;
 const MAX_CONCURRENT_RANKINGS = 2;
+const ASSISTANT_REQUESTS_PER_MINUTE = 10;
 
 // How fast an Assistant plan runs: each step's time is multiplied by this.
 const PACES: Record<string, number> = { slow: 1.6, normal: 1, fast: 0.5 };
@@ -96,6 +97,7 @@ export function createClusterServer(options: ServerOptions = {}) {
   let submitting = false;
   let activeRankings = 0;
   const rankingRequests = new Map<string, number[]>();
+  const assistantRequests = new Map<string, number[]>();
   // The last members and queue seen, so a cluster with every node down still shows who is missing and what they were doing.
   let lastMembers: string[] = [];
   let lastQueue = EMPTY_QUEUE;
@@ -511,6 +513,14 @@ export function createClusterServer(options: ServerOptions = {}) {
       }
       if (post && url.pathname === "/api/assistant/route") {
         if (req.headers.origin !== new URL(appUrl).origin) return send(res, 403, { error: "This request must come from the application." });
+        const sid = req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1];
+        if (!sid || !hasConnectedSession(sid)) return send(res, 401, { error: "Connect a source before using Assistant actions." });
+        const now = Date.now();
+        const recent = (assistantRequests.get(sid) ?? []).filter((at) => now - at < 60_000);
+        if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 10 requests per minute. Try again shortly." });
+        if (activeRankings >= MAX_CONCURRENT_RANKINGS) return send(res, 429, { error: "The model service is busy. Try again shortly." });
+        recent.push(now); assistantRequests.set(sid, recent); activeRankings++;
+        try {
         const body = await readBody(req, 10_000);
         const prompt = typeof body.prompt === "string" ? body.prompt.trim().slice(0, 2_000) : "";
         if (!prompt) return send(res, 400, { error: "Describe what you want the Assistant to do." });
@@ -522,21 +532,30 @@ export function createClusterServer(options: ServerOptions = {}) {
         try { route = jsonFrom<Record<string, unknown>>(answer); } catch { return send(res, 502, { error: "The Assistant could not understand where to route that request. Please try again." }); }
         if (route.destination !== "today" && route.destination !== "boards") return send(res, 502, { error: "The Assistant could not choose an available destination for that request." });
         return send(res, 200, { destination: route.destination });
+        } finally { activeRankings--; }
       }
       if (post && url.pathname === "/api/assistant/action/prepare") {
         if (req.headers.origin !== new URL(appUrl).origin) return send(res, 403, { error: "This request must come from the application." });
-        const body = await readBody(req, 100_000);
+        const sid = req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1];
+        if (!sid || !hasConnectedSession(sid)) return send(res, 401, { error: "Connect a source before using Assistant actions." });
+        const now = Date.now();
+        const recent = (assistantRequests.get(sid) ?? []).filter((at) => now - at < 60_000);
+        if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 10 requests per minute. Try again shortly." });
+        if (activeRankings >= MAX_CONCURRENT_RANKINGS) return send(res, 429, { error: "The model service is busy. Try again shortly." });
+        recent.push(now); assistantRequests.set(sid, recent); activeRankings++;
+        try {
+        const body = await readBody(req, 2_500_000);
         const prompt = typeof body.prompt === "string" ? body.prompt.trim().slice(0, 2_000) : "";
-        const items = Array.isArray(body.items) ? body.items.slice(0, 300) as Array<Record<string, unknown>> : [];
+        const items = Array.isArray(body.items) ? body.items.slice(0, 1_000) as Array<Record<string, unknown>> : [];
         if (!prompt) return send(res, 400, { error: "Describe what you want the Assistant to do." });
         if (!items.length) return send(res, 400, { error: "Connect and enable a source in Today before asking the Assistant to act on it." });
         const candidates = items.filter((item) => typeof item.source === "string" && typeof item.id === "string").map((item) => ({
           source: String(item.source), id: String(item.id),
           todayId: typeof item.todayId === "string" ? item.todayId : "",
           done: Boolean(item.done),
-          title: typeof item.title === "string" ? item.title.slice(0, 300) : "",
-          context: typeof item.context === "string" ? item.context.slice(0, 1200) : "",
-          details: typeof item.details === "string" ? item.details.slice(0, 1200) : "",
+          title: typeof item.title === "string" ? item.title.slice(0, 200) : "",
+          context: typeof item.context === "string" ? item.context.slice(0, 200) : "",
+          details: typeof item.details === "string" ? item.details.slice(0, 300) : "",
         }));
         const allowed: Record<string, string[]> = { jira: ["status", "description", "storyPoints", "markDone", "undoDone"], github: ["comment", "markDone", "undoDone"], outlook: ["reply", "delete", "markDone", "undoDone"], slack: ["reply", "markDone", "undoDone"] };
         const target = body.target && typeof body.target === "object" ? body.target as Record<string, unknown> : null;
@@ -566,6 +585,7 @@ export function createClusterServer(options: ServerOptions = {}) {
         const validValue = typeof intent.value === "string" && intent.value.length <= 65_536 || target.action === "delete" && intent.value === null || target.action === "storyPoints" && (intent.value === null || typeof intent.value === "number" && [1, 2, 3, 5, 8, 13, 21].includes(intent.value));
         if (!validValue) return send(res, 502, { error: "The Assistant could not prepare a valid action. Please clarify the requested change." });
         return send(res, 200, { ready: true, source: item.source, itemId: item.id, todayId: item.todayId, title: item.title, action: target.action, value: intent.value });
+        } finally { activeRankings--; }
       }
       if (req.method === "GET" && url.pathname === "/api/assistant/scenarios") return send(res, 200, { scenarios: describeScenarios() });
       const sample = url.pathname.match(/^\/api\/assistant\/scenarios\/([^/]+)\/sample$/);
