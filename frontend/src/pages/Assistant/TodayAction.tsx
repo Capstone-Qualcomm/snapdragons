@@ -13,13 +13,13 @@ function itemsForModel(sources: Source<any>[]) {
   let completed: unknown = [];
   try { completed = JSON.parse(localStorage.getItem("continuum-done") ?? "[]"); } catch { /* no saved local state */ }
   const doneIds = Array.isArray(completed) ? completed : [];
-  return sources.flatMap((source) => source.items.slice(0, 25).map((item: any) => {
+  return sources.flatMap((source) => source.items.map((item: any) => {
     const id = source.name === "jira" ? item.key : item.id;
     const timestamp = source.name === "jira" ? item.updated : source.name === "slack" ? item.sentAt : source.name === "github" ? item.updatedAt : item.receivedAt;
     const at = timestamp ? new Date(timestamp).getTime() || 0 : 0;
     const todayId = `${source.name}:${id}@${at}`;
     const done = doneIds.includes(todayId);
-    if (source.name === "jira") return { source: source.name, id, todayId, done, title: item.summary, context: `${item.key} · ${item.status} · ${item.issueType}`, details: item.description };
+    if (source.name === "jira") return { source: source.name, id, todayId, done, title: String(item.summary ?? "").slice(0, 200), context: `${item.key} · ${item.status} · ${item.issueType}`.slice(0, 200), details: String(item.description ?? "").slice(0, 300) };
     if (source.name === "github") return { source: source.name, id, todayId, done, title: item.title, context: `${item.repository}#${item.number} · ${item.kind} · ${item.state}` };
     if (source.name === "outlook") return { source: source.name, id, todayId, done, title: item.subject, context: `From ${item.from}` };
     return { source: source.name, id, todayId, done, title: item.text, context: `${item.kind} from ${item.from} in ${item.where}` };
@@ -30,12 +30,14 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
   const [request, setRequest] = useState(initialRequest);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
+  const [transitionsLoaded, setTransitionsLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   async function prepare() {
     setBusy(true); setError(""); setMessage(""); setProposal(null);
+    setTransitions([]); setTransitionsLoaded(false);
     try {
       const target = await api<Target>("/api/assistant/action/prepare", { prompt: request, items: itemsForModel(sources) });
       if (!target.ready) { setProposal(target); return; }
@@ -54,7 +56,11 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
       const result = await api<Proposal>("/api/assistant/action/prepare", { prompt: request, items: itemsForModel(sources), target: { source: target.source, itemId: target.itemId, action: target.action }, context });
       setProposal(result);
       if (result.ready && result.source === "jira" && result.action === "status") {
-        setTransitions(await getJiraTransitions(result.itemId));
+        setTransitions([]);
+        setTransitionsLoaded(false);
+        const loaded = await getJiraTransitions(result.itemId);
+        setTransitions(loaded);
+        setTransitionsLoaded(true);
       }
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
@@ -86,25 +92,26 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
         await postGitHubComment(item.repository, item.number, String(proposal.value));
       } else if (proposal.source === "outlook") {
         const path = `/api/outlook/messages/${encodeURIComponent(proposal.itemId)}/${proposal.action === "delete" ? "delete" : "reply"}`;
-        await api(path, proposal.action === "delete" ? {} : { comment: String(proposal.value) });
-        if (proposal.action === "delete") window.dispatchEvent(new CustomEvent("outlook-message-deleted", { detail: proposal.itemId }));
+        const result = await api<{ markedRead?: boolean }>(path, proposal.action === "delete" ? {} : { comment: String(proposal.value) });
+        if (proposal.action === "delete" || proposal.action === "reply") window.dispatchEvent(new CustomEvent("outlook-message-deleted", { detail: proposal.itemId }));
+        if (proposal.action === "reply" && result.markedRead === false) setMessage("Reply sent, but Outlook could not mark the email as read.");
       } else {
         await api(`/api/slack/messages/${encodeURIComponent(proposal.itemId)}/message`, { text: String(proposal.value) });
       }
       await Promise.all(sources.filter((source) => source.name === proposal.source).map((source) => source.reload()));
-      setMessage("Action completed.");
+      setMessage((current) => current || "Action completed.");
       setProposal(null);
       onComplete?.();
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
   }
 
-  const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase());
+  const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && (!transitionsLoaded || !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase()));
   const actionName = proposal?.ready ? ({ status: "Change status", description: "Replace description", storyPoints: "Set story points", comment: "Post GitHub comment", reply: proposal.source === "slack" ? "Send Slack reply" : "Send Outlook reply", delete: "Delete email", markDone: "Mark done", undoDone: "Restore to Today" } as Record<string, string>)[proposal.action] ?? proposal.action : "";
   return (
     <section className="today-action" aria-label="Today action">
       <label htmlFor="today-action-request">What should I do in your connected apps?</label>
-      <textarea id="today-action-request" value={request} rows={3} onChange={(event) => { setRequest(event.target.value); setProposal(null); setMessage(""); }} placeholder="For example: reply to the email from Sam, update my ticket, or comment on the pull request." />
+      <textarea id="today-action-request" value={request} rows={3} disabled={busy} onChange={(event) => { setRequest(event.target.value); setProposal(null); setMessage(""); }} placeholder="For example: reply to the email from Sam, update my ticket, or comment on the pull request." />
       <div className="today-action-buttons">
         <button className="button primary" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{busy ? "Working…" : "Prepare action"}</button>
       </div>
