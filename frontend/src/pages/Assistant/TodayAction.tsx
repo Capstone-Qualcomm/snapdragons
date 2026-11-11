@@ -9,7 +9,7 @@ type TodaySource = "jira" | "github" | "outlook" | "slack";
 type Target = { ready: false; question: string } | { ready: true; source: TodaySource; itemId: string; todayId: string; title: string; action: string };
 type Proposal = { ready: false; question: string } | { ready: true; source: TodaySource; itemId: string; todayId: string; title: string; action: string; value: string | number | null };
 
-function itemsForModel(sources: Source<any>[]) {
+export function itemsForModel(sources: Source<any>[]) {
   let completed: unknown = [];
   try { completed = JSON.parse(localStorage.getItem("continuum-done") ?? "[]"); } catch { /* no saved local state */ }
   const doneIds = Array.isArray(completed) ? completed : [];
