@@ -110,7 +110,7 @@ function App() {
 
       <main className="content">
         {/* Each page has its own boundary, so a crash in one leaves the sidebar and the others working. */}
-        {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} /></PageBoundary>}
+        {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} sources={sources} /></PageBoundary>}
         <PageBoundary active={page === "today"}><TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} /></PageBoundary>
         {page === "cluster" && <PageBoundary><ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} /></PageBoundary>}
         {page === "connections" && <PageBoundary><ConnectionsPage sources={sources} counts={counts} /></PageBoundary>}

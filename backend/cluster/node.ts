@@ -67,7 +67,10 @@ export function fileStorage(file: string) {
       };
       flush(`${file}.tmp`, "w", (fd) => writeFileSync(fd, JSON.stringify(data)));
       renameSync(`${file}.tmp`, file);
-      flush(dirname(file), "r");
+      // Windows does not allow opening and fsyncing a directory (EPERM). The
+      // file itself is already flushed before rename; keep the directory flush
+      // on platforms that support it so a power cut preserves the rename too.
+      if (process.platform !== "win32") flush(dirname(file), "r");
     },
   };
 }

@@ -113,6 +113,21 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     });
   }, [outlook.items]);
 
+  useEffect(() => {
+    const reloadJira = () => { void jira.reload(); };
+    window.addEventListener("jira-issue-updated", reloadJira);
+    return () => window.removeEventListener("jira-issue-updated", reloadJira);
+  }, [jira.reload]);
+
+  useEffect(() => {
+    const deleted = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (id) setHandledOutlookIds((current) => new Set(current).add(id));
+    };
+    window.addEventListener("outlook-message-deleted", deleted);
+    return () => window.removeEventListener("outlook-message-deleted", deleted);
+  }, []);
+
   // Opening Today is a refresh too: the sources load on their own, and the
   // cluster gets a job, unless one is already running for Today to follow, or
   // the boards are busy with an Assistant job.

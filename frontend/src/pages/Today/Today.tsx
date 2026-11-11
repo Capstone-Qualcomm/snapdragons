@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { api } from "../../lib/api";
@@ -34,6 +34,16 @@ export function useDone() {
       // Done still works for this visit.
     }
   };
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const saved: unknown = JSON.parse(localStorage.getItem(DONE_KEY) ?? "[]");
+        setDone(Array.isArray(saved) ? saved.filter((key) => typeof key === "string") : []);
+      } catch { setDone([]); }
+    };
+    window.addEventListener("today-done-updated", sync);
+    return () => window.removeEventListener("today-done-updated", sync);
+  }, []);
   const id = (item: Item) => `${item.key}@${item.at}`;
   return {
     isDone: (item: Item) => done.includes(id(item)),
