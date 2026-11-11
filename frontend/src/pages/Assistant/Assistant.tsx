@@ -89,7 +89,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
     setStarting(true);
     setError(null);
     try {
-      const { destination } = await api<{ destination: "today" | "boards" }>("/api/assistant/route", { prompt });
+      const selectedScenario = scenarios.find((entry) => entry.id === selected);
+      const destination = selectedScenario ? "boards" : (await api<{ destination: "today" | "boards" }>("/api/assistant/route", { prompt })).destination;
       // The model chooses the connected app from the request's meaning, so
       // callers do not need to mention Jira or use a particular command verb.
       if (destination === "today") {
