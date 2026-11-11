@@ -51,4 +51,26 @@ describe("Assistant Today action", () => {
     const confirm = await screen.findByRole("button", { name: "Confirm action" });
     await waitFor(() => expect(confirm.hasAttribute("disabled")).toBe(true));
   });
+
+  it("keeps an unread Outlook reply visible and warns when marking it read fails", async () => {
+    const handled = vi.fn();
+    window.addEventListener("outlook-message-deleted", handled);
+    setup(async (input, init) => {
+      const path = String(input);
+      if (path.endsWith("/api/assistant/action/prepare")) {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        return body.target
+          ? Response.json({ ready: true, source: "outlook", itemId: "mail-1", todayId: "outlook:mail-1@0", title: "Check in", action: "reply", value: "Thanks, I will follow up." })
+          : Response.json({ ready: true, source: "outlook", itemId: "mail-1", todayId: "outlook:mail-1@0", title: "Check in", action: "reply" });
+      }
+      if (path.endsWith("/thread")) return Response.json({ messages: [] });
+      if (path.endsWith("/reply")) return Response.json({ ok: true, markedRead: false });
+      return Response.json({});
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Prepare action" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm action" }));
+    expect((await screen.findByRole("status")).textContent).toContain("Reply sent, but Outlook could not mark the email as read.");
+    expect(handled).not.toHaveBeenCalled();
+    window.removeEventListener("outlook-message-deleted", handled);
+  });
 });

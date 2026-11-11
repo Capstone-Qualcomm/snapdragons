@@ -93,7 +93,7 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
       } else if (proposal.source === "outlook") {
         const path = `/api/outlook/messages/${encodeURIComponent(proposal.itemId)}/${proposal.action === "delete" ? "delete" : "reply"}`;
         const result = await api<{ markedRead?: boolean }>(path, proposal.action === "delete" ? {} : { comment: String(proposal.value) });
-        if (proposal.action === "delete" || proposal.action === "reply") window.dispatchEvent(new CustomEvent("outlook-message-deleted", { detail: proposal.itemId }));
+        if (proposal.action === "delete" || proposal.action === "reply" && result.markedRead === true) window.dispatchEvent(new CustomEvent("outlook-message-deleted", { detail: proposal.itemId }));
         if (proposal.action === "reply" && result.markedRead === false) setMessage("Reply sent, but Outlook could not mark the email as read.");
       } else {
         await api(`/api/slack/messages/${encodeURIComponent(proposal.itemId)}/message`, { text: String(proposal.value) });

@@ -41,7 +41,7 @@ test("a save reaches the disk before the rename, and the rename after it", () =>
     mock.restoreAll();
     syncBuiltinESMExports();
   }
-  assert.deepEqual(steps, ["fsync file", "rename", "fsync directory"]);
+  assert.deepEqual(steps, process.platform === "win32" ? ["fsync file", "rename"] : ["fsync file", "rename", "fsync directory"]);
   assert.deepEqual(fileStorage(file).load(), data);
   assert.equal(existsSync(`${file}.tmp`), false);
 });
