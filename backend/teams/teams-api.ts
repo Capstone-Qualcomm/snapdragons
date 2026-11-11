@@ -58,9 +58,27 @@ export function createTeamsApi({ teamsConnection, fetchImpl = globalThis.fetch, 
         const chatId = chat.id as string;
         const messagesUrl = new URL(`${graphOrigin}/v1.0/me/chats/${encodeURIComponent(chatId)}/messages`);
         messagesUrl.searchParams.set("$top", "20");
-        const result = await graph(messagesUrl, accessToken);
-        if (!Array.isArray(result.value)) throw new Error("Microsoft Graph returned an unexpected Teams message list.");
-        const recent = (result.value as GraphChatMessage[])
+        // Graph pages messages by lastModifiedDateTime by default. Order by creation
+        // time so older pages can be skipped once the seven-day window is passed.
+        messagesUrl.searchParams.set("$orderby", "createdDateTime desc");
+        const chatMessages: GraphChatMessage[] = [];
+        let nextPage: URL | undefined = messagesUrl;
+        const visitedPages = new Set<string>();
+        while (nextPage) {
+          if (visitedPages.has(nextPage.href)) throw new Error("Microsoft Graph returned a repeated Teams message page.");
+          visitedPages.add(nextPage.href);
+          const result = await graph(nextPage, accessToken);
+          if (!Array.isArray(result.value)) throw new Error("Microsoft Graph returned an unexpected Teams message list.");
+          const pageMessages = result.value as GraphChatMessage[];
+          chatMessages.push(...pageMessages);
+          const oldestTimestamp = pageMessages
+            .map((message) => typeof message.createdDateTime === "string" ? Date.parse(message.createdDateTime) : Number.NaN)
+            .filter(Number.isFinite)
+            .reduce((oldest, timestamp) => Math.min(oldest, timestamp), Number.POSITIVE_INFINITY);
+          const nextLink = result["@odata.nextLink"];
+          nextPage = typeof nextLink === "string" && oldestTimestamp >= since ? new URL(nextLink) : undefined;
+        }
+        const recent = chatMessages
           .filter((message) => typeof message.id === "string" && typeof message.createdDateTime === "string" && Date.parse(message.createdDateTime) >= since)
           .sort((a, b) => Date.parse(String(b.createdDateTime)) - Date.parse(String(a.createdDateTime)));
         const isDirect = chat.chatType === "oneOnOne";
