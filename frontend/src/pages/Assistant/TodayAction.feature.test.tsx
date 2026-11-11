@@ -24,7 +24,8 @@ describe("Assistant Today action", () => {
       return Response.json({});
     });
     fireEvent.click(screen.getByRole("button", { name: "Prepare action" }));
-    expect(await screen.findByText("Change status:").textContent).toContain("Fix queue");
+    const proposedItem = await screen.findByText("Fix queue");
+    expect(proposedItem.parentElement?.textContent).toContain("Change status:");
     fireEvent.click(screen.getByRole("button", { name: "Confirm action" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Action completed."));
   });
