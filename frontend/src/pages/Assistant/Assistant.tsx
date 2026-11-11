@@ -6,7 +6,7 @@ import { boardName, send, stalled, useClock } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
 import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
-import { TodayAction } from "./TodayAction";
+import { TodayAction, itemsForModel } from "./TodayAction";
 import type { Source } from "../Today/sources";
 import { eventsOf, narrate } from "./story";
 import type { StoryEvent } from "./story";
@@ -34,6 +34,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [todayActionRequest, setTodayActionRequest] = useState<string | null>(null);
+  const [answered, setAnswered] = useState<{ question: string; text: string } | null>(null);
   const now = useClock(serverNow);
 
   const loadScenarios = useCallback(() => {
@@ -59,6 +60,19 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   // Why Run is off while the cluster answers but has no orchestrator to plan the job.
   const stuck = cluster && stalled(cluster);
   const waiting = stuck ? `Only ${stuck.up} of ${stuck.members} boards are up. Restart a board to run a job.` : cluster && !cluster.orchestrator ? "Waiting for the boards to elect an orchestrator." : null;
+
+  if (answered) {
+    return (
+      <div className="ask">
+        <div className="ask-hero">
+          <h1>{answered.question}</h1>
+          <p className="lede">From your connected apps, as of now.</p>
+          <button className="text-button" type="button" onClick={() => { setAnswered(null); setPrompt(""); }}>Ask something else</button>
+        </div>
+        <section className="today-action" aria-label="Answer"><p style={{ whiteSpace: "pre-wrap" }}>{answered.text}</p></section>
+      </div>
+    );
+  }
 
   if (todayActionRequest !== null) {
     return (
@@ -90,11 +104,16 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
     setError(null);
     try {
       const selectedScenario = scenarios.find((entry) => entry.id === selected);
-      const destination = selectedScenario ? "boards" : (await api<{ destination: "today" | "boards" }>("/api/assistant/route", { prompt })).destination;
+      const destination = selectedScenario ? "boards" : (await api<{ destination: "today" | "answer" | "boards" }>("/api/assistant/route", { prompt })).destination;
       // The model chooses the connected app from the request's meaning, so
       // callers do not need to mention Jira or use a particular command verb.
       if (destination === "today") {
         setTodayActionRequest(prompt);
+        return;
+      }
+      if (destination === "answer") {
+        const { answer } = await api<{ answer: string }>("/api/assistant/answer", { prompt, items: itemsForModel(sources) });
+        setAnswered({ question: prompt, text: answer });
         return;
       }
       // With no example card selected, run the live open-ended job scenario.
