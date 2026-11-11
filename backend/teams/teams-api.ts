@@ -56,6 +56,7 @@ export function createTeamsApi({ teamsConnection, fetchImpl = globalThis.fetch, 
     for (let offset = 0; offset < chats.length; offset += 5) {
       const page = await Promise.all(chats.slice(offset, offset + 5).map(async (chat) => {
         const chatId = chat.id as string;
+        const isDirect = chat.chatType === "oneOnOne";
         const messagesUrl = new URL(`${graphOrigin}/v1.0/me/chats/${encodeURIComponent(chatId)}/messages`);
         messagesUrl.searchParams.set("$top", "20");
         // Graph pages messages by lastModifiedDateTime by default. Order by creation
@@ -76,12 +77,12 @@ export function createTeamsApi({ teamsConnection, fetchImpl = globalThis.fetch, 
             .filter(Number.isFinite)
             .reduce((oldest, timestamp) => Math.min(oldest, timestamp), Number.POSITIVE_INFINITY);
           const nextLink = result["@odata.nextLink"];
-          nextPage = typeof nextLink === "string" && oldestTimestamp >= since ? new URL(nextLink) : undefined;
+          // Direct chats only use their newest message, so older pages cannot affect the result.
+          nextPage = !isDirect && typeof nextLink === "string" && oldestTimestamp >= since ? new URL(nextLink) : undefined;
         }
         const recent = chatMessages
           .filter((message) => typeof message.id === "string" && typeof message.createdDateTime === "string" && Date.parse(message.createdDateTime) >= since)
           .sort((a, b) => Date.parse(String(b.createdDateTime)) - Date.parse(String(a.createdDateTime)));
-        const isDirect = chat.chatType === "oneOnOne";
         const selected = isDirect
           ? recent[0] && typeof recent[0].from?.user?.id === "string" && recent[0].from.user.id !== me ? [recent[0]] : []
           : recent.filter((message) => typeof message.from?.user?.id === "string" && message.from.user.id !== me && message.mentions?.some((mention) => mention.mentioned?.user?.id === me));
