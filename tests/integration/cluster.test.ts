@@ -300,6 +300,7 @@ async function startSources() {
     "/api/jira/issues": ["issues", [{ key: "QT1S-46" }, { key: "QT1S-10" }, { key: "QT1S-53" }]],
     "/api/slack/messages": ["messages", [{ text: "Can you review my PR?" }, { text: "Demo is at 2" }]],
     "/api/github/issues": ["issues", [{ title: "Snapshot the queue" }]],
+    "/api/teams/messages": ["messages", [{ text: "Standup moved to 10" }, { text: "Slides?" }, { text: "Thanks!" }, { text: "See you there" }]],
   };
   const server = createServer((req, res) => {
     const sid = req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1] ?? null;
@@ -311,7 +312,7 @@ async function startSources() {
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  return { asked, server, fetching: { appUrl: APP, sourceUrls: { jira: url, slack: url, github: url, outlook: url } } };
+  return { asked, server, fetching: { appUrl: APP, sourceUrls: { jira: url, slack: url, github: url, outlook: url, teams: url } } };
 }
 
 const outputs = (state: State, job: string) => Object.fromEntries(state.tasks.filter((task) => task.job === job && task.source).map((task) => [task.source, task.output?.summary]));
@@ -329,9 +330,10 @@ test("boards fetch each source as the browser that asked, and only what they loa
       slack: "Loaded 2 Slack messages",
       github: "Loaded 1 GitHub issue",
       outlook: "Outlook not loaded: Outlook is not connected. Connect Outlook.",
+      teams: "Loaded 4 Teams messages",
     });
     // Each source was asked once, as that browser.
-    assert.deepEqual(sources.asked.map((request) => request.path).sort(), ["/api/github/issues", "/api/jira/issues", "/api/outlook/messages", "/api/slack/messages"]);
+    assert.deepEqual(sources.asked.map((request) => request.path).sort(), ["/api/github/issues", "/api/jira/issues", "/api/outlook/messages", "/api/slack/messages", "/api/teams/messages"]);
     assert.ok(sources.asked.every((request) => request.sid === SID));
     // The pages see counts, never the browser's sid, the handle standing for it, or the items themselves.
     const seen = JSON.stringify(done);
@@ -352,7 +354,7 @@ test("a refresh from anywhere but the app's page fetches as nobody, and asks no 
     const done = await cluster.until(cluster.jobDone(job), "the refresh is done");
 
     assert.ok(Object.values(outputs(done, job)).every((summary) => summary === "No signed-in browser asked for this refresh, so nothing was loaded"));
-    assert.equal(Object.keys(outputs(done, job)).length, 4);
+    assert.equal(Object.keys(outputs(done, job)).length, 5);
     assert.deepEqual(sources.asked, []);
   } finally {
     cluster.close();
