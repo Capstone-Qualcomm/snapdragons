@@ -168,7 +168,7 @@ export function createQueue() {
     if (!scenario) throw new Error(`No scenario ${id}.`);
     const job: Job = { id: `J-${data.nextJob++}`, name: scenario.title, queuedAt: at, doneAt: null, nodes: null, plan: { scenario: id, prompt, pace, stage: -1, stages: scenario.stages.map(({ label, short, icon }) => ({ label, short, icon })), result: null } };
     data.jobs.push(job);
-    log(at, `${orchestrator() ?? "The orchestrator"} got a job: "${prompt}"`);
+    log(at, `${orchestrator() ?? "The orchestrator"} got ${scenario.private ? "a private job" : `a job: "${prompt}"`}`);
     startStage(job, 0, at, context);
     trimJobs();
     return job;

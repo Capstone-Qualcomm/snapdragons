@@ -9,7 +9,7 @@ import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { createClusterServer, REFRESH } from "./server.ts";
+import { createClusterServer, hidePrivateJobs, REFRESH } from "./server.ts";
 import { ITEMS } from "./worker.ts";
 
 // This machine's address on a network, if it has one.
@@ -207,4 +207,23 @@ test("the services give no source list for an unknown source, or for a handle th
   assert.match((await guessed.json()).error, /no longer known/);
   assert.equal((await fetch(`${base}/sources/slack`)).status, 410);
   assert.equal(asked, 0);
+});
+
+test("a question about your own work shows only to the browser that asked", () => {
+  const mine = "a".repeat(64);
+  const state = {
+    nodes: [], workers: [], terms: [], events: [],
+    jobs: [{ id: "J-1", plan: { scenario: "mywork", prompt: "What is blocked?", result: { headline: "QT1S-53" } } }, { id: "J-2", plan: { scenario: "ask", prompt: "Compare laptops", result: null } }],
+    tasks: [{ id: "T-1", job: "J-1", input: "Read items", params: { items: [{ title: "secret" }] }, output: { summary: "secret" }, preview: { pages: [] }, found: {}, status: "done", runs: [] }],
+  } as any;
+  const owners = new Map([["J-1", mine]]);
+  assert.equal(hidePrivateJobs(state, owners, mine), state);
+  for (const viewer of [undefined, "b".repeat(64)]) {
+    const seen = hidePrivateJobs(state, owners, viewer);
+    assert.equal(JSON.stringify(seen).includes("secret"), false);
+    assert.equal(JSON.stringify(seen).includes("QT1S-53"), false);
+    assert.equal(JSON.stringify(seen).includes("What is blocked?"), false);
+    // Anyone else's job is untouched.
+    assert.equal(seen.jobs[1].plan.prompt, "Compare laptops");
+  }
 });

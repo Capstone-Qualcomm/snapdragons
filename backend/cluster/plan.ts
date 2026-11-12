@@ -76,6 +76,8 @@ export type Scenario = {
   // What the demo data is, said plainly so nobody mistakes it for theirs.
   data: { label: string; items: string[] };
   stages: Stage[];
+  // A scenario that works from the person's own items: the gateway shows its job to the browser that asked, and nobody else.
+  private?: boolean;
   // Whether the page can show the demo data it runs on (the gateway's mail and calendar).
   sample?: boolean;
   // Each skill turns a step's params into its output. The final stage's single step returns a Result as its data.
