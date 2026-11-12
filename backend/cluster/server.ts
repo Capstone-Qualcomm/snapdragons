@@ -35,9 +35,9 @@ export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
 // waits for all of them. A new source adds its fetch here.
 export const REFRESH = {
   name: "Morning refresh",
-  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues", "Fetch Outlook messages"],
+  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues", "Fetch Outlook messages", "Fetch Teams messages"],
   // The source each step loads, in the same order.
-  sources: ["jira", "slack", "github", "outlook"],
+  sources: ["jira", "slack", "github", "outlook", "teams"],
   then: "Rank today's list",
 };
 // Each source's backend: the list it serves at /api/<source>/<list>, and the variable naming its port (deploy/start.sh).
@@ -47,6 +47,7 @@ const SOURCES: Record<string, { title: string; list: string; portVariable: strin
   slack: { title: "Slack", list: "messages", portVariable: "SLACK_PORT", defaultPort: 3002 },
   github: { title: "GitHub", list: "issues", portVariable: "GITHUB_PORT", defaultPort: 3004 },
   outlook: { title: "Outlook", list: "messages", portVariable: "OUTLOOK_PORT", defaultPort: 3005 },
+  teams: { title: "Teams", list: "messages", portVariable: "TEAMS_PORT", defaultPort: 3006 },
 };
 
 // How long the gateway remembers which browser asked for a refresh, and how many it remembers at once.

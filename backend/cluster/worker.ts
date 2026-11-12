@@ -6,7 +6,7 @@ import { runSkill } from "./scenarios/index.ts";
 import { query } from "./services.ts";
 
 // What one of a source's items is called in a step's result: "Loaded 12 Slack messages".
-const ITEMS: Record<string, string> = { jira: "Jira ticket", slack: "Slack message", github: "GitHub issue", outlook: "Outlook message" };
+export const ITEMS: Record<string, string> = { jira: "Jira ticket", slack: "Slack message", github: "GitHub issue", outlook: "Outlook message", teams: "Teams message" };
 
 // A refresh step loads its source's list through the gateway, as the browser that asked for the
 // refresh. Only the count goes in the result, and from there into every board's log; the items don't.

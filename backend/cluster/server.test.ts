@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { afterEach, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { createClusterServer, REFRESH } from "./server.ts";
+import { ITEMS } from "./worker.ts";
 
 // This machine's address on a network, if it has one.
 const lan = Object.values(networkInterfaces()).flat().find((address) => address?.family === "IPv4" && !address.internal)?.address;
@@ -50,6 +51,8 @@ test("the refresh fetches from every source backend", () => {
   assert.deepEqual([...fetched].sort(), [...sources].sort());
   // Each step's source sits at the same place, since the boards fetch by it.
   assert.deepEqual(REFRESH.sources, fetched);
+  // And the boards know what each source's items are called, so a result reads "Loaded 4 Teams messages".
+  assert.deepEqual(REFRESH.sources.filter((source) => !ITEMS[source]), []);
 });
 
 test("node routes only know the six node names", async () => {
