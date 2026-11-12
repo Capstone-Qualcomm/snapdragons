@@ -13,12 +13,12 @@ import { isWaiting, TasksPanel, useDone } from "./Today";
 
 const off = (source: Source<any>) => ["unconfigured", "disconnected", "disabled"].includes(source.status);
 
-// Today: your Slack, Jira, GitHub and Outlook work in one ranked table, with the numbers that matter above it.
+// Today: your Slack, Jira, GitHub, Outlook and Teams work in one ranked table, with the numbers that matter above it.
 // It stays mounted while another page is open, so an open Jira edit survives; active is whether it is on screen.
 export function TodayPage({ sources, cluster, failed, offset, active }: { sources: Source<any>[]; cluster: ClusterState | null; failed: boolean; offset: number; active: boolean }) {
-  const [slack, jira, github, outlook] = sources;
+  const [slack, jira, github, outlook, teams] = sources;
   const { isDone, markDone, undo } = useDone();
-  const sourceItems = useMemo(() => toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items }), [slack.items, jira.items, github.items, outlook.items]);
+  const sourceItems = useMemo(() => toItems({ slack: slack.items, jira: jira.items, github: github.items, outlook: outlook.items, teams: teams.items }), [slack.items, jira.items, github.items, outlook.items, teams.items]);
   const signature = rankingSignature(sourceItems);
   const syncingSources = sources.some((source) => source.syncing);
   const [ranking, setRanking] = useState<{ signature: string; items: Item[]; mode: "local" | "updating" | "gcp" }>({ signature: "", items: [], mode: "local" });
@@ -82,7 +82,8 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     void jira.reload();
     void github.reload();
     void outlook.reload();
-  }, [busy, startJob, github.reload, jira.reload, outlook.reload, slack.reload]);
+    void teams.reload();
+  }, [busy, startJob, github.reload, jira.reload, outlook.reload, slack.reload, teams.reload]);
 
   const deleteOutlook = useCallback(async (messageId: string) => {
     await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/delete`, {});
@@ -186,7 +187,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       <header className="page-head">
         <div className="page-title">
           <h1>Today</h1>
-          <p className="lede">Your Slack, Jira, GitHub and Outlook work, ranked by what needs you first.</p>
+          <p className="lede">Your Slack, Jira, GitHub, Outlook and Teams work, ranked by what needs you first.</p>
         </div>
         <button
           className={busy ? "button primary refresh-button is-busy" : "button primary refresh-button"}
@@ -204,9 +205,9 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       {sources.map((source) => source.status === "error" && <ErrorBanner key={source.name} message={`${source.title}: ${source.error}`} onRetry={() => void source.reload()} />)}
 
       <ul className="stats is-4" aria-label="Summary">
-        <Stat label="Open tasks" value={items ? String(items.length) : "—"} note={items ? "From Slack, Jira, GitHub and Outlook" : missing} />
-        <Stat label="Waiting on you" value={items ? String(waiting) : "—"} note={items ? "Direct messages, pull requests and unread email" : missing} tone={waiting ? "is-ember" : ""} />
-        <Stat label="Sources connected" value={checking ? "—" : `${connected} / ${sources.length}`} note={checking ? "Loading your sources…" : connected === sources.length ? "All four sources connected" : "Connect the rest on Connections"} />
+        <Stat label="Open tasks" value={items ? String(items.length) : "—"} note={items ? "From Slack, Jira, GitHub, Outlook and Teams" : missing} />
+        <Stat label="Waiting on you" value={items ? String(waiting) : "—"} note={items ? "Direct messages and chats, pull requests and unread email" : missing} tone={waiting ? "is-ember" : ""} />
+        <Stat label="Sources connected" value={checking ? "—" : `${connected} / ${sources.length}`} note={checking ? "Loading your sources…" : connected === sources.length ? "All five sources connected" : "Connect the rest on Connections"} />
         <Stat
           label="Last refresh"
           value={last ? `${((last.doneAt! - last.queuedAt) / 1000).toFixed(1)} s` : "—"}

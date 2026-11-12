@@ -5,7 +5,7 @@ CS 620 capstone, Qualcomm Team 1. Persistent agent runtime that scales out acros
 ## Layout
 
 - `frontend/` the app (React and Vite): Assistant (give the boards a job and watch them split it, on demo data), Today (your Slack, Jira, GitHub and Outlook work, ranked), Cluster (the boards, refresh times and activity) and Connections
-- `backend/jira/`, `backend/slack/`, `backend/github/` and `backend/outlook/` sign-in and data for each source, on ports 3001, 3002, 3004 and 3005. Code they share is in `backend/*.mts`
+- `backend/jira/`, `backend/slack/`, `backend/github/`, `backend/outlook/` and `backend/teams/` sign-in and data for each source, on ports 3001, 3002, 3004, 3005 and 3006. Code they share is in `backend/*.mts`
 - `backend/cluster/` the cluster on one laptop: a gateway on port 3003 and node processes that share a Raft-replicated task queue
 - `mvp/` concept landing page (static, run with `python3 -m http.server 8080` inside it)
 

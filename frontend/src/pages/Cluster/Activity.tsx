@@ -8,7 +8,7 @@ import type { ClusterEvent, Task } from "./cluster";
 
 type SyncEvent = { id: number; timestamp: string; status: number; count: number | null };
 type Entry = { key: string; at: number; text: string; source: SourceName | null };
-const sources: SourceName[] = ["jira", "slack", "github", "outlook"];
+const sources: SourceName[] = ["jira", "slack", "github", "outlook", "teams"];
 
 function syncText(event: SyncEvent) {
   if (event.status === 200) return `Loaded ${event.count} ${event.count === 1 ? "item" : "items"}`;

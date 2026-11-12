@@ -1,4 +1,4 @@
-import type { GitHubIssue, ItemsOf, OutlookMessage, SlackMessage } from "./sources";
+import type { GitHubIssue, ItemsOf, OutlookMessage, SlackMessage, TeamsMessage } from "./sources";
 import type { JiraIssue } from "./jira";
 import { api } from "../../lib/api";
 
@@ -7,16 +7,18 @@ export type Item =
   | { key: string; source: "slack"; at: number; data: SlackMessage }
   | { key: string; source: "jira"; at: number; data: JiraIssue }
   | { key: string; source: "github"; at: number; data: GitHubIssue }
-  | { key: string; source: "outlook"; at: number; data: OutlookMessage };
+  | { key: string; source: "outlook"; at: number; data: OutlookMessage }
+  | { key: string; source: "teams"; at: number; data: TeamsMessage };
 
 const time = (value: string | null) => (value ? new Date(value).getTime() || 0 : 0);
 
-export function toItems(lists: { [N in Exclude<keyof ItemsOf, "outlook">]: ItemsOf[N][] } & { outlook?: ItemsOf["outlook"][] }): Item[] {
+export function toItems(lists: { [N in Exclude<keyof ItemsOf, "outlook" | "teams">]: ItemsOf[N][] } & { outlook?: ItemsOf["outlook"][]; teams?: ItemsOf["teams"][] }): Item[] {
   return [
     ...lists.slack.map((data): Item => ({ key: `slack:${data.id}`, source: "slack", at: time(data.sentAt), data })),
     ...lists.jira.map((data): Item => ({ key: `jira:${data.key}`, source: "jira", at: time(data.updated), data })),
     ...lists.github.map((data): Item => ({ key: `github:${data.id}`, source: "github", at: time(data.updatedAt), data })),
     ...(lists.outlook ?? []).map((data): Item => ({ key: `outlook:${data.id}`, source: "outlook", at: time(data.receivedAt), data })),
+    ...(lists.teams ?? []).map((data): Item => ({ key: `teams:${data.id}`, source: "teams", at: time(data.sentAt), data })),
   ];
 }
 
@@ -33,6 +35,8 @@ export function score(item: Item): number {
       return item.data.sprints.length ? 2 : 0;
     case "outlook":
       return 4;
+    case "teams":
+      return item.data.kind === "dm" ? 4 : 1;
   }
 }
 
@@ -51,6 +55,7 @@ export function rankingSignature(items: Item[]): string {
       case "jira": return [item.key, item.at, item.data.summary, item.data.status, item.data.issueType, item.data.sprints, item.data.labels];
       case "github": return [item.key, item.at, item.data.kind, item.data.title, item.data.repository, item.data.state];
       case "outlook": return [item.key, item.at, item.data.subject, item.data.from];
+      case "teams": return [item.key, item.at, item.data.kind, item.data.from, item.data.where, item.data.text];
     }
   }));
 }
@@ -66,6 +71,7 @@ export async function rankWithGcp(items: Item[]): Promise<Item[]> {
       case "jira": return { id, source: item.source, at: item.at, summary: item.data.summary.slice(0, 800), status: item.data.status, type: item.data.issueType, sprints: item.data.sprints, labels: item.data.labels };
       case "github": return { id, source: item.source, at: item.at, kind: item.data.kind, title: item.data.title.slice(0, 800), repository: item.data.repository, state: item.data.state };
       case "outlook": return { id, source: item.source, at: item.at, subject: item.data.subject.slice(0, 800), from: item.data.from };
+      case "teams": return { id, source: item.source, at: item.at, kind: item.data.kind, from: item.data.from, channel: item.data.where, text: item.data.text.slice(0, 800) };
     }
   });
   const { order } = await api<{ order: string[] }>("/api/today/rank", { items: input });
