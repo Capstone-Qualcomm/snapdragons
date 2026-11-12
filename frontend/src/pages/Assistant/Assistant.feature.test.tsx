@@ -71,12 +71,13 @@ afterEach(() => {
 describe("Assistant: ask", () => {
   it("opens on an empty page asking what the boards should do, with an example job per audience, marked as demo data", async () => {
     mock(cluster({ jobs: [], tasks: [] }));
-    expect(await screen.findByRole("heading", { name: "What should your boards do?" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "What should I take care of?" })).toBeTruthy();
     await screen.findByRole("button", { name: /Engineer/ });
     expect(within(screen.getByRole("navigation", { name: "Pages" })).getByRole("link", { name: "Assistant" }).getAttribute("aria-current")).toBe("page");
-    expect((screen.getByRole("textbox", { name: "Job" }) as HTMLTextAreaElement).value).toBe(scenarios[0].prompt);
-    expect(screen.getByText("Running on a demo inbox and calendar")).toBeTruthy();
+    expect((screen.getByRole("textbox", { name: "Job" }) as HTMLTextAreaElement).value).toBe("");
     expect(screen.getAllByText("Demo data")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: /Student/ }));
+    expect(screen.getByText("Running on a demo inbox and calendar")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Engineer/ }));
     expect((screen.getByRole("textbox", { name: "Job" }) as HTMLTextAreaElement).value).toBe(scenarios[1].prompt);
     expect(screen.queryByRole("list", { name: "Plan" })).toBeNull();
@@ -89,6 +90,50 @@ describe("Assistant: ask", () => {
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
     await act(async () => {});
     expect(posts).toEqual([["/api/assistant/run", { scenario: "engineer", prompt: scenarios[1].prompt, pace: "slow" }]]);
+  });
+
+  it("routes an open ended request through the Assistant model before starting boards", async () => {
+    const posts: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (init?.method === "POST") {
+        posts.push(path);
+        return path.endsWith("/api/assistant/route")
+          ? Response.json({ destination: "boards" })
+          : Response.json({ job: { id: "J-9" } }, { status: 201 });
+      }
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return Response.json(cluster({ jobs: [], tasks: [] }));
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    const prompt = await screen.findByRole("textbox", { name: "Job" });
+    fireEvent.change(prompt, { target: { value: "Research the latest market changes" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => expect(posts).toEqual(["/api/assistant/route", "/api/assistant/run"]));
+  });
+
+  it("answers a question about the user's own work from Today instead of starting boards", async () => {
+    const posts: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (init?.method === "POST") {
+        posts.push(path);
+        return path.endsWith("/api/assistant/route") ? Response.json({ destination: "answer" }) : Response.json({ answer: "QT1S-53: get the fourth board online." });
+      }
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return Response.json(cluster({ jobs: [], tasks: [] }));
+    }));
+    window.history.replaceState({}, "", "/assistant");
+    render(<App />);
+    fireEvent.change(await screen.findByRole("textbox", { name: "Job" }), { target: { value: "What do I need to do today?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    expect(await screen.findByText("QT1S-53: get the fourth board online.")).toBeTruthy();
+    expect(posts).toEqual(["/api/assistant/route", "/api/assistant/answer"]);
   });
 
   it("sends one job however often Run is clicked while the server answers", async () => {
@@ -108,7 +153,7 @@ describe("Assistant: ask", () => {
     }));
     window.history.replaceState({}, "", "/assistant");
     render(<App />);
-    await screen.findByRole("button", { name: /Engineer/ });
+    fireEvent.click(await screen.findByRole("button", { name: /Engineer/ }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Run" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
@@ -234,7 +279,7 @@ describe("Assistant: report", () => {
 
   it("opens empty even when an earlier job has finished", async () => {
     mock(cluster({ jobs: [{ ...plan({ stage: 2, result }), doneAt: now - 1000, nodes: 3 }] }));
-    expect(await screen.findByRole("heading", { name: "What should your boards do?" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "What should I take care of?" })).toBeTruthy();
   });
 
   it("still shows the report of a job followed to another page and back", async () => {
@@ -294,7 +339,7 @@ describe("Assistant: report", () => {
     }));
     window.history.replaceState({}, "", "/assistant");
     render(<App />);
-    await screen.findByRole("button", { name: /Engineer/ });
+    fireEvent.click(await screen.findByRole("button", { name: /Engineer/ }));
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
 
     expect(await screen.findByText("6 companies replied and 4 want an interview.")).toBeTruthy();
@@ -304,6 +349,6 @@ describe("Assistant: report", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Prep briefs" }));
     expect(screen.getByText("Know the product: Pathfinder.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Run another job" }));
-    expect(screen.getByRole("heading", { name: "What should your boards do?" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "What should I take care of?" })).toBeTruthy();
   });
 });

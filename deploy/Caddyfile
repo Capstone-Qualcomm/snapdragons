@@ -23,10 +23,28 @@
 		uri strip_prefix /snapdragons
 		reverse_proxy localhost:3005
 	}
+	@teams path /snapdragons/api/teams/* /snapdragons/auth/teams/*
+	handle @teams {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3006
+	}
 	@jira path /snapdragons/api/jira/* /snapdragons/auth/jira/*
 	handle @jira {
 		uri strip_prefix /snapdragons
 		reverse_proxy localhost:3001
+	}
+	# The app with sample work for recording demos: its files stay on orsat, outside git (deploy/README.md).
+	# Cluster and Assistant reach the real boards.
+	@demoWebsiteCluster path /demo-website/api/cluster/* /demo-website/api/assistant/*
+	handle @demoWebsiteCluster {
+		uri strip_prefix /demo-website
+		reverse_proxy localhost:3003
+	}
+	redir /demo-website /demo-website/
+	handle_path /demo-website/* {
+		root * /srv/demo/website
+		try_files {path} /index.html
+		file_server
 	}
 	# The demo page for our mentor: video files stay on orsat, outside git (deploy/README.md).
 	redir /demo /demo/

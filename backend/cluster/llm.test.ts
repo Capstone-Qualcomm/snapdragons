@@ -5,6 +5,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, test } from "node:test";
 import { complete } from "./llm.ts";
+import { createClusterServer } from "./server.ts";
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
@@ -28,7 +29,7 @@ const read = async (req: AsyncIterable<unknown>) => {
 };
 
 // Fake token and model servers, with a service account pointing at them. A new token_uri each time means a cold cache.
-async function gcp({ expiresIn = 3599, tokenStatus = 200 } = {}) {
+async function gcp({ expiresIn = 3599, tokenStatus = 200, reply = "hello" } = {}) {
   const calls = { tokens: 0, models: [] as Array<{ url?: string; authorization?: string; model: string; max_tokens: number }>, assertion: "", aud: "" };
   const tokenServer = createServer(async (req, res) => {
     const params = new URLSearchParams(await read(req));
@@ -41,8 +42,10 @@ async function gcp({ expiresIn = 3599, tokenStatus = 200 } = {}) {
     res.end(JSON.stringify(tokenStatus === 200 ? { access_token: `token-${calls.tokens}`, expires_in: expiresIn } : { error: "invalid_grant" }));
   });
   const modelServer = createServer(async (req, res) => {
-    calls.models.push({ url: req.url, authorization: req.headers.authorization, ...JSON.parse(await read(req)) });
-    res.end(JSON.stringify({ choices: [{ message: { content: "hello" } }] }));
+    const body = JSON.parse(await read(req));
+    calls.models.push({ url: req.url, authorization: req.headers.authorization, ...body });
+    if (body.stream) return void res.end(`data: ${JSON.stringify({ choices: [{ delta: { content: reply } }] })}\n\ndata: [DONE]\n\n`);
+    res.end(JSON.stringify({ choices: [{ message: { content: reply } }] }));
   });
   const tokenUri = await listen(tokenServer);
   const key = Buffer.from(JSON.stringify({ client_email: "sa@test", private_key: privateKey, token_uri: tokenUri })).toString("base64");
@@ -55,7 +58,7 @@ async function gcp({ expiresIn = 3599, tokenStatus = 200 } = {}) {
 afterEach(() => {
   for (const server of servers) server.close();
   servers.clear();
-  for (const name of ["GCP_AI_ENDPOINT", "GCP_AI_KEY", "GCP_AI_MODEL"]) {
+  for (const name of ["GCP_AI_ENDPOINT", "GCP_AI_KEY", "GCP_AI_MODEL", "GCP_AI_ARMOR"]) {
     if (saved[name] === undefined) delete process.env[name];
     else process.env[name] = saved[name];
   }
@@ -108,4 +111,70 @@ test("token failures say what went wrong without quoting the key", async () => {
   await assert.rejects(ask(), /not a usable base64-encoded service account JSON/);
   process.env.GCP_AI_KEY = Buffer.from(JSON.stringify({ client_email: "sa@test", private_key: "garbage", token_uri: "http://127.0.0.1:1" })).toString("base64");
   await assert.rejects(ask(), (error: Error) => /not a usable/.test(error.message) && !error.message.includes("garbage"));
+});
+
+// A fake Model Armor template that flags any text containing "bad".
+async function armor(status = 200, state?: string) {
+  const checks: Array<{ url?: string; authorization?: string; body: Record<string, { text: string }> }> = [];
+  const server = createServer(async (req, res) => {
+    const body = JSON.parse(await read(req));
+    checks.push({ url: req.url, authorization: req.headers.authorization, body });
+    const { text } = (body.userPromptData ?? body.modelResponseData) as { text: string };
+    res.statusCode = status;
+    res.end(JSON.stringify({ sanitizationResult: { filterMatchState: state ?? (text.includes("bad") ? "MATCH_FOUND" : "NO_MATCH_FOUND") } }));
+  });
+  process.env.GCP_AI_ARMOR = `${await listen(server)}/v1/templates/test/`;
+  return checks;
+}
+
+test("Model Armor checks the prompt without the system message, then the reply", async () => {
+  await gcp();
+  const checks = await armor();
+  assert.equal(await complete([{ role: "system", content: "bad but ours" }, { role: "user", content: "first" }, { role: "assistant", content: "second" }]), "hello");
+  assert.deepEqual(checks.map((check) => check.url), ["/v1/templates/test:sanitizeUserPrompt", "/v1/templates/test:sanitizeModelResponse"]);
+  assert.deepEqual(checks[0].body, { userPromptData: { text: "first\n\nsecond" } });
+  assert.deepEqual(checks[1].body, { modelResponseData: { text: "hello" } });
+  assert.equal(checks[0].authorization, "Bearer token-1");
+});
+
+test("a flagged prompt never reaches the model, and the error does not quote it", async () => {
+  const { calls } = await gcp();
+  await armor();
+  await assert.rejects(complete([{ role: "user", content: "bad secret" }]), (error: Error) => error.message === "Model Armor blocked the prompt.");
+  assert.equal(calls.models.length, 0);
+});
+
+test("a flagged reply is not returned", async () => {
+  await gcp({ reply: "bad reply" });
+  await armor();
+  await assert.rejects(ask(), (error: Error) => error.message === "Model Armor blocked the reply.");
+});
+
+test("if Model Armor can't answer, the model isn't called", async () => {
+  const { calls } = await gcp();
+  await armor(500);
+  await assert.rejects(ask(), /Model Armor could not check the prompt \(HTTP 500\)/);
+  await armor(200, "FILTER_MATCH_STATE_UNSPECIFIED");
+  await assert.rejects(ask(), /Model Armor could not check the prompt\./);
+  assert.equal(calls.models.length, 0);
+});
+
+test("without a template, nothing is sent to Model Armor", async () => {
+  await gcp();
+  assert.equal(await ask(), "hello");
+});
+
+test("a streamed reply flagged at the end fails, and the gateway cuts the board's stream so it fails there too", async () => {
+  await gcp({ reply: "bad reply" });
+  await armor();
+  const shown: string[] = [];
+  await assert.rejects(complete([{ role: "user", content: "hi" }], 50, (text) => shown.push(text)), /Model Armor blocked the reply/);
+  assert.deepEqual(shown, ["bad reply"]);
+
+  const { server, servicesServer } = createClusterServer({ port: 0 });
+  servers.add(server);
+  const gateway = await listen(servicesServer);
+  const response = await fetch(`${gateway}/llm`, { method: "POST", body: JSON.stringify({ messages: [{ role: "user", content: "hi" }], stream: true }) });
+  assert.equal(response.status, 200);
+  await assert.rejects(response.text());
 });

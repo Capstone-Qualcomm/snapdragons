@@ -6,6 +6,8 @@ import { boardName, send, stalled, useClock } from "../Cluster/cluster";
 import type { ClusterState, Job, Result, Section, Task } from "../Cluster/cluster";
 import { SampleData } from "./Sample";
 import { Stage } from "./Stage";
+import { TodayAction, itemsForModel } from "./TodayAction";
+import type { Source } from "../Today/sources";
 import { eventsOf, narrate } from "./story";
 import type { StoryEvent } from "./story";
 import "./Assistant.css";
@@ -16,28 +18,28 @@ export type ScenarioInfo = { id: string; audience: string; icon: string; title: 
 // The Assistant, one focus at a time: ask (an empty page with the prompt),
 // watch (the boards splitting the job), read (the report).
 // shown is the job this page follows. App keeps it, so it is still there after a visit to another page.
-export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown }: {
+export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown, sources }: {
   cluster: ClusterState | null;
   failed: boolean;
   reload: () => Promise<void>;
   serverNow: () => number;
   shown: string | null;
   setShown: (id: string | null) => void;
+  sources: Source<any>[];
 }) {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
-  const [selected, setSelected] = useState("student");
+  const [selected, setSelected] = useState("");
   const [prompt, setPrompt] = useState("");
   const [pace, setPace] = useState("normal");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [todayActionRequest, setTodayActionRequest] = useState<string | null>(null);
+  const [answered, setAnswered] = useState<{ question: string; text: string } | null>(null);
   const now = useClock(serverNow);
 
   const loadScenarios = useCallback(() => {
     api<{ scenarios: ScenarioInfo[] }>("/api/assistant/scenarios").then(({ scenarios }) => {
       setScenarios(scenarios);
-      // The first scenario is picked to start with, its prompt in the box.
-      if (scenarios[0]) setSelected(scenarios[0].id);
-      setPrompt((current) => current || scenarios[0]?.prompt || "");
     }, (cause: Error) => setError(cause.message));
   }, []);
 
@@ -59,7 +61,38 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const stuck = cluster && stalled(cluster);
   const waiting = stuck ? `Only ${stuck.up} of ${stuck.members} boards are up. Restart a board to run a job.` : cluster && !cluster.orchestrator ? "Waiting for the boards to elect an orchestrator." : null;
 
+  if (answered) {
+    return (
+      <div className="ask">
+        <div className="ask-hero">
+          <h1>{answered.question}</h1>
+          <p className="lede">From your connected apps, as of now.</p>
+          <button className="text-button" type="button" onClick={() => { setAnswered(null); setPrompt(""); }}>Ask something else</button>
+        </div>
+        <section className="today-action" aria-label="Answer"><p style={{ whiteSpace: "pre-wrap" }}>{answered.text}</p></section>
+      </div>
+    );
+  }
+
+  if (todayActionRequest !== null) {
+    return (
+      <div className="ask">
+        <div className="ask-hero">
+          <h1>Take action in Today</h1>
+          <p className="lede">Review the proposed action before it is sent to a connected app.</p>
+          <button className="text-button" type="button" onClick={() => setTodayActionRequest(null)}>Back to Assistant</button>
+        </div>
+        <TodayAction initialRequest={todayActionRequest} sources={sources} onComplete={() => { setTodayActionRequest(null); setPrompt(""); }} />
+      </div>
+    );
+  }
+
   function pick(id: string) {
+    if (id === selected) {
+      setSelected("");
+      setPrompt("");
+      return;
+    }
     setSelected(id);
     setPrompt(scenarios.find((entry) => entry.id === id)?.prompt ?? "");
   }
@@ -70,7 +103,21 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
     setStarting(true);
     setError(null);
     try {
-      const { job } = await api<{ job: Job }>("/api/assistant/run", { scenario: selected, prompt, pace });
+      const selectedScenario = scenarios.find((entry) => entry.id === selected);
+      const destination = selectedScenario ? "boards" : (await api<{ destination: "today" | "answer" | "boards" }>("/api/assistant/route", { prompt })).destination;
+      // The model chooses the connected app from the request's meaning, so
+      // callers do not need to mention Jira or use a particular command verb.
+      if (destination === "today") {
+        setTodayActionRequest(prompt);
+        return;
+      }
+      if (destination === "answer") {
+        const { answer } = await api<{ answer: string }>("/api/assistant/answer", { prompt, items: itemsForModel(sources) });
+        setAnswered({ question: prompt, text: answer });
+        return;
+      }
+      // With no example card selected, run the live open-ended job scenario.
+      const { job } = await api<{ job: Job }>("/api/assistant/run", { scenario: selected || "ask", prompt, pace });
       setShown(job.id);
       await reload();
     } catch (cause) {
@@ -95,7 +142,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         error={banner}
         // Without the example jobs there is nothing to run, so their error offers another try.
         onRetry={error && !scenarios.length ? () => { setError(null); loadScenarios(); } : undefined}
-        canRun={Boolean(cluster?.orchestrator && scenarios.length) && !starting}
+        canRun={Boolean(prompt.trim()) && !starting}
         waiting={waiting}
         onPick={pick}
         onPrompt={setPrompt}
@@ -140,8 +187,8 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
   return (
     <div className="ask">
       <div className="ask-hero">
-        <h1>What should your boards do?</h1>
-        <p className="lede">Describe a job. One board splits it up, the others work on the pieces at the same time.</p>
+        <h1>What should I take care of?</h1>
+        <p className="lede">Tell me what you need done in your connected apps. The examples below are demos you can try.</p>
       </div>
       {error && <ErrorBanner message={error} onRetry={onRetry} />}
       <div className="prompt-card">

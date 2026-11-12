@@ -64,6 +64,25 @@
 .run-button { min-width: 96px; }
 .run-waiting { color: var(--ink-soft); font-size: 13px; }
 
+.today-action {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--card-radius);
+  background: var(--paper);
+}
+.today-action > label { font-weight: 600; }
+.today-action textarea { width: 100%; min-height: 80px; padding: var(--s3); border: 1px solid var(--rule-strong); border-radius: 8px; resize: vertical; }
+.today-action-buttons { display: flex; justify-content: flex-end; }
+.today-action-review { display: grid; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--rule); }
+.today-action-review p { margin: 0; }
+.today-action-review dl { display: grid; gap: var(--s1); margin: 0; }
+.today-action-review dt { color: var(--ink-soft); font-size: 13px; }
+.today-action-review dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.today-action-message { color: var(--live); }
+.today-action-message.is-error { color: var(--fail); }
+
 .scenario-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));

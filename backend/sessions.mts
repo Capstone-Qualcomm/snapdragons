@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Each browser gets a random "sid" cookie and its own connection state. The
-// Jira, Slack, GitHub and Outlook backends all read the same cookie because cookies
+// Source backends all read the same cookie because cookies
 // ignore ports. Connected sessions are saved to disk so a restart keeps them.
 // Browsers that never connected are dropped, oldest first, once there are more
 // than MAX_IDLE, so requests without a cookie can't grow the map forever. One
@@ -22,7 +22,7 @@ const MAX_SESSIONS = 20_000;
 export function hasConnectedSession(sid: string): boolean {
   if (!/^[0-9a-f]{64}$/.test(sid)) return false;
   const dataDir = process.env.DATA_DIR ?? fileURLToPath(new URL("../.data", import.meta.url));
-  for (const source of ["jira", "slack", "github", "outlook"]) {
+  for (const source of ["jira", "slack", "github", "outlook", "teams"]) {
     try {
       const saved = JSON.parse(readFileSync(join(dataDir, `${source}-sessions.json`), "utf8")) as Record<string, { connected?: unknown }>;
       if (saved[sid]?.connected === true) return true;

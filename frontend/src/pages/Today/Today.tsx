@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { RelativeTime, SkeletonRows, SourceLogo } from "../../components/ui";
 import { api } from "../../lib/api";
@@ -34,6 +34,16 @@ export function useDone() {
       // Done still works for this visit.
     }
   };
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const saved: unknown = JSON.parse(localStorage.getItem(DONE_KEY) ?? "[]");
+        setDone(Array.isArray(saved) ? saved.filter((key) => typeof key === "string") : []);
+      } catch { setDone([]); }
+    };
+    window.addEventListener("today-done-updated", sync);
+    return () => window.removeEventListener("today-done-updated", sync);
+  }, []);
   const id = (item: Item) => `${item.key}@${item.at}`;
   return {
     isDone: (item: Item) => done.includes(id(item)),
@@ -89,7 +99,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, rankingMo
           <button className="chip-button" type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
             All <span className="count">{shown.length}</span>
           </button>
-          {(["slack", "jira", "github", "outlook"] as SourceName[]).map((name) => (
+          {(["slack", "jira", "github", "outlook", "teams"] as SourceName[]).map((name) => (
             <button className="chip-button" type="button" key={name} aria-pressed={filter === name} onClick={() => setFilter(name)}>
               <SourceLogo name={name} />
               {titles[name]} <span className="count">{count(name)}</span>
@@ -99,7 +109,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, rankingMo
       </header>
       {sample && (
         <p className="panel-note">
-          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira, GitHub or Outlook</a> to see your own.
+          These rows are examples. <a href={appPath("connections")} data-page="connections">Connect Slack, Jira, GitHub, Outlook or Teams</a> to see your own.
         </p>
       )}
 
@@ -167,6 +177,7 @@ export function textOf(item: Item) {
     case "jira": return item.data.summary;
     case "github": return item.data.title;
     case "outlook": return item.data.subject;
+    case "teams": return item.data.text;
   }
 }
 
@@ -399,6 +410,8 @@ function fromOf(item: Item) {
       return <span title={item.data.repository}>{item.data.repository.split("/").at(-1)}</span>;
     case "outlook":
       return item.data.from;
+    case "teams":
+      return item.data.from;
   }
 }
 
@@ -412,6 +425,8 @@ function Status({ item }: { item: Item }) {
       return <span className="badge">{item.data.kind === "pull_request" ? "Pull request" : "Issue"}</span>;
     case "outlook":
       return <span className="badge">Unread email</span>;
+    case "teams":
+      return <span className="badge">{item.data.kind === "dm" ? "Direct chat" : `Mention in ${item.data.where}`}</span>;
   }
 }
 

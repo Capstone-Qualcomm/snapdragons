@@ -60,7 +60,7 @@ With `CLUSTER_BOARDS` set (say `q-sanyam`), the gateway runs the real Uno Q boar
 - **The live job** (`scenarios/ask.ts`): anything a person types, split into up to five parts the boards work at once, then combined.
 - Raft needs a majority, so a failover needs at least three boards.
 
-The model runs on GCP. The gateway signs in with the service account in `GCP_AI_KEY` (see `backend/.env.example`).
+The model runs on GCP. The gateway signs in with the service account in `GCP_AI_KEY` (see `backend/.env.example`). With `GCP_AI_ARMOR` set, the gateway sends each prompt and reply through a Model Armor template and fails the call if the template flags it or can't be reached.
 
 ## Gateway routes
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { appPath } from "../lib/urls";
+import { Icon } from "./Icon";
 
 // The shared pieces every page is built from. Styles live in styles/panels.css.
 
@@ -11,7 +12,8 @@ export function StatusDot({ tone }: { tone: Tone }) {
   return <span className={`dot tone-${tone}`} aria-hidden="true" />;
 }
 
-export function SourceLogo({ name }: { name: "jira" | "slack" | "github" | "outlook" }) {
+export function SourceLogo({ name }: { name: "jira" | "slack" | "github" | "outlook" | "teams" }) {
+  if (name === "teams") return <Icon name="chat" className="logo logo-teams" />;
   return <img className={`logo logo-${name}`} src={appPath(`${name}-logo.png`)} alt="" />;
 }
 

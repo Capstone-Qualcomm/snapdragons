@@ -50,7 +50,7 @@ beforeEach(() => {
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   clusterState = idleCluster();
   connections = everySource(on);
-  lists = { slack: { messages: [mention, dm] }, github: { issues: [pr] }, outlook: { messages: [] } };
+  lists = { slack: { messages: [mention, dm] }, github: { issues: [pr] }, outlook: { messages: [] }, teams: { messages: [] } };
   jiraIssues = () => Response.json({ issues: [issue] });
   githubComment = undefined;
   posts = [];
@@ -76,6 +76,7 @@ beforeEach(() => {
     if (path === "/api/slack/messages") return Response.json(lists.slack);
     if (path === "/api/github/issues") return Response.json(lists.github);
     if (path === "/api/outlook/messages") return Response.json(lists.outlook);
+    if (path === "/api/teams/messages") return Response.json(lists.teams);
     return Response.json({ error: "Not found" }, { status: 404 });
   }));
 });
@@ -209,6 +210,7 @@ describe("Today connections", () => {
       slack: { configured: true, connected: false, enabled: false },
       github: off,
       outlook: off,
+      teams: off,
     };
     renderToday();
     const sample = await screen.findByRole("table", { name: "Sample tasks" });
@@ -216,15 +218,16 @@ describe("Today connections", () => {
     expect(sample.querySelectorAll("tbody .task-row")).toHaveLength(4);
     expect(within(screen.getByRole("list", { name: "Summary" })).getAllByText("No source connected yet")).toHaveLength(2);
     // The note under the sample links to the Connections page, where each source has its button.
-    fireEvent.click(screen.getByRole("link", { name: "Connect Slack, Jira, GitHub or Outlook" }));
+    fireEvent.click(screen.getByRole("link", { name: "Connect Slack, Jira, GitHub, Outlook or Teams" }));
     expect(screen.getByRole("heading", { name: "Connections", level: 1 })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Connect Slack" }).getAttribute("href")).toBe("/auth/slack/start");
     expect(screen.getByRole("button", { name: "Connect GitHub" }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByRole("button", { name: "Connect Outlook" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Connect Teams" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("shows an all-clear, not sample data, when a connected source has nothing", async () => {
-    lists = { slack: { messages: [] }, github: { issues: [] }, outlook: { messages: [] } };
+    lists = { slack: { messages: [] }, github: { issues: [] }, outlook: { messages: [] }, teams: { messages: [] } };
     jiraIssues = () => Response.json({ issues: [] });
     renderToday();
     expect(await screen.findByText("Nothing waiting. You are all caught up.")).toBeTruthy();
@@ -232,7 +235,7 @@ describe("Today connections", () => {
   });
 
   it("gives the all-clear only once every connected source has loaded", async () => {
-    lists = { slack: { messages: [] }, github: { issues: [] }, outlook: { messages: [] } };
+    lists = { slack: { messages: [] }, github: { issues: [] }, outlook: { messages: [] }, teams: { messages: [] } };
     jiraIssues = () => Response.json({ error: "Jira is down." }, { status: 502 });
     renderToday();
     expect(await screen.findByText("Nothing to show, but a source could not be loaded.")).toBeTruthy();
