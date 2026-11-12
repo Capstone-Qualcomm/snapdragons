@@ -163,13 +163,13 @@ export function createQueue() {
 
   // An Assistant plan: the scenario's first stage is queued now, and each next
   // stage is planned from the outputs of the one before when its last step is done.
-  function addPlan(id: string, prompt: string, pace: number, at: number): Job {
+  function addPlan(id: string, prompt: string, pace: number, at: number, context?: Json): Job {
     const scenario = scenarioById(id);
     if (!scenario) throw new Error(`No scenario ${id}.`);
     const job: Job = { id: `J-${data.nextJob++}`, name: scenario.title, queuedAt: at, doneAt: null, nodes: null, plan: { scenario: id, prompt, pace, stage: -1, stages: scenario.stages.map(({ label, short, icon }) => ({ label, short, icon })), result: null } };
     data.jobs.push(job);
     log(at, `${orchestrator() ?? "The orchestrator"} got a job: "${prompt}"`);
-    startStage(job, 0, at);
+    startStage(job, 0, at, context);
     trimJobs();
     return job;
   }
@@ -180,13 +180,14 @@ export function createQueue() {
       .map((task) => ({ skill: task.skill!, stage: task.stage!, params: task.params ?? null, output: task.output!, worker: task.runs.at(-1)!.worker }));
   }
 
-  function startStage(job: Job, stage: number, at: number): void {
+  // context is what the person's own request brought along (their open items); only the first stage sees it, and it is not kept on the job.
+  function startStage(job: Job, stage: number, at: number, context?: Json): void {
     const plan = job.plan!;
     const scenario = scenarioById(plan.scenario)!;
     if (stage >= scenario.stages.length) return finishPlan(job, at);
     let specs;
     try {
-      specs = scenario.stages[stage].plan(doneSteps(job), plan.prompt);
+      specs = scenario.stages[stage].plan(doneSteps(job), plan.prompt, context);
     } catch (cause) {
       plan.error = `Stage ${stage + 1} could not be planned: ${(cause as Error).message}`;
       return finishPlan(job, at);
@@ -394,7 +395,7 @@ export function createQueue() {
         const job =
           command.type === "job"
             ? addJob(command.name as string, command.steps as string[], command.then as string | undefined, at, command.fetch as { sources: string[]; asker: string | null } | undefined)
-            : addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at);
+            : addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at, command.context as Json | undefined);
         if (typeof command.requestId === "string") data.requests.push({ id: command.requestId, job: job.id });
         if (data.requests.length > KEEP_REQUESTS) data.requests.shift();
         return job;

@@ -56,7 +56,7 @@ export type StepOutput = { summary: string; short: string; data: Json; found?: F
 export type DoneStep = { skill: string; stage: number; params: Json; output: StepOutput; worker: string };
 
 // prompt is what the person asked for; only a scenario that works from it needs it.
-export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[], prompt: string) => StepSpec[] };
+export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[], prompt: string, context?: Json) => StepSpec[] };
 
 // The result a scenario ends with, drawn the same way for every scenario.
 export type Section =
