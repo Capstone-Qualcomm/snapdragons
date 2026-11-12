@@ -155,7 +155,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   // Opening Today is a refresh too: the sources load on their own, and the
   // cluster gets a job, unless one is already running for Today to follow, or
   // the boards are busy with an Assistant job.
-  // ponytail: on opening, the boards load each source a second time after the page's own first load; skip this job if source rate limits bite.
+  // ponytail: on opening, each source is loaded twice, once by the page and once by the boards; drop this opening job if a source's rate limits bite.
   const followed = useRef(false);
   useEffect(() => {
     if (followed.current || !cluster || !active) return;
