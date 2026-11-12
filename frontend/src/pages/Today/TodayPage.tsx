@@ -67,23 +67,46 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   const jobProgress = steps.length ? steps.reduce((sum, task) => sum + task.progress, 0) / steps.length : 0;
   // An unreachable cluster leaves its last state behind; it must not hold up the sources' own syncs.
   const jobRunning = Boolean(job && job.doneAt === null && cluster?.orchestrator && !failed);
-  const busy = sources.some((source) => source.syncing) || jobRunning;
+  const [starting, setStarting] = useState(false);
+  const busy = sources.some((source) => source.syncing) || jobRunning || starting;
 
-  const startJob = useCallback(() => {
-    api<{ job?: { id: string } }>("/api/cluster/refresh", {}).then(({ job }) => setJobId(job?.id ?? null), () => {});
-  }, []);
+  // Whether the cluster took the job.
+  const startJob = useCallback(
+    () => api<{ job?: { id: string } }>("/api/cluster/refresh", {}).then(({ job }) => { setJobId(job?.id ?? null); return Boolean(job); }, () => false),
+    [],
+  );
 
-  // The cluster runs a refresh job while this browser syncs each source itself.
+  const reloadAll = useCallback((job?: string) => {
+    void slack.reload(job);
+    void jira.reload(job);
+    void github.reload(job);
+    void outlook.reload(job);
+    void teams.reload(job);
+  }, [github.reload, jira.reload, outlook.reload, slack.reload, teams.reload]);
+
+  // The boards load every source, and the effect below shows their lists once the job is done.
+  // Without a cluster to take the job, the sources load themselves.
   const refresh = useCallback(() => {
     if (busy) return;
     lastRefreshAt.current = Date.now();
-    startJob();
-    void slack.reload();
-    void jira.reload();
-    void github.reload();
-    void outlook.reload();
-    void teams.reload();
-  }, [busy, startJob, github.reload, jira.reload, outlook.reload, slack.reload, teams.reload]);
+    if (failed || !cluster?.orchestrator) return reloadAll();
+    setStarting(true);
+    void startJob().then((started) => {
+      setStarting(false);
+      if (!started) reloadAll();
+    });
+  }, [busy, failed, cluster?.orchestrator, startJob, reloadAll]);
+
+  // When the job this page follows is over, show what its boards loaded. A cluster that went away
+  // mid-refresh has nothing to give, so the sources load themselves.
+  const collected = useRef<string | null>(null);
+  useEffect(() => {
+    if (!jobId || collected.current === jobId) return;
+    const done = Boolean(job?.doneAt);
+    if (!done && !failed && cluster?.orchestrator) return;
+    collected.current = jobId;
+    reloadAll(done ? jobId : undefined);
+  }, [jobId, job?.doneAt, failed, cluster?.orchestrator, reloadAll]);
 
   const deleteOutlook = useCallback(async (messageId: string) => {
     await api(`/api/outlook/messages/${encodeURIComponent(messageId)}/delete`, {});
@@ -132,13 +155,14 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   // Opening Today is a refresh too: the sources load on their own, and the
   // cluster gets a job, unless one is already running for Today to follow, or
   // the boards are busy with an Assistant job.
+  // ponytail: on opening, the boards load each source a second time after the page's own first load; skip this job if source rate limits bite.
   const followed = useRef(false);
   useEffect(() => {
     if (followed.current || !cluster || !active) return;
     followed.current = true;
     const running = refreshes(cluster.jobs).find((candidate) => candidate.doneAt === null);
     if (running) setJobId(running.id);
-    else if (!cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) startJob();
+    else if (!cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) void startJob();
   }, [cluster, active, startJob]);
 
   useEffect(() => {

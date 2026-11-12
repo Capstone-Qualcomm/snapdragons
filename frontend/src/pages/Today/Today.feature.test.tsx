@@ -39,6 +39,13 @@ let lists: Record<string, unknown>;
 let jiraIssues: () => Response | Promise<Response>;
 let githubComment: (() => Promise<Response>) | undefined;
 let posts: Array<{ path: string; body: unknown }>;
+// What the boards loaded in a refresh, by source; a source missing here falls back to the page's own list.
+let boardLists: Record<string, unknown>;
+let collects: string[];
+// Whether the cluster finishes a refresh as soon as it is asked for one.
+let finishRefreshes: boolean;
+// Each refresh is a new job, J-7 first, as the cluster numbers them.
+let nextJob: number;
 let rankingCalls: Array<{ path: string; body: { items: Array<{ id: string }> } }>;
 
 function idleCluster(fields: Record<string, unknown> = {}) {
@@ -54,6 +61,10 @@ beforeEach(() => {
   jiraIssues = () => Response.json({ issues: [issue] });
   githubComment = undefined;
   posts = [];
+  boardLists = {};
+  collects = [];
+  finishRefreshes = true;
+  nextJob = 7;
   rankingCalls = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const path = String(url).replace(/^\/snapdragons/, "");
@@ -63,8 +74,17 @@ beforeEach(() => {
         rankingCalls.push({ path, body });
         return Response.json({ order: body.items.map((item: { id: string }) => item.id) });
       }
+      const collect = path.match(/^\/api\/cluster\/refresh\/J-\d+\/(\w+)$/)?.[1];
+      if (collect) {
+        collects.push(collect);
+        return collect in boardLists ? Response.json(boardLists[collect]) : Response.json({ error: "This refresh has no list from that source for this browser." }, { status: 404 });
+      }
       posts.push({ path, body });
-      if (path === "/api/cluster/refresh") return Response.json({ job: { id: "J-7" } }, { status: 201 });
+      if (path === "/api/cluster/refresh") {
+        const id = `J-${nextJob++}`;
+        clusterState = idleCluster({ jobs: [{ id, name: "Morning refresh", queuedAt: now, doneAt: finishRefreshes ? now + 1 : null, nodes: finishRefreshes ? 2 : null }] });
+        return Response.json({ job: { id } }, { status: 201 });
+      }
       if (path.endsWith("/comments") && githubComment) return githubComment();
       return Response.json({ ok: true });
     }
@@ -93,6 +113,8 @@ const openConnections = () => fireEvent.click(within(screen.getByRole("navigatio
 const rows = () => [...screen.getByRole("table", { name: "Today" }).querySelectorAll("tbody .task-row:not([hidden])")] as HTMLElement[];
 const row = (text: string) => screen.getByRole("row", { name: text });
 const sourceGets = (source: string) => vi.mocked(fetch).mock.calls.filter(([url, init]) => !init?.method && String(url).endsWith(`/api/${source}/connection`)).length;
+// The page asking a source for its list itself, not through the cluster.
+const listGets = (path: string) => vi.mocked(fetch).mock.calls.filter(([url, init]) => !init?.method && String(url).endsWith(path)).length;
 
 // Today is one page of the app; a test that set its own address keeps it.
 function renderToday() {
@@ -289,13 +311,55 @@ describe("Today refresh", () => {
     const before = sourceGets("slack");
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(posts).toHaveLength(2));
-    expect(sourceGets("slack")).toBe(before + 1);
+    await waitFor(() => expect(sourceGets("slack")).toBe(before + 1));
     expect(sourceGets("jira")).toBe(before + 1);
     expect(sourceGets("github")).toBe(before + 1);
     await waitFor(() => expect(screen.getByRole("button", { name: "Refresh" }).hasAttribute("disabled")).toBe(false));
 
     fireEvent.keyDown(window, { key: "r" });
     await waitFor(() => expect(posts).toHaveLength(3));
+  });
+
+  it("shows what the boards loaded, and does not ask the sources for their lists again", async () => {
+    await openToday();
+    await waitFor(() => expect(collects).toHaveLength(5));
+    const slackGets = listGets("/api/slack/messages");
+    const jiraGets = listGets("/api/jira/issues");
+    collects = [];
+    boardLists = { slack: { messages: [mention, dm, { ...dm, id: "s3", text: "Loaded on a board" }] }, jira: { issues: [issue] }, github: { issues: [pr] }, outlook: { messages: [] }, teams: { messages: [] } };
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(await screen.findByRole("row", { name: "Loaded on a board" })).toBeTruthy();
+    await waitFor(() => expect([...collects].sort()).toEqual(["github", "jira", "outlook", "slack", "teams"]));
+    expect(listGets("/api/slack/messages")).toBe(slackGets);
+    expect(listGets("/api/jira/issues")).toBe(jiraGets);
+  });
+
+  it("loads a source itself when the boards have no list from it", async () => {
+    await openToday();
+    await waitFor(() => expect(collects).toHaveLength(5));
+    const githubGets = listGets("/api/github/issues");
+    const slackGets = listGets("/api/slack/messages");
+    boardLists = { slack: { messages: [mention, dm] }, jira: { issues: [issue] }, outlook: { messages: [] }, teams: { messages: [] } };
+    lists.github = { issues: [{ ...pr, id: "g2", number: 16, title: "Loaded by the page" }] };
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(await screen.findByRole("row", { name: "Loaded by the page" })).toBeTruthy();
+    expect(listGets("/api/github/issues")).toBe(githubGets + 1);
+    expect(listGets("/api/slack/messages")).toBe(slackGets);
+  });
+
+  it("loads every source itself when the cluster goes away mid-refresh", async () => {
+    finishRefreshes = false;
+    await openToday();
+    await screen.findByRole("button", { name: "Refreshing" });
+    const slackGets = listGets("/api/slack/messages");
+    lists.slack = { messages: [mention, dm, { ...dm, id: "s3", text: "Loaded once the cluster was gone" }] };
+
+    clusterState = { error: "down" };
+    expect(await screen.findByRole("row", { name: "Loaded once the cluster was gone" })).toBeTruthy();
+    expect(listGets("/api/slack/messages")).toBe(slackGets + 1);
+    expect(collects).toEqual([]);
   });
 
   it("stays busy while its job runs on the cluster", async () => {
@@ -364,7 +428,7 @@ describe("Today across pages", () => {
     expect(posts).toHaveLength(1);
     go("Today");
     await waitFor(() => expect(posts).toHaveLength(2));
-    expect(sourceGets("slack")).toBe(before + 1);
+    await waitFor(() => expect(sourceGets("slack")).toBe(before + 1));
   });
 
   it("keeps syncing the sources while the cluster is unreachable", async () => {
