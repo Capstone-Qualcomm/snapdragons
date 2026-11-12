@@ -75,9 +75,6 @@ type ServerOptions = {
   auto?: boolean;
   // Passed to every node: WORK_MS, LEASE_MS and the RAFT_* timings.
   nodeEnv?: Record<string, string>;
-  // Boards really load each source in a refresh (CLUSTER_FETCH_SOURCES=1). Off, a refresh step only takes time.
-  // Off by default while Today still loads every source itself, so a refresh would load each one twice.
-  fetchSources?: boolean;
   // Where each source backend is, by name: http://127.0.0.1:<its port> unless given.
   sourceUrls?: Record<string, string>;
 };
@@ -122,25 +119,25 @@ export function createClusterServer(options: ServerOptions = {}) {
   let lastMembers: string[] = [];
   let lastQueue = EMPTY_QUEUE;
 
-  const fetchSources = options.fetchSources ?? process.env.CLUSTER_FETCH_SOURCES === "1";
   const sourceUrl = (name: string) => options.sourceUrls?.[name] ?? `http://127.0.0.1:${Number(process.env[SOURCES[name].portVariable] ?? SOURCES[name].defaultPort)}`;
   // Which browser asked for each refresh, by a random handle. The handle goes in the job, so the boards
-  // can fetch as that browser; the browser's sign-in (its sid) never leaves this process.
-  const askers = new Map<string, { sid: string; at: number }>();
+  // can fetch as that browser; the browser's sign-in (its sid) never leaves this process. Each list a board
+  // loads waits here, under the refresh's job, until that browser collects it.
+  // ponytail: lists are held in memory for ASKER_MS; a gateway restart loses them and Today loads each source itself.
+  const askers = new Map<string, { sid: string; job?: string; lists: Record<string, unknown[]> }>();
   function rememberAsker(sid: string): string {
-    const now = Date.now();
-    for (const [handle, asked] of askers) if (now - asked.at > ASKER_MS) askers.delete(handle);
     // Oldest first, so a flood of refreshes forgets the oldest askers, not the newest.
     while (askers.size >= MAX_ASKERS) askers.delete(askers.keys().next().value!);
     const handle = randomUUID();
-    askers.set(handle, { sid, at: now });
+    askers.set(handle, { sid, lists: {} });
+    // Forgotten on time even if no other refresh comes, so the lists do not outlive ASKER_MS.
+    setTimeout(() => askers.delete(handle), ASKER_MS).unref();
     return handle;
   }
 
-  // The refresh as a queue command. Without fetching it is exactly the refresh from before boards fetched.
   function refreshCommand(asker: string | null): Record<string, unknown> {
     const { name, steps, then, sources } = REFRESH;
-    return fetchSources ? { type: "job", name, steps, then, fetch: { sources, asker } } : { type: "job", name, steps, then };
+    return { type: "job", name, steps, then, fetch: { sources, asker } };
   }
 
   // One source's list for a board, loaded from the source's backend as the browser behind the handle.
@@ -149,7 +146,7 @@ export function createClusterServer(options: ServerOptions = {}) {
     const source = Object.hasOwn(SOURCES, name) ? SOURCES[name] : undefined;
     if (!source) return [404, { error: "No such source." }];
     const asked = handle ? askers.get(handle) : undefined;
-    if (!asked || Date.now() - asked.at > ASKER_MS) return [410, { error: "The browser that asked for this refresh is no longer known to the gateway." }];
+    if (!asked) return [410, { error: "The browser that asked for this refresh is no longer known to the gateway." }];
     let response: Response;
     try {
       response = await fetch(`${sourceUrl(name)}/api/${name}/${source.list}`, { headers: { cookie: `sid=${asked.sid}` }, signal: AbortSignal.timeout(55_000) });
@@ -160,7 +157,17 @@ export function createClusterServer(options: ServerOptions = {}) {
     // The source's own words: "Slack is not connected. Connect Slack."
     if (!response.ok) return [response.status, { error: typeof body?.error === "string" ? body.error : `${source.title} answered with HTTP ${response.status}.` }];
     const items = body?.[source.list];
-    return Array.isArray(items) ? [200, { items }] : [502, { error: `${source.title} answered without its list.` }];
+    if (!Array.isArray(items)) return [502, { error: `${source.title} answered without its list.` }];
+    asked.lists[name] = items;
+    return [200, { items }];
+  }
+
+  // A list the boards loaded in a refresh, for the browser that asked for it and nobody else.
+  function collectedList(job: string, name: string, sid: string | undefined): [number, unknown] {
+    const asked = [...askers.values()].find((entry) => entry.job === job && entry.sid === sid);
+    const items = asked && Object.hasOwn(asked.lists, name) ? asked.lists[name] : undefined;
+    if (!items) return [404, { error: "This refresh has no list from that source for this browser." }];
+    return [200, { [SOURCES[name].list]: items }];
   }
 
   // fresh wipes the node's saved log, for a node joining as new. A restart keeps it.
@@ -464,8 +471,18 @@ export function createClusterServer(options: ServerOptions = {}) {
       }
       if (post && url.pathname === "/api/cluster/refresh") {
         // The boards fetch as the browser that asked, if it is the app's own page; anyone else's refresh fetches as nobody.
-        const sid = fetchSources && req.headers.origin === new URL(appUrl).origin ? req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1] : undefined;
-        return send(res, 201, { job: await clusterRequest(refreshCommand(sid ? rememberAsker(sid) : null)) });
+        const sid = req.headers.origin === new URL(appUrl).origin ? req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1] : undefined;
+        const handle = sid ? rememberAsker(sid) : null;
+        const job = (await clusterRequest(refreshCommand(handle))) as { id: string };
+        const asked = handle ? askers.get(handle) : undefined;
+        if (asked) asked.job = job.id;
+        return send(res, 201, { job });
+      }
+      const collect = url.pathname.match(/^\/api\/cluster\/refresh\/(J-\d+)\/([a-z]+)$/);
+      if (post && collect) {
+        if (req.headers.origin !== new URL(appUrl).origin) return send(res, 403, { error: "This request must come from the application." });
+        const [status, body] = collectedList(collect[1], collect[2], req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1]);
+        return send(res, status, body);
       }
       if (post && url.pathname === "/api/today/rank") {
         // This route can spend the shared GCP quota. Require the app's origin

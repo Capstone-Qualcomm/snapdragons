@@ -227,7 +227,7 @@ test("a refresh nobody asked for fetches as nobody", () => {
   assert.equal(task!.asker, null);
 });
 
-test("a refresh without fetch is the same as before: no sources, no askers, no outputs", () => {
+test("a refresh saved before boards fetched replays as it was: no sources, no askers, no outputs", () => {
   const queue = createQueue();
   queue.apply({ type: "job", at: 0, name: "Morning refresh", steps: ["Fetch Jira tickets"], then: "Rank today's list" });
   const { task } = queue.apply({ type: "claim", at: 1, worker: "Q-01" }) as ClaimResult;

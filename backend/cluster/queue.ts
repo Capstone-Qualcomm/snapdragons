@@ -143,7 +143,8 @@ export function createQueue() {
     log(at, `${task.id} back in the queue at ${percent(task.progress)}, from ${task.lostBy.at(-1)}`);
   }
 
-  // With fetch, each step loads the source at the same place in fetch.sources, as fetch.asker.
+  // With fetch, each step loads the source at the same place in fetch.sources, as fetch.asker. A refresh
+  // saved before boards fetched has no fetch, and replays from a saved log as it was.
   function addJob(name: string, steps: string[], then: string | undefined, at: number, fetch?: { sources: string[]; asker: string | null }): Job {
     const job: Job = { id: `J-${data.nextJob++}`, name, queuedAt: at, doneAt: null, nodes: null };
     const add = (input: string, after: string[] = [], source?: string) => {

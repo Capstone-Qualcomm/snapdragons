@@ -19,7 +19,7 @@ type State = {
   jobs: Array<{ id: string; doneAt: number | null; nodes: number | null; plan?: { result: { sections: Array<{ title: string; rows?: string[][] }> } | null } }>;
 };
 
-// fetching has the boards really load each source in a refresh, from the source backends at sourceUrls.
+// fetching has the boards load each source in a refresh from the source backends at sourceUrls, as the app at appUrl.
 type Fetching = { appUrl: string; sourceUrls: Record<string, string> };
 
 async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(join(tmpdir(), "cluster-test-")), fetching?: Fetching) {
@@ -29,7 +29,7 @@ async function startCluster(nodePort: number, size = 3, dataDir = mkdtempSync(jo
     nodePort,
     dataDir,
     nodeEnv,
-    ...(fetching && { fetchSources: true, ...fetching }),
+    ...fetching,
   });
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const base = `http://localhost:${(server.address() as AddressInfo).port}`;
@@ -77,8 +77,10 @@ test("three nodes elect an orchestrator and split a refresh, each step done once
     assert.equal(steps.length, REFRESH.steps.length + 1);
     for (const step of steps) assert.deepEqual(step.runs.map((run) => run.outcome), ["done"]);
     assert.equal(done.jobs.find((entry) => entry.id === job)!.nodes, 3);
-    // With fetching off, as by default, the steps only take time: no sources, no results.
-    assert.ok(steps.every((step) => step.source === undefined && step.output === undefined));
+    // Nobody signed in asked for it, so each fetch step loads nothing and says so.
+    const fetches = steps.filter((step) => step.source);
+    assert.deepEqual(fetches.map((step) => step.source), REFRESH.sources);
+    assert.ok(fetches.every((step) => step.output?.summary === "No signed-in browser asked for this refresh, so nothing was loaded"));
   } finally {
     cluster.close();
   }
@@ -338,6 +340,45 @@ test("boards fetch each source as the browser that asked, and only what they loa
     // The pages see counts, never the browser's sid, the handle standing for it, or the items themselves.
     const seen = JSON.stringify(done);
     assert.ok(!seen.includes(SID) && !seen.includes("asker") && !seen.includes("Can you review my PR?"));
+  } finally {
+    cluster.close();
+    sources.server.close();
+  }
+});
+
+test("the browser that asked collects what the boards loaded, and nobody else can", async () => {
+  const sources = await startSources();
+  const cluster = await startCluster(4731, 3, undefined, sources.fetching);
+  const collect = (job: string, source: string, headers: Record<string, string>) => cluster.post(`/api/cluster/refresh/${job}/${source}`, {}, headers);
+  const asker = { origin: APP, cookie: `sid=${SID}` };
+  try {
+    const response = await cluster.post("/api/cluster/refresh", {}, asker);
+    const job = ((await response.json()) as { job: { id: string } }).job.id;
+    await cluster.until(cluster.jobDone(job), "the refresh is done");
+
+    // Each list as its source served it, under the same name, so Today reads it like the source's own.
+    const lists: Record<string, unknown> = {};
+    for (const source of ["jira", "slack", "github", "teams"]) {
+      const answer = await collect(job, source, asker);
+      assert.equal(answer.status, 200, source);
+      lists[source] = await answer.json();
+    }
+    assert.deepEqual(lists, {
+      jira: { issues: [{ key: "QT1S-46" }, { key: "QT1S-10" }, { key: "QT1S-53" }] },
+      slack: { messages: [{ text: "Can you review my PR?" }, { text: "Demo is at 2" }] },
+      github: { issues: [{ title: "Snapshot the queue" }] },
+      teams: { messages: [{ text: "Standup moved to 10" }, { text: "Slides?" }, { text: "Thanks!" }, { text: "See you there" }] },
+    });
+    // Outlook refused the boards, so there is nothing to collect and Today loads it itself.
+    assert.equal((await collect(job, "outlook", asker)).status, 404);
+    // Another browser, another site, another job and a made-up source get nothing.
+    assert.equal((await collect(job, "slack", { origin: APP, cookie: `sid=${"cd".repeat(32)}` })).status, 404);
+    assert.equal((await collect(job, "slack", { origin: APP })).status, 404);
+    assert.equal((await collect(job, "slack", { origin: "http://elsewhere.test", cookie: `sid=${SID}` })).status, 403);
+    assert.equal((await collect("J-999", "slack", asker)).status, 404);
+    assert.equal((await collect(job, "constructor", asker)).status, 404);
+    // Collecting asked no source again: each was asked once, by a board.
+    assert.equal(sources.asked.length, 5);
   } finally {
     cluster.close();
     sources.server.close();
