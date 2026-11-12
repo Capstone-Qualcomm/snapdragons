@@ -76,7 +76,7 @@ type ServerOptions = {
   // Passed to every node: WORK_MS, LEASE_MS and the RAFT_* timings.
   nodeEnv?: Record<string, string>;
   // Boards really load each source in a refresh (CLUSTER_FETCH_SOURCES=1). Off, a refresh step only takes time.
-  // ponytail: off by default while Today still loads every source itself, so a refresh would load each one twice.
+  // Off by default while Today still loads every source itself, so a refresh would load each one twice.
   fetchSources?: boolean;
   // Where each source backend is, by name: http://127.0.0.1:<its port> unless given.
   sourceUrls?: Record<string, string>;
@@ -145,6 +145,7 @@ export function createClusterServer(options: ServerOptions = {}) {
 
   // One source's list for a board, loaded from the source's backend as the browser behind the handle.
   async function sourceList(name: string, handle: string | null): Promise<[number, unknown]> {
+    // hasOwn, so a name like "constructor" is not found on the object's prototype.
     const source = Object.hasOwn(SOURCES, name) ? SOURCES[name] : undefined;
     if (!source) return [404, { error: "No such source." }];
     const asked = handle ? askers.get(handle) : undefined;
