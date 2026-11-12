@@ -124,14 +124,14 @@ export function createClusterServer(options: ServerOptions = {}) {
   // can fetch as that browser; the browser's sign-in (its sid) never leaves this process. Each list a board
   // loads waits here, under the refresh's job, until that browser collects it.
   // ponytail: lists are held in memory for ASKER_MS; a gateway restart loses them and Today loads each source itself.
-  const askers = new Map<string, { sid: string; at: number; job?: string; lists: Record<string, unknown[]> }>();
+  const askers = new Map<string, { sid: string; job?: string; lists: Record<string, unknown[]> }>();
   function rememberAsker(sid: string): string {
-    const now = Date.now();
-    for (const [handle, asked] of askers) if (now - asked.at > ASKER_MS) askers.delete(handle);
     // Oldest first, so a flood of refreshes forgets the oldest askers, not the newest.
     while (askers.size >= MAX_ASKERS) askers.delete(askers.keys().next().value!);
     const handle = randomUUID();
-    askers.set(handle, { sid, at: now, lists: {} });
+    askers.set(handle, { sid, lists: {} });
+    // Forgotten on time even if no other refresh comes, so the lists do not outlive ASKER_MS.
+    setTimeout(() => askers.delete(handle), ASKER_MS).unref();
     return handle;
   }
 
@@ -146,7 +146,7 @@ export function createClusterServer(options: ServerOptions = {}) {
     const source = Object.hasOwn(SOURCES, name) ? SOURCES[name] : undefined;
     if (!source) return [404, { error: "No such source." }];
     const asked = handle ? askers.get(handle) : undefined;
-    if (!asked || Date.now() - asked.at > ASKER_MS) return [410, { error: "The browser that asked for this refresh is no longer known to the gateway." }];
+    if (!asked) return [410, { error: "The browser that asked for this refresh is no longer known to the gateway." }];
     let response: Response;
     try {
       response = await fetch(`${sourceUrl(name)}/api/${name}/${source.list}`, { headers: { cookie: `sid=${asked.sid}` }, signal: AbortSignal.timeout(55_000) });
@@ -164,7 +164,7 @@ export function createClusterServer(options: ServerOptions = {}) {
 
   // A list the boards loaded in a refresh, for the browser that asked for it and nobody else.
   function collectedList(job: string, name: string, sid: string | undefined): [number, unknown] {
-    const asked = [...askers.values()].find((entry) => entry.job === job && entry.sid === sid && Date.now() - entry.at <= ASKER_MS);
+    const asked = [...askers.values()].find((entry) => entry.job === job && entry.sid === sid);
     const items = asked && Object.hasOwn(asked.lists, name) ? asked.lists[name] : undefined;
     if (!items) return [404, { error: "This refresh has no list from that source for this browser." }];
     return [200, { [SOURCES[name].list]: items }];
