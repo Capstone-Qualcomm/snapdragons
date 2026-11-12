@@ -194,7 +194,7 @@ test("the services give no source list for an unknown source, or for a handle th
   servers.add(source);
   await new Promise<void>((resolve) => source.listen(0, "127.0.0.1", resolve));
   const sourceUrl = `http://127.0.0.1:${(source.address() as AddressInfo).port}`;
-  const { server, servicesServer } = createClusterServer({ port: 0, fetchSources: true, sourceUrls: { slack: sourceUrl } });
+  const { server, servicesServer } = createClusterServer({ port: 0, sourceUrls: { slack: sourceUrl } });
   servers.add(server);
   servers.add(servicesServer);
   await new Promise<void>((resolve) => servicesServer.listen(0, "127.0.0.1", resolve));
