@@ -15,6 +15,8 @@ jobs:
         run: for dir in frontend backend/jira backend/slack backend/github backend/outlook backend/teams backend/cluster; do npm ci --prefix "$dir"; done
       - name: Tests
         run: bash tests/local_tests.sh
+      - name: Boards
+        run: node --test tests/integration/boards.test.ts
       - name: Typecheck
         run: for dir in frontend backend/jira backend/slack backend/github backend/outlook backend/teams backend/cluster; do npm run typecheck --prefix "$dir"; done
       - name: Build
