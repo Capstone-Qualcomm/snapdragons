@@ -362,6 +362,42 @@ describe("Today refresh", () => {
     expect(collects).toEqual([]);
   });
 
+  it("loads every source itself when a refresh is not done in 30 s, and can refresh again", async () => {
+    // An orchestrator left with too few boards still answers, but never finishes the job.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    finishRefreshes = false;
+    await openToday();
+    await screen.findByRole("button", { name: "Refreshing" });
+    const slackGets = listGets("/api/slack/messages");
+    lists.slack = { messages: [mention, dm, { ...dm, id: "s3", text: "Loaded after the wait" }] };
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(29_000); });
+    expect(listGets("/api/slack/messages")).toBe(slackGets);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(await screen.findByRole("row", { name: "Loaded after the wait" })).toBeTruthy();
+    expect(collects).toEqual([]);
+    expect(await screen.findByRole("button", { name: "Refresh" })).toBeTruthy();
+  });
+
+  it("keeps a Jira save made during a refresh, instead of the older list the boards loaded", async () => {
+    finishRefreshes = false;
+    await openToday();
+    await screen.findByRole("button", { name: "Refreshing" });
+    fireEvent.click(within(row("Worker hands back its task")).getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "New description" } });
+    jiraIssues = () => Response.json({ issues: [{ ...issue, summary: "Saved during the refresh" }] });
+    fireEvent.click(screen.getByRole("button", { name: "Save 1 change to Jira" }));
+    expect(await screen.findByRole("row", { name: "Saved during the refresh" })).toBeTruthy();
+
+    // The boards loaded Jira before the save.
+    boardLists = { slack: { messages: [mention, dm] }, jira: { issues: [issue] }, github: { issues: [pr] }, outlook: { messages: [] }, teams: { messages: [] } };
+    clusterState = idleCluster({ jobs: [{ id: "J-7", name: "Morning refresh", queuedAt: now, doneAt: now + 1, nodes: 2 }] });
+    await waitFor(() => expect([...collects].sort()).toEqual(["github", "outlook", "slack", "teams"]));
+    await act(async () => {});
+    expect(screen.getByRole("row", { name: "Saved during the refresh" })).toBeTruthy();
+    expect(screen.queryByRole("row", { name: "Worker hands back its task" })).toBeNull();
+  });
+
   it("stays busy while its job runs on the cluster", async () => {
     clusterState = idleCluster({ jobs: [{ id: "J-3", name: "Morning refresh", queuedAt: now, doneAt: null, nodes: null }] });
     await openToday();

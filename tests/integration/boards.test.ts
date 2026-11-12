@@ -110,7 +110,7 @@ type State = {
   members: string[];
   nodes: Array<{ id: string; up: boolean }>;
   tasks: Array<{ id: string; job: string; source?: string; status: string; worker: string | null; lostBy: string[]; runs: Array<{ worker: string }>; output?: { summary: string } | null }>;
-  jobs: Array<{ id: string; doneAt: number | null }>;
+  jobs: Array<{ id: string; queuedAt: number; doneAt: number | null }>;
 };
 const state = async () => (await (await fetch(`${GATEWAY}/api/cluster/state`)).json()) as State;
 async function until(check: (current: State) => boolean, what: string, seconds = 120): Promise<State> {
@@ -206,6 +206,9 @@ test("a board that loses power mid-fetch: another board fetches the source again
   assert.deepEqual(step.lostBy, [board]);
   assert.notEqual(step.runs.at(-1)!.worker, board);
   assert.equal(step.output?.summary, "Loaded 2 Slack messages");
+  // Today stops waiting for a refresh after 30 s (REFRESH_WAIT_MS) and loads the sources itself.
+  const { queuedAt, doneAt } = done.jobs.find((entry) => entry.id === job)!;
+  assert.ok(doneAt! - queuedAt < 30_000, `the refresh took ${doneAt! - queuedAt} ms`);
   assert.equal((await asked()).filter((request) => request.path === "/api/slack/messages").length, before + 2);
   assert.deepEqual(await (await post(`/api/cluster/refresh/${job}/slack`, asker)).json(), { messages: [{ text: "Can you review my PR?" }, { text: "Demo is at 2" }] });
 

@@ -69,11 +69,14 @@ export type Source<T> = {
   loadedAt: number | null;
   // The workspace, user or site it is connected as.
   account: string | null;
-  // With a refresh's job, the list comes from what the boards loaded in it, or the source's own if they did not.
-  reload: (job?: string) => Promise<void>;
+  // With a refresh, the list comes from what the boards loaded in it, or the source's own if they did not.
+  reload: (refresh?: Refresh) => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
   disconnect: () => Promise<void>;
 };
+
+// A cluster refresh's job, and when this page started following it.
+export type Refresh = { job: string; since: number };
 
 type State<T> = Pick<Source<T>, "status" | "syncing" | "items" | "error" | "loadedAt" | "account">;
 
@@ -91,8 +94,13 @@ export function useSource<N extends SourceName>(name: N): Source<ItemsOf[N]> {
 
   // Only the newest sync may write, so a slow older one cannot bring back a list a Turn off or Disconnect cleared.
   const latest = useRef(0);
+  // When the page last loaded this source's list itself, say after a Jira save.
+  const ownAt = useRef(0);
 
-  const reload = useCallback(async (job?: string) => {
+  const reload = useCallback(async (refresh?: Refresh) => {
+    // The boards' list is older than one the page asked for since the refresh began, so it would undo that save.
+    if (refresh && ownAt.current > refresh.since) return;
+    if (!refresh) ownAt.current = Date.now();
     const sync = ++latest.current;
     const write = (next: State<T> | ((current: State<T>) => State<T>)) => {
       if (sync === latest.current) setState(next);
@@ -105,7 +113,7 @@ export function useSource<N extends SourceName>(name: N): Source<ItemsOf[N]> {
       if (!connection.connected) return settle("disconnected");
       if (!connection.enabled) return settle("disabled");
       const own = () => api<Record<string, T[]>>(`/api/${name}/${items}`);
-      const result = job ? await api<Record<string, T[]>>(`/api/cluster/refresh/${job}/${name}`, {}).catch(own) : await own();
+      const result = refresh ? await api<Record<string, T[]>>(`/api/cluster/refresh/${refresh.job}/${name}`, {}).catch(own) : await own();
       write({ status: "ready", syncing: false, items: result[items], error: "", loadedAt: Date.now(), account: accountOf(connection) });
     } catch (cause) {
       // A failed sync keeps the last list, and any edits open in it, beside the error.

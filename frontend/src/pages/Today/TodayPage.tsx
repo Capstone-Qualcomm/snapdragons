@@ -7,9 +7,14 @@ import type { ClusterState } from "../Cluster/cluster";
 import { signInError } from "./Connections";
 import { rank, rankWithGcp, rankingSignature, toItems } from "./rank";
 import type { Item } from "./rank";
-import type { Source, SourceName } from "./sources";
+import type { Refresh, Source, SourceName } from "./sources";
 import { titles } from "./sources";
 import { isWaiting, TasksPanel, useDone } from "./Today";
+
+// How long Today waits for a refresh before loading the sources itself. tests/integration/boards.test.ts checks a refresh
+// with a board dying mid-fetch finishes well inside it.
+// ponytail: a fixed wait; follow the job's progress instead if refreshes on the boards get slower.
+const REFRESH_WAIT_MS = 30_000;
 
 const off = (source: Source<any>) => ["unconfigured", "disconnected", "disabled"].includes(source.status);
 
@@ -25,6 +30,8 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   const requestedSignature = useRef("");
   const rankingRequest = useRef(0);
   const [jobId, setJobId] = useState<string | null>(null);
+  // When this page started following jobId.
+  const followedAt = useRef(0);
   const [signInErrors, setSignInErrors] = useState<string[]>([]);
   const [handledOutlookIds, setHandledOutlookIds] = useState<Set<string>>(() => new Set());
   const lastRefreshAt = useRef(Date.now());
@@ -70,18 +77,18 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   const [starting, setStarting] = useState(false);
   const busy = sources.some((source) => source.syncing) || jobRunning || starting;
 
-  // Whether the cluster took the job.
-  const startJob = useCallback(
-    () => api<{ job?: { id: string } }>("/api/cluster/refresh", {}).then(({ job }) => { setJobId(job?.id ?? null); return Boolean(job); }, () => false),
-    [],
-  );
+  // Whether the cluster took the job. Following starts before the job is asked for, so no board can load a source before it.
+  const startJob = useCallback(() => {
+    followedAt.current = Date.now();
+    return api<{ job?: { id: string } }>("/api/cluster/refresh", {}).then(({ job }) => { setJobId(job?.id ?? null); return Boolean(job); }, () => false);
+  }, []);
 
-  const reloadAll = useCallback((job?: string) => {
-    void slack.reload(job);
-    void jira.reload(job);
-    void github.reload(job);
-    void outlook.reload(job);
-    void teams.reload(job);
+  const reloadAll = useCallback((refresh?: Refresh) => {
+    void slack.reload(refresh);
+    void jira.reload(refresh);
+    void github.reload(refresh);
+    void outlook.reload(refresh);
+    void teams.reload(refresh);
   }, [github.reload, jira.reload, outlook.reload, slack.reload, teams.reload]);
 
   // The boards load every source, and the effect below shows their lists once the job is done.
@@ -103,9 +110,17 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   useEffect(() => {
     if (!jobId || collected.current === jobId) return;
     const done = Boolean(job?.doneAt);
-    if (!done && !failed && cluster?.orchestrator) return;
-    collected.current = jobId;
-    reloadAll(done ? jobId : undefined);
+    if (done || failed || !cluster?.orchestrator) {
+      collected.current = jobId;
+      return reloadAll(done ? { job: jobId, since: followedAt.current } : undefined);
+    }
+    // An orchestrator left with too few boards still answers, but cannot finish the job: stop following it.
+    const timer = setTimeout(() => {
+      collected.current = jobId;
+      setJobId(null);
+      reloadAll();
+    }, followedAt.current + REFRESH_WAIT_MS - Date.now());
+    return () => clearTimeout(timer);
   }, [jobId, job?.doneAt, failed, cluster?.orchestrator, reloadAll]);
 
   const deleteOutlook = useCallback(async (messageId: string) => {
@@ -161,8 +176,10 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     if (followed.current || !cluster || !active) return;
     followed.current = true;
     const running = refreshes(cluster.jobs).find((candidate) => candidate.doneAt === null);
-    if (running) setJobId(running.id);
-    else if (!cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) void startJob();
+    if (running) {
+      followedAt.current = Date.now();
+      setJobId(running.id);
+    } else if (!cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) void startJob();
   }, [cluster, active, startJob]);
 
   useEffect(() => {
