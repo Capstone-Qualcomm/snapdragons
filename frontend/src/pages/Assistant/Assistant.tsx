@@ -34,7 +34,6 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [todayActionRequest, setTodayActionRequest] = useState<string | null>(null);
-  const [answered, setAnswered] = useState<{ question: string; text: string } | null>(null);
   const now = useClock(serverNow);
 
   const loadScenarios = useCallback(() => {
@@ -60,19 +59,6 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   // Why Run is off while the cluster answers but has no orchestrator to plan the job.
   const stuck = cluster && stalled(cluster);
   const waiting = stuck ? `Only ${stuck.up} of ${stuck.members} boards are up. Restart a board to run a job.` : cluster && !cluster.orchestrator ? "Waiting for the boards to elect an orchestrator." : null;
-
-  if (answered) {
-    return (
-      <div className="ask">
-        <div className="ask-hero">
-          <h1>{answered.question}</h1>
-          <p className="lede">From your connected apps, as of now.</p>
-          <button className="text-button" type="button" onClick={() => { setAnswered(null); setPrompt(""); }}>Ask something else</button>
-        </div>
-        <section className="today-action" aria-label="Answer"><p style={{ whiteSpace: "pre-wrap" }}>{answered.text}</p></section>
-      </div>
-    );
-  }
 
   if (todayActionRequest !== null) {
     return (
@@ -111,13 +97,11 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         setTodayActionRequest(prompt);
         return;
       }
-      if (destination === "answer") {
-        const { answer } = await api<{ answer: string }>("/api/assistant/answer", { prompt, items: itemsForModel(sources) });
-        setAnswered({ question: prompt, text: answer });
-        return;
-      }
-      // With no example card selected, run the live open-ended job scenario.
-      const { job } = await api<{ job: Job }>("/api/assistant/run", { scenario: selected || "ask", prompt, pace });
+      // A question about the user's own work runs on the boards too: each reads one app's items.
+      const { job } = destination === "answer"
+        ? await api<{ job: Job }>("/api/assistant/run", { scenario: "mywork", prompt, pace, items: itemsForModel(sources) })
+        // With no example card selected, run the live open-ended job scenario.
+        : await api<{ job: Job }>("/api/assistant/run", { scenario: selected || "ask", prompt, pace });
       setShown(job.id);
       await reload();
     } catch (cause) {
