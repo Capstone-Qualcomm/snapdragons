@@ -64,14 +64,14 @@ type SourceServerOptions<S extends Session> = {
   appUrl: string;
   session: (req: IncomingMessage, res: ServerResponse) => S;
   status: (session: S) => Record<string, unknown>;
-  // The list the Report shows, served at GET /api/<name>/<items>.
+  // The list Today shows, served at GET /api/<name>/<items>.
   items: string;
   loadItems: (session: S) => Promise<unknown[]>;
   // Sign-in and anything else the source needs. Returns false when it has no such route.
   routes: (req: IncomingMessage, res: ServerResponse, url: URL, session: S) => Promise<boolean>;
 };
 
-// What the Jira, Slack and GitHub backends have in common: connection status,
+// What the Jira, Slack, GitHub, Outlook and Teams backends have in common: connection status,
 // turning a source on or off, disconnecting, the items list with its activity
 // log, and only taking POSTs from the app's own pages.
 export function createSourceServer<S extends Session>({ name, title, port, appUrl, session, status, items, loadItems, routes }: SourceServerOptions<S>) {

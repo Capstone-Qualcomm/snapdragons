@@ -36,11 +36,12 @@ export function serveDemo(path: string, query: URLSearchParams, send: (res: Serv
 // Everything at once, for a person looking through the demo data on the page.
 export const demoSample = () => ({ emails: demo().emails, busy: demo().busy, week: demo().week });
 
-// A board's (or a node's) request to those systems, at SERVICES_URL.
-export async function query<T>(path: string): Promise<T> {
+// A board's (or a node's) request to those systems, at SERVICES_URL. A source's list can take
+// longer than the demo systems: Slack reads every DM to find the unanswered ones.
+export async function query<T>(path: string, timeoutMs = 15_000): Promise<T> {
   const base = process.env.SERVICES_URL;
   if (!base) throw new Error("SERVICES_URL is not set, so this node cannot reach mail or calendar.");
-  const response = await fetch(base.replace(/\/$/, "") + path, { signal: AbortSignal.timeout(15_000) });
+  const response = await fetch(base.replace(/\/$/, "") + path, { signal: AbortSignal.timeout(timeoutMs) });
   const body = await response.json();
   if (!response.ok) throw new Error((body as { error?: string }).error ?? `${path} returned ${response.status}`);
   return body as T;

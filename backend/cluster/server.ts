@@ -35,9 +35,24 @@ export const NODE_IDS = ["Q-01", "Q-02", "Q-03", "Q-04", "Q-05", "Q-06"];
 // waits for all of them. A new source adds its fetch here.
 export const REFRESH = {
   name: "Morning refresh",
-  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues"],
+  steps: ["Fetch Jira tickets", "Fetch Slack messages", "Fetch GitHub issues", "Fetch Outlook messages", "Fetch Teams messages"],
+  // The source each step loads, in the same order.
+  sources: ["jira", "slack", "github", "outlook", "teams"],
   then: "Rank today's list",
 };
+// Each source's backend: the list it serves at /api/<source>/<list>, and the variable naming its port (deploy/start.sh).
+// Jira's own server reads PORT, but hosts often set PORT to this gateway's port, so here it is JIRA_PORT.
+const SOURCES: Record<string, { title: string; list: string; portVariable: string; defaultPort: number }> = {
+  jira: { title: "Jira", list: "issues", portVariable: "JIRA_PORT", defaultPort: 3001 },
+  slack: { title: "Slack", list: "messages", portVariable: "SLACK_PORT", defaultPort: 3002 },
+  github: { title: "GitHub", list: "issues", portVariable: "GITHUB_PORT", defaultPort: 3004 },
+  outlook: { title: "Outlook", list: "messages", portVariable: "OUTLOOK_PORT", defaultPort: 3005 },
+  teams: { title: "Teams", list: "messages", portVariable: "TEAMS_PORT", defaultPort: 3006 },
+};
+
+// How long the gateway remembers which browser asked for a refresh, and how many it remembers at once.
+const ASKER_MS = 10 * 60_000;
+const MAX_ASKERS = 1000;
 
 // Auto mode waits this long after a refresh finishes before starting the next.
 const AUTO_PAUSE_MS = 1500;
@@ -60,6 +75,11 @@ type ServerOptions = {
   auto?: boolean;
   // Passed to every node: WORK_MS, LEASE_MS and the RAFT_* timings.
   nodeEnv?: Record<string, string>;
+  // Boards really load each source in a refresh (CLUSTER_FETCH_SOURCES=1). Off, a refresh step only takes time.
+  // Off by default while Today still loads every source itself, so a refresh would load each one twice.
+  fetchSources?: boolean;
+  // Where each source backend is, by name: http://127.0.0.1:<its port> unless given.
+  sourceUrls?: Record<string, string>;
 };
 
 type NodeStatus = {
@@ -101,6 +121,47 @@ export function createClusterServer(options: ServerOptions = {}) {
   // The last members and queue seen, so a cluster with every node down still shows who is missing and what they were doing.
   let lastMembers: string[] = [];
   let lastQueue = EMPTY_QUEUE;
+
+  const fetchSources = options.fetchSources ?? process.env.CLUSTER_FETCH_SOURCES === "1";
+  const sourceUrl = (name: string) => options.sourceUrls?.[name] ?? `http://127.0.0.1:${Number(process.env[SOURCES[name].portVariable] ?? SOURCES[name].defaultPort)}`;
+  // Which browser asked for each refresh, by a random handle. The handle goes in the job, so the boards
+  // can fetch as that browser; the browser's sign-in (its sid) never leaves this process.
+  const askers = new Map<string, { sid: string; at: number }>();
+  function rememberAsker(sid: string): string {
+    const now = Date.now();
+    for (const [handle, asked] of askers) if (now - asked.at > ASKER_MS) askers.delete(handle);
+    // Oldest first, so a flood of refreshes forgets the oldest askers, not the newest.
+    while (askers.size >= MAX_ASKERS) askers.delete(askers.keys().next().value!);
+    const handle = randomUUID();
+    askers.set(handle, { sid, at: now });
+    return handle;
+  }
+
+  // The refresh as a queue command. Without fetching it is exactly the refresh from before boards fetched.
+  function refreshCommand(asker: string | null): Record<string, unknown> {
+    const { name, steps, then, sources } = REFRESH;
+    return fetchSources ? { type: "job", name, steps, then, fetch: { sources, asker } } : { type: "job", name, steps, then };
+  }
+
+  // One source's list for a board, loaded from the source's backend as the browser behind the handle.
+  async function sourceList(name: string, handle: string | null): Promise<[number, unknown]> {
+    // hasOwn, so a name like "constructor" is not found on the object's prototype.
+    const source = Object.hasOwn(SOURCES, name) ? SOURCES[name] : undefined;
+    if (!source) return [404, { error: "No such source." }];
+    const asked = handle ? askers.get(handle) : undefined;
+    if (!asked || Date.now() - asked.at > ASKER_MS) return [410, { error: "The browser that asked for this refresh is no longer known to the gateway." }];
+    let response: Response;
+    try {
+      response = await fetch(`${sourceUrl(name)}/api/${name}/${source.list}`, { headers: { cookie: `sid=${asked.sid}` }, signal: AbortSignal.timeout(55_000) });
+    } catch {
+      return [502, { error: `The ${source.title} backend could not be reached.` }];
+    }
+    const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    // The source's own words: "Slack is not connected. Connect Slack."
+    if (!response.ok) return [response.status, { error: typeof body?.error === "string" ? body.error : `${source.title} answered with HTTP ${response.status}.` }];
+    const items = body?.[source.list];
+    return Array.isArray(items) ? [200, { items }] : [502, { error: `${source.title} answered without its list.` }];
+  }
 
   // fresh wipes the node's saved log, for a node joining as new. A restart keeps it.
   function startNode(id: string, { fresh = false, bootstrap }: { fresh?: boolean; bootstrap?: string[] } = {}): void {
@@ -273,7 +334,8 @@ export function createClusterServer(options: ServerOptions = {}) {
       // Any unfinished job holds it back, an Assistant plan included, so the boards stay on the plan.
       const running = jobs.some((job) => job.doneAt === null);
       const lastDone = Math.max(0, ...jobs.map((job) => job.doneAt ?? 0));
-      if (orchestrator && !running && Date.now() - lastDone >= AUTO_PAUSE_MS) await clusterRequest({ type: "job", ...REFRESH });
+      // No browser asked for an automatic refresh, so its boards have nobody to fetch as.
+      if (orchestrator && !running && Date.now() - lastDone >= AUTO_PAUSE_MS) await clusterRequest(refreshCommand(null));
     } catch {
       // No orchestrator right now. Try again on the next tick.
     } finally {
@@ -400,7 +462,11 @@ export function createClusterServer(options: ServerOptions = {}) {
         res.writeHead(200, { "Content-Type": "application/gzip", "Cache-Control": "no-store" });
         return res.end(code());
       }
-      if (post && url.pathname === "/api/cluster/refresh") return send(res, 201, { job: await clusterRequest({ type: "job", ...REFRESH }) });
+      if (post && url.pathname === "/api/cluster/refresh") {
+        // The boards fetch as the browser that asked, if it is the app's own page; anyone else's refresh fetches as nobody.
+        const sid = fetchSources && req.headers.origin === new URL(appUrl).origin ? req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1] : undefined;
+        return send(res, 201, { job: await clusterRequest(refreshCommand(sid ? rememberAsker(sid) : null)) });
+      }
       if (post && url.pathname === "/api/today/rank") {
         // This route can spend the shared GCP quota. Require the app's origin
         // and a session that has connected at least one source before reading
@@ -694,6 +760,11 @@ export function createClusterServer(options: ServerOptions = {}) {
       if (!(from === "127.0.0.1" || from === "::1" || (a === 100 && b >= 64 && b <= 127))) return send(res, 403, { error: "Only the boards can use this." });
       const url = new URL(req.url ?? "/", "http://localhost");
       if (req.method === "GET" && serveDemo(url.pathname, url.searchParams, send, res)) return;
+      const source = url.pathname.match(/^\/sources\/([a-z]+)$/);
+      if (req.method === "GET" && source) {
+        const [status, body] = await sourceList(source[1], url.searchParams.get("asker"));
+        return send(res, status, body);
+      }
       if (req.method !== "POST" || url.pathname !== "/llm") return send(res, 404, { error: "Not found." });
       // Without a key of its own the gateway would forward the call to itself, over and over.
       if (!process.env.GCP_AI_ENDPOINT || !process.env.GCP_AI_KEY || !process.env.GCP_AI_MODEL) return send(res, 503, { error: "The model is not configured on the gateway. Set GCP_AI_ENDPOINT, GCP_AI_KEY and GCP_AI_MODEL." });

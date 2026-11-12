@@ -34,6 +34,8 @@ export type Task = {
   output?: StepOutput | null;
   assignee?: string | null;
   role?: "orchestrator";
+  // A refresh step that loaded one source's list ("slack"); its output says what came back.
+  source?: string;
 };
 export type Section =
   | { title: string; kind: "table"; columns: string[]; rows: string[][] }
@@ -222,7 +224,11 @@ export function describeEvent(text: string, tasks: Task[]): string {
   const rules: Array<[RegExp, (...parts: string[]) => string]> = [
     [/^(\S+) resumed (T-\d+) \((.+)\) at (\d+%), lost by (\S+)$/, (who, _id, input, at, from) => `Orchestrator gave ${from}'s “${input}” to ${who} at ${at}`],
     [/^(\S+) claimed T-\d+ \((.+)\)$/, (who, input) => `${who} started “${input}”`],
-    [/^(\S+) completed (T-\d+)$/, (who, id) => `${who} finished “${step(id)}”`],
+    [/^(\S+) completed (T-\d+)$/, (who, id) => {
+      // A finished fetch says what the board loaded: "Board 2 finished “Fetch Slack messages”: Loaded 12 Slack messages".
+      const task = tasks.find((candidate) => candidate.id === id);
+      return task?.source && task.output ? `${who} finished “${task.input}”: ${task.output.summary}` : `${who} finished “${step(id)}”`;
+    }],
     [/^(T-\d+) back in the queue at (\d+%), from (\S+)$/, (id, at, from) => `Orchestrator took “${step(id)}” back from ${from} at ${at}`],
     [/^(T-\d+) back in the queue at (\d+%)$/, (id, at) => `“${step(id)}” went back in the queue at ${at}`],
     [/^Plan J-\d+ done in (\S+ s) on (\d+) nodes?$/, (time, count) => `Job finished in ${time} on ${count} ${count === "1" ? "board" : "boards"}`],
