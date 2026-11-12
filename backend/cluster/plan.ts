@@ -56,7 +56,7 @@ export type StepOutput = { summary: string; short: string; data: Json; found?: F
 export type DoneStep = { skill: string; stage: number; params: Json; output: StepOutput; worker: string };
 
 // prompt is what the person asked for; only a scenario that works from it needs it.
-export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[], prompt: string) => StepSpec[] };
+export type Stage = { label: string; short: string; icon: Icon; plan: (done: DoneStep[], prompt: string, context?: Json) => StepSpec[] };
 
 // The result a scenario ends with, drawn the same way for every scenario.
 export type Section =
@@ -76,6 +76,8 @@ export type Scenario = {
   // What the demo data is, said plainly so nobody mistakes it for theirs.
   data: { label: string; items: string[] };
   stages: Stage[];
+  // A scenario that works from the person's own items: the gateway shows its job to the browser that asked, and nobody else.
+  private?: boolean;
   // Whether the page can show the demo data it runs on (the gateway's mail and calendar).
   sample?: boolean;
   // Each skill turns a step's params into its output. The final stage's single step returns a Result as its data.

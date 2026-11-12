@@ -5,11 +5,13 @@ import { research } from "./research.ts";
 import { student } from "./student.ts";
 import { ask } from "./ask.ts";
 import { interviews } from "./interviews.ts";
+import { mywork } from "./mywork.ts";
 
 // Every scenario the Assistant can run, in the order the page offers them.
 export const SCENARIOS: Scenario[] = [interviews, ask, student, engineer, business, research];
 
-export const scenarioById = (id: string) => SCENARIOS.find((scenario) => scenario.id === id);
+// mywork is run by the Assistant for questions about a person's own apps, so the page does not offer it as an example.
+export const scenarioById = (id: string) => [...SCENARIOS, mywork].find((scenario) => scenario.id === id);
 
 // Runs one step's skill on its scenario's demo data.
 const NO_CONTEXT: SkillContext = { partial: null, report: () => {} };

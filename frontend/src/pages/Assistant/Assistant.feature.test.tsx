@@ -115,13 +115,13 @@ describe("Assistant: ask", () => {
     await waitFor(() => expect(posts).toEqual(["/api/assistant/route", "/api/assistant/run"]));
   });
 
-  it("answers a question about the user's own work from Today instead of starting boards", async () => {
-    const posts: string[] = [];
+  it("runs a question about the user's own work on the boards, with the user's items", async () => {
+    const posts: Array<{ path: string; body: string }> = [];
     vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
       const path = String(url);
       if (init?.method === "POST") {
-        posts.push(path);
-        return path.endsWith("/api/assistant/route") ? Response.json({ destination: "answer" }) : Response.json({ answer: "QT1S-53: get the fourth board online." });
+        posts.push({ path, body: String(init.body ?? "") });
+        return path.endsWith("/api/assistant/route") ? Response.json({ destination: "answer" }) : Response.json({ job: { id: "J-1" } });
       }
       if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
       const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
@@ -132,8 +132,8 @@ describe("Assistant: ask", () => {
     render(<App />);
     fireEvent.change(await screen.findByRole("textbox", { name: "Job" }), { target: { value: "What do I need to do today?" } });
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    expect(await screen.findByText("QT1S-53: get the fourth board online.")).toBeTruthy();
-    expect(posts).toEqual(["/api/assistant/route", "/api/assistant/answer"]);
+    await waitFor(() => expect(posts.map((post) => post.path)).toEqual(["/api/assistant/route", "/api/assistant/run"]));
+    expect(JSON.parse(posts[1].body)).toMatchObject({ scenario: "mywork", prompt: "What do I need to do today?", items: [] });
   });
 
   it("sends one job however often Run is clicked while the server answers", async () => {
