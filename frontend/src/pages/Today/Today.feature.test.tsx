@@ -360,6 +360,11 @@ describe("Today refresh", () => {
     expect(await screen.findByRole("row", { name: "Loaded once the cluster was gone" })).toBeTruthy();
     expect(listGets("/api/slack/messages")).toBe(slackGets + 1);
     expect(collects).toEqual([]);
+
+    // The cluster is back with the job still unfinished: Refresh is not held up by it.
+    clusterState = idleCluster({ jobs: [{ id: "J-7", name: "Morning refresh", queuedAt: now, doneAt: null, nodes: null }] });
+    await waitFor(() => expect(screen.queryByText("Cluster not reachable")).toBeNull(), { timeout: 5000 });
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
   });
 
   it("loads every source itself when a refresh is not done in 30 s, and can refresh again", async () => {

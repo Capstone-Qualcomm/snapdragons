@@ -105,18 +105,17 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
   }, [busy, failed, cluster?.orchestrator, startJob, reloadAll]);
 
   // When the job this page follows is over, show what its boards loaded. A cluster that went away
-  // mid-refresh has nothing to give, so the sources load themselves.
-  const collected = useRef<string | null>(null);
+  // mid-refresh has nothing to give, so the sources load themselves. Either way the page stops
+  // following the job, so a cluster that comes back with it still unfinished does not hold up Refresh.
   useEffect(() => {
-    if (!jobId || collected.current === jobId) return;
+    if (!jobId) return;
     const done = Boolean(job?.doneAt);
     if (done || failed || !cluster?.orchestrator) {
-      collected.current = jobId;
+      setJobId(null);
       return reloadAll(done ? { job: jobId, since: followedAt.current } : undefined);
     }
-    // An orchestrator left with too few boards still answers, but cannot finish the job: stop following it.
+    // An orchestrator left with too few boards still answers, but cannot finish the job.
     const timer = setTimeout(() => {
-      collected.current = jobId;
       setJobId(null);
       reloadAll();
     }, followedAt.current + REFRESH_WAIT_MS - Date.now());
