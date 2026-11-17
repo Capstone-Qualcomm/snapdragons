@@ -5,14 +5,17 @@ The Teams source uses delegated Microsoft Graph access to show recent direct cha
 ## Register the Microsoft Entra app
 
 1. In Microsoft Entra admin center, register a web application for the accounts the project should support. If you already set up Outlook, you can add Teams to that same Entra app.
-2. Add this Web redirect URI for local development: `http://localhost:3006/auth/teams/callback`.
+2. Under **Authentication → Platform configurations → Web**, register both redirect URIs:
+   - Local: `http://localhost:3006/auth/teams/callback`
+   - Deployed: `https://qualcomm.sanyamgarg.com/snapdragons/auth/teams/callback`
+   Microsoft Entra requires the redirect URI used by each environment to be registered on the app.
 3. Create a client secret if needed and copy the application's Client ID and secret into the `TEAMS_CLIENT_ID` and `TEAMS_CLIENT_SECRET` settings. These can match the Outlook credentials.
 4. Under API permissions, add Microsoft Graph **delegated** permissions `Chat.Read` and `ChatMessage.Send` (and `User.Read` if it is not already present). The app requests `openid profile email offline_access User.Read Chat.Read ChatMessage.Send` so sign-in can be renewed.
 5. If the tenant requires administrator consent, have an administrator grant consent to the delegated Teams chat permission.
 
 ## Configure and connect
 
-Add these values to `backend/.env` (the checked-in `.env.example` has local defaults):
+For local development, add these values to `backend/.env` (the checked-in `.env.example` has these defaults):
 
 ```env
 TEAMS_PORT=3006
@@ -24,6 +27,15 @@ TEAMS_SCOPES=openid profile email offline_access User.Read Chat.Read ChatMessage
 ```
 
 Keep the client secret in the backend environment file. After adding `ChatMessage.Send`, reconnect Teams so the new permission is granted. For a deployed app, register the public HTTPS callback URL and set the matching `TEAMS_REDIRECT_URI`, `APP_URL`, and tenant ID. Start the project with `scripts/start-dev.sh`, then choose **Connect Teams** on the Connections page.
+
+The live deployment uses a separate runtime environment. Set the same Entra client ID, client secret, tenant ID, and scopes there, with:
+
+```env
+APP_URL=https://qualcomm.sanyamgarg.com/snapdragons
+TEAMS_REDIRECT_URI=https://qualcomm.sanyamgarg.com/snapdragons/auth/teams/callback
+```
+
+`deploy/start.sh` supplies these URL defaults for the live site and honors explicit environment overrides. Keep the localhost values in the local `.env`; each running backend uses the callback matching the site that initiated sign-in. The deployed Caddy route strips `/snapdragons` before forwarding the callback to Teams on port 3006.
 
 The connector checks up to 40 recent one-to-one and group chats, showing incoming direct messages and group messages that mention the signed-in user from the past seven days. The Teams backend listens on port 3006.
 
