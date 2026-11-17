@@ -22,7 +22,7 @@ type TeamsAuthOptions = {
   teamsConnection: TeamsConnection;
 };
 
-const scopesDefault = "openid profile email offline_access User.Read Chat.Read";
+const scopesDefault = "openid profile email offline_access User.Read Chat.Read ChatMessage.Send";
 const refreshBeforeExpiryMs = 60_000;
 
 export function createTeamsAuth({ clientId, clientSecret, tenantId = "common", redirectUri, appUrl, fetchImpl = globalThis.fetch, teamsConnection }: TeamsAuthOptions) {
