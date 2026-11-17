@@ -114,7 +114,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       setJobId(null);
       return reloadAll(done ? { job: jobId, since: followedAt.current } : undefined);
     }
-    // An orchestrator left with too few boards still answers, but cannot finish the job.
+    // A job can also be slow without the cluster going away, say a source that takes its time to answer.
     const timer = setTimeout(() => {
       setJobId(null);
       reloadAll();

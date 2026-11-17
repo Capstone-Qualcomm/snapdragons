@@ -85,6 +85,8 @@ export function createRaft(options: RaftOptions) {
   const nextIndex = new Map<string, number>();
   const matchIndex = new Map<string, number>();
   const inFlight = new Set<string>();
+  // Orchestrator only: when each node last answered it, success or not.
+  const answeredAt = new Map<string, number>();
   // Clients waiting for their entry to be committed, by log index.
   const waiting = new Map<number, { term: number; resolve: (result: unknown) => void; reject: (cause: Error) => void }>();
 
@@ -160,6 +162,7 @@ export function createRaft(options: RaftOptions) {
     orchestrator = id;
     nextIndex.clear();
     matchIndex.clear();
+    answeredAt.clear();
     // Each node is first sent from the end of this log, so its first message carries the empty entry below.
     for (const peer of others()) nextIndex.set(peer, lastIndex() + 1);
     // An orchestrator can only commit entries from its own term by counting copies, so
@@ -193,6 +196,7 @@ export function createRaft(options: RaftOptions) {
       const reply: AppendReply = await send(peer, "append", request);
       if (reply.term > term) return becomeWorker(reply.term);
       if (role !== "orchestrator" || term !== sentTerm) return;
+      answeredAt.set(peer, now());
       if (reply.success) {
         const match = request.snapshot ? request.snapshot.index : request.prevIndex! + request.entries!.length;
         matchIndex.set(peer, Math.max(match, matchIndex.get(peer) ?? 0));
@@ -256,9 +260,28 @@ export function createRaft(options: RaftOptions) {
     }
   }
 
+  // Whether a majority answered this orchestrator within the longest election timeout. A node it has not
+  // heard from yet, just elected or just added, gets that long from now.
+  // ponytail: a node still taking in a long catch-up message has not answered yet; with the other workers down that
+  // costs one extra election, not data, since the message still lands. Count requests in flight if that bites.
+  function majorityAnswering(): boolean {
+    const recent = members().filter((member) => {
+      if (member === id) return true;
+      if (!answeredAt.has(member)) answeredAt.set(member, now());
+      return now() - answeredAt.get(member)! < electionMs[1];
+    });
+    return recent.length >= majority();
+  }
+
   function tick(): void {
     if (removed) return;
     if (role === "orchestrator") {
+      // Without a majority nothing can commit, so it stops claiming to be the orchestrator and the
+      // cluster shows it has none. Once enough nodes are back, one of them is elected.
+      if (!majorityAnswering()) {
+        orchestrator = null;
+        return becomeWorker(term);
+      }
       if (now() >= heartbeatAt) replicateAll();
     } else if (now() >= electionAt && members().length) {
       campaign();

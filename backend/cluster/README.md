@@ -45,6 +45,7 @@ Kill a node from a terminal the way a board loses power:
 
 - **A node dies mid-step.** The orchestrator stops hearing from it, and after `LEASE_MS` (2 s) puts its step back in the queue. The next node starts from the last checkpoint the dead one reported, not from zero.
 - **The orchestrator dies.** The others stop getting its heartbeats, one times out (1.5 to 3 s, random), asks for votes and becomes the new orchestrator for a higher term. Work pauses for that long and then carries on. A node only votes for a candidate whose log has everything it has, so the new orchestrator has every committed change.
+- **Most nodes die, or the orchestrator is cut off from them.** Nothing can commit without a majority. If a majority has not answered the orchestrator within the longest election timeout (3 s here, 8 s on the boards), it steps down, so the cluster shows no orchestrator instead of one that cannot do anything, and Today loads the sources itself. Once enough nodes are back, one is elected and the work carries on.
 - **Remove.** The node finishes its step, leaves the queue, then takes itself out of the members through the log.
 - **Add.** A new node starts empty and the orchestrator adds it to the members through the log, then sends it everything.
 - **Every node restarts.** Each one reloads what it saved; they elect an orchestrator, which replays the log once its first entry commits.
