@@ -15,6 +15,8 @@ import { isWaiting, TasksPanel, useDone } from "./Today";
 // with a board dying mid-fetch finishes well inside it.
 // ponytail: a fixed wait; follow the job's progress instead if refreshes on the boards get slower.
 const REFRESH_WAIT_MS = 30_000;
+// How often Today refreshes while someone is looking at it.
+const REFRESH_EVERY_MS = 5 * 60_000;
 
 const off = (source: Source<any>) => ["unconfigured", "disconnected", "disabled"].includes(source.status);
 
@@ -171,19 +173,21 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     return () => window.removeEventListener("outlook-message-deleted", deleted);
   }, []);
 
-  // Opening Today is a refresh too: the sources load on their own, and the
-  // cluster gets a job, unless one is already running for Today to follow, or
-  // the boards are busy with an Assistant job.
-  // ponytail: on opening, each source is loaded twice, once by the page and once by the boards; drop this opening job if a source's rate limits bite.
+  // Opening Today is a refresh too: the sources load on their own, and the cluster gets a job,
+  // unless one is already running for Today to follow, the cluster finished one less than
+  // REFRESH_EVERY_MS ago (say with auto refresh on), or the boards are busy with an Assistant job.
+  // ponytail: when it does get a job, each source is loaded twice, once by the page and once by the boards.
   const followed = useRef(false);
   useEffect(() => {
     if (followed.current || !cluster || !active) return;
     followed.current = true;
     const running = refreshes(cluster.jobs).find((candidate) => candidate.doneAt === null);
+    const finished = lastRefresh(cluster);
+    const recent = finished && cluster.now - finished.doneAt! < REFRESH_EVERY_MS;
     if (running) {
       followedAt.current = Date.now();
       setJobId(running.id);
-    } else if (!cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) void startJob();
+    } else if (!recent && !cluster.jobs.some((candidate) => candidate.plan && candidate.doneAt === null)) void startJob();
   }, [cluster, active, startJob]);
 
   useEffect(() => {
@@ -193,11 +197,11 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     setSignInErrors(errors);
   }, []);
 
-  // Refresh again after five minutes, but only while someone is looking, and on coming back to Today.
+  // Refresh again after REFRESH_EVERY_MS, but only while someone is looking, and on coming back to Today.
   useEffect(() => {
     if (!active) return;
     function refreshIfDue() {
-      if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current >= 5 * 60_000) refresh();
+      if (document.visibilityState === "visible" && Date.now() - lastRefreshAt.current >= REFRESH_EVERY_MS) refresh();
     }
     refreshIfDue();
     const timer = setInterval(refreshIfDue, 30_000);
