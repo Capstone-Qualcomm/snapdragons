@@ -21,6 +21,7 @@ const issue = {
 };
 const dm = { id: "s1", kind: "dm", from: "Maya Chen", where: "Direct message", text: "Can you look at the demo?", sentAt: minutesAgo(10), url: "https://slack.test/dm" };
 const mention = { id: "s2", kind: "mention", from: "Priya Raman", where: "#dev", text: "@you the deploy failed", sentAt: minutesAgo(1), url: "https://slack.test/m" };
+const teamsDm = { id: "19:chat@thread.v2:m1", kind: "dm", from: "Sam Tester", where: "Direct chat", text: "Can you review the release note?", sentAt: minutesAgo(2), url: "https://teams.test/chat" };
 const email = { id: "o1", from: "Jordan Lee", subject: "Demo slot moved to Thursday", receivedAt: minutesAgo(5), url: "https://outlook.test/o1" };
 const pr = { id: "g1", kind: "pull_request", repository: "team/snapdragons", number: 15, title: "Snapshot the queue", state: "open", updatedAt: minutesAgo(60), url: "https://github.test/15" };
 
@@ -38,6 +39,7 @@ let connections: Record<SourceName, Connection>;
 let lists: Record<string, unknown>;
 let jiraIssues: () => Response | Promise<Response>;
 let githubComment: (() => Promise<Response>) | undefined;
+let teamsPost: (() => Promise<Response>) | undefined;
 let posts: Array<{ path: string; body: unknown }>;
 let rankingCalls: Array<{ path: string; body: { items: Array<{ id: string }> } }>;
 
@@ -53,6 +55,7 @@ beforeEach(() => {
   lists = { slack: { messages: [mention, dm] }, github: { issues: [pr] }, outlook: { messages: [] }, teams: { messages: [] } };
   jiraIssues = () => Response.json({ issues: [issue] });
   githubComment = undefined;
+  teamsPost = undefined;
   posts = [];
   rankingCalls = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -66,6 +69,7 @@ beforeEach(() => {
       posts.push({ path, body });
       if (path === "/api/cluster/refresh") return Response.json({ job: { id: "J-7" } }, { status: 201 });
       if (path.endsWith("/comments") && githubComment) return githubComment();
+      if (path === "/api/teams/messages/19%3Achat%40thread.v2%3Am1/message" && teamsPost) return teamsPost();
       return Response.json({ ok: true });
     }
     if (path === "/api/cluster/state") return Response.json(clusterState);
@@ -165,6 +169,29 @@ describe("Today list", () => {
     expect(await screen.findByText("Comment posted to GitHub.")).toBeTruthy();
     expect((screen.getByRole("textbox", { name: "Comment" }) as HTMLTextAreaElement).value).toBe("");
     expect(githubRow.getByRole("button", { name: "Comment" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("keeps the Teams reply editor open and its draft intact while a message is pending", async () => {
+    let finishPost!: (response: Response) => void;
+    lists.teams = { messages: [teamsDm] };
+    teamsPost = () => new Promise((resolve) => { finishPost = resolve; });
+    await openToday();
+
+    const teamsRow = within(row("Can you review the release note?"));
+    const replyButton = teamsRow.getByRole("button", { name: "Reply" });
+    fireEvent.click(replyButton);
+    const textarea = screen.getByRole("textbox", { name: "Message in Direct chat" }) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "I’ll review it now." } });
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sending…" }).hasAttribute("disabled")).toBe(true));
+    expect(textarea.disabled).toBe(true);
+    expect(replyButton.hasAttribute("disabled")).toBe(true);
+    expect(textarea.value).toBe("I’ll review it now.");
+
+    await act(async () => finishPost(Response.json({ ok: true })));
+    expect(await screen.findByText("Message sent to Teams.")).toBeTruthy();
+    expect(replyButton.hasAttribute("disabled")).toBe(false);
   });
 });
 

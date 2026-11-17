@@ -338,7 +338,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
             </div>
           ) : item.source === "teams" ? (
             <div className="outlook-row-actions">
-              <button className={teamsReplying ? "button small is-on" : "button small"} type="button" aria-expanded={teamsReplying} aria-controls={`${editorId}-reply`} onClick={() => { setTeamsReplying(!teamsReplying); setTeamsStatus({ text: "", isError: false }); }}>Reply</button>
+              <button className={teamsReplying ? "button small is-on" : "button small"} type="button" aria-expanded={teamsReplying} aria-controls={`${editorId}-reply`} disabled={teamsBusy} onClick={() => { setTeamsReplying(!teamsReplying); setTeamsStatus({ text: "", isError: false }); }}>Reply</button>
               {link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>}
               {teamsStatus.text && <span className={teamsStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={teamsStatus.isError ? "alert" : "status"}>{teamsStatus.text}</span>}
             </div>

@@ -159,3 +159,50 @@ test("selects recent group mentions across pages and the latest inbound direct m
   ]);
   assert.equal(directPageRequests, 1, "should not request older pages for a direct chat");
 });
+
+test("posts a message to the Teams chat that owns the selected message", async () => {
+  let graphCall: { url: URL; init?: RequestInit } | undefined;
+  const { fetchImpl } = fakeMicrosoft((url, init) => {
+    if (url.pathname === "/v1.0/chats/19%3Achat%40thread.v2/messages" && init?.method === "POST") {
+      graphCall = { url, init };
+      return Response.json({ id: "sent1" }, { status: 201 });
+    }
+    return undefined;
+  });
+  const base = await startServer(fetchImpl);
+  await connectTeams(base);
+
+  const response = await fetch(base + "/api/teams/messages/19%3Achat%40thread.v2%3Am1/message", {
+    method: "POST",
+    body: JSON.stringify({ text: "  I’ll review the release note.  " }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { ok: true });
+  assert.ok(graphCall);
+  assert.equal(graphCall.url.pathname, "/v1.0/chats/19%3Achat%40thread.v2/messages");
+  assert.equal(new Headers(graphCall.init?.headers).get("Authorization"), "Bearer private-access-token");
+  assert.deepEqual(JSON.parse(String(graphCall.init?.body)), { body: { contentType: "text", content: "I’ll review the release note." } });
+});
+
+test("rejects a blank Teams message without calling Microsoft Graph", async () => {
+  let sendCalls = 0;
+  const { fetchImpl } = fakeMicrosoft((url, init) => {
+    if (url.pathname.endsWith("/messages") && init?.method === "POST") {
+      sendCalls++;
+      return Response.json({ id: "sent1" }, { status: 201 });
+    }
+    return undefined;
+  });
+  const base = await startServer(fetchImpl);
+  await connectTeams(base);
+
+  const response = await fetch(base + "/api/teams/messages/chat%3Am1/message", {
+    method: "POST",
+    body: JSON.stringify({ text: "   " }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "Message must be text." });
+  assert.equal(sendCalls, 0);
+});
