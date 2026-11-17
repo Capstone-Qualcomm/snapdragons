@@ -293,7 +293,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
       <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)} hidden={hidden}>
         <td className="col-done">
           {!sample && (
-            <button className="done-button" type="button" aria-label="Done" title="Mark done" disabled={githubPosting} onClick={onDone}>
+              <button className="done-button" type="button" aria-label="Done" title="Mark done" disabled={githubPosting || teamsBusy} onClick={onDone}>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
             </button>
           )}

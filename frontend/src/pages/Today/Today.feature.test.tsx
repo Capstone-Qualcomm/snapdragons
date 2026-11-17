@@ -187,11 +187,13 @@ describe("Today list", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Sending…" }).hasAttribute("disabled")).toBe(true));
     expect(textarea.disabled).toBe(true);
     expect(replyButton.hasAttribute("disabled")).toBe(true);
+    expect(teamsRow.getByRole("button", { name: "Done" }).hasAttribute("disabled")).toBe(true);
     expect(textarea.value).toBe("I’ll review it now.");
 
     await act(async () => finishPost(Response.json({ ok: true })));
     expect(await screen.findByText("Message sent to Teams.")).toBeTruthy();
     expect(replyButton.hasAttribute("disabled")).toBe(false);
+    expect(teamsRow.getByRole("button", { name: "Done" }).hasAttribute("disabled")).toBe(false);
   });
 });
 
