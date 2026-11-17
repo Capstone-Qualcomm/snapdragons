@@ -114,6 +114,49 @@ test("nothing commits without a majority", async () => {
   assert.equal(orchestrator.status().commitIndex < orchestrator.status().lastIndex, true);
 });
 
+test("an orchestrator whose workers all die steps down once the longest election timeout passes, and one is elected when a worker is back", async () => {
+  const cluster = testCluster(["Q-01", "Q-02", "Q-03"]);
+  const orchestrator = await cluster.elect();
+  const id = orchestrator.status().id;
+  const workers = ["Q-01", "Q-02", "Q-03"].filter((node) => node !== id);
+  for (const worker of workers) cluster.kill(worker);
+
+  // It last heard from them at most one 300 ms heartbeat ago, and waits 3000 ms.
+  await cluster.run(2500);
+  assert.equal(orchestrator.isOrchestrator(), true);
+  await cluster.run(600);
+  assert.equal(orchestrator.isOrchestrator(), false);
+  assert.equal(orchestrator.status().orchestrator, null);
+  let rejected = false;
+  await orchestrator.submit(job("too late")).catch(() => (rejected = true));
+  assert.equal(rejected, true);
+
+  // Restarted from its saved log, one worker makes a majority again.
+  cluster.start(workers[0]);
+  await cluster.elect();
+  await cluster.run(500);
+  const leader = cluster.orchestrator()!;
+  await leader.submit(job("after"));
+  await cluster.run(500);
+  assert.ok([...cluster.nodes.values()].every(({ queue }) => jobNames(queue).includes("after")));
+});
+
+test("an orchestrator cut off from the others steps down, and the others' new orchestrator leads it once it is back", async () => {
+  const cluster = testCluster(["Q-01", "Q-02", "Q-03"]);
+  const old = await cluster.elect();
+  const id = old.status().id;
+  cluster.cutOff.add(id);
+  await cluster.run(3500);
+  assert.equal(old.isOrchestrator(), false);
+  const fresh = cluster.orchestrator()!;
+  assert.notEqual(fresh.status().id, id);
+
+  cluster.cutOff.delete(id);
+  await cluster.run(1000);
+  assert.equal(old.status().orchestrator, fresh.status().id);
+  assert.equal(fresh.isOrchestrator(), true);
+});
+
 test("a node with an out-of-date log cannot become orchestrator", async () => {
   const cluster = testCluster(["Q-01", "Q-02", "Q-03"]);
   const first = await cluster.elect();

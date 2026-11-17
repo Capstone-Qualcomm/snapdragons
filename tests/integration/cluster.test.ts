@@ -110,6 +110,28 @@ test("killing the orchestrator mid-step: a new one is elected and the step resum
   }
 });
 
+test("an orchestrator left without a majority steps down, and the refresh finishes once a node is back", async () => {
+  const cluster = await startCluster(4751);
+  try {
+    const job = await cluster.refresh();
+    const { orchestrator, nodes } = await cluster.state();
+    const workers = nodes.map((node) => node.id).filter((id) => id !== orchestrator);
+    for (const id of workers) assert.equal((await cluster.post(`/api/cluster/nodes/${id}/kill`)).status, 200);
+
+    // Its election timeout is at most 1000 ms here, so it gives up within a few heartbeats of that.
+    const killedAt = Date.now();
+    await cluster.until((current) => current.orchestrator === null, "the orchestrator steps down");
+    assert.ok(Date.now() - killedAt < 3000, `it stepped down after ${Date.now() - killedAt} ms`);
+    assert.equal((await cluster.state()).jobs.find((entry) => entry.id === job)!.doneAt, null);
+
+    assert.equal((await cluster.post(`/api/cluster/nodes/${workers[0]}/start`)).status, 200);
+    await cluster.until((current) => current.orchestrator !== null, "an orchestrator is elected again");
+    await cluster.until(cluster.jobDone(job), "the refresh is done");
+  } finally {
+    cluster.close();
+  }
+});
+
 test("every node restarts at once and the queue comes back from disk", async () => {
   const cluster = await startCluster(4621);
   try {

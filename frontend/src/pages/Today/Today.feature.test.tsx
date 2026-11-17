@@ -330,6 +330,19 @@ describe("Today refresh", () => {
     expect(posts).toEqual([]);
   });
 
+  it("gives the cluster no job when it opens if the cluster refreshed in the last five minutes, and still loads the sources", async () => {
+    clusterState = idleCluster({ jobs: [{ id: "J-3", name: "Morning refresh", queuedAt: now - 60_000, doneAt: now - 55_000, nodes: 2 }] });
+    await openToday();
+    expect(await screen.findByRole("row", { name: "Can you look at the demo?" })).toBeTruthy();
+    await act(async () => {});
+    expect(posts).toEqual([]);
+
+    cleanup();
+    clusterState = idleCluster({ jobs: [{ id: "J-3", name: "Morning refresh", queuedAt: now - 6 * 60_000, doneAt: now - 5 * 60_000 - 1, nodes: 2 }] });
+    await openToday();
+    await waitFor(() => expect(posts.map((post) => post.path)).toEqual(["/api/cluster/refresh"]));
+  });
+
   it("runs a cluster job and syncs every source from the button and the r shortcut", async () => {
     await openToday();
     await waitFor(() => expect(posts).toHaveLength(1));
