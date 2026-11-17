@@ -64,7 +64,7 @@ const sorts: Array<{ value: Sort; label: string }> = [
 
 // Today's work as a table: ranked, filterable by source, sortable by rank,
 // source or time. With nothing connected it shows sample rows, marked as such.
-export function TasksPanel({ items, cleared, loading, sample, checked, rankingMode, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply, onSlackMessage }: {
+export function TasksPanel({ items, cleared, loading, sample, checked, rankingMode, onDone, onUndo, onSaved, onOutlookAction, onOutlookReply, onSlackMessage, onTeamsMessage }: {
   items: Item[];
   cleared: Item[];
   loading: boolean;
@@ -78,6 +78,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, rankingMo
   onOutlookAction: (messageId: string) => Promise<void>;
   onOutlookReply: (messageId: string, comment: string) => Promise<boolean>;
   onSlackMessage: (messageId: string, text: string) => Promise<boolean>;
+  onTeamsMessage: (messageId: string, text: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<SourceName | "all">("all");
   const [sort, setSort] = useState<Sort>("rank");
@@ -132,7 +133,7 @@ export function TasksPanel({ items, cleared, loading, sample, checked, rankingMo
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} onOutlookAction={onOutlookAction} onOutlookReply={onOutlookReply} onSlackMessage={onSlackMessage} />)}
+                {rows.map(({ item, rank }) => <Row key={item.key} item={item} rank={rank} sample={sample} hidden={!shows(item)} onDone={() => onDone(item)} onSaved={onSaved} onOutlookAction={onOutlookAction} onOutlookReply={onOutlookReply} onSlackMessage={onSlackMessage} onTeamsMessage={onTeamsMessage} />)}
               </tbody>
             </table>
           )}
@@ -184,7 +185,7 @@ export function textOf(item: Item) {
 type OutlookThreadMessage = { id: string; from: string; subject: string; receivedAt: string; content: string };
 type SlackContextMessage = { id: string; from: string; sentAt: string; text: string };
 
-function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply, onSlackMessage }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean>; onSlackMessage: (messageId: string, text: string) => Promise<boolean> }) {
+function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onOutlookReply, onSlackMessage, onTeamsMessage }: { item: Item; rank: number; sample: boolean; hidden: boolean; onDone: () => void; onSaved: () => Promise<void>; onOutlookAction: (messageId: string) => Promise<void>; onOutlookReply: (messageId: string, comment: string) => Promise<boolean>; onSlackMessage: (messageId: string, text: string) => Promise<boolean>; onTeamsMessage: (messageId: string, text: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [githubPosting, setGithubPosting] = useState(false);
   const [replying, setReplying] = useState(false);
@@ -199,6 +200,10 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
   const [slackDraft, setSlackDraft] = useState("");
   const [slackBusy, setSlackBusy] = useState(false);
   const [slackStatus, setSlackStatus] = useState({ text: "", isError: false });
+  const [teamsReplying, setTeamsReplying] = useState(false);
+  const [teamsDraft, setTeamsDraft] = useState("");
+  const [teamsBusy, setTeamsBusy] = useState(false);
+  const [teamsStatus, setTeamsStatus] = useState({ text: "", isError: false });
   const editorId = `edit-${item.key}`;
   const link = sample ? undefined : item.data.url;
 
@@ -270,6 +275,22 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
     }
   }
 
+  async function sendTeamsMessage() {
+    if (item.source !== "teams" || !teamsDraft.trim()) return;
+    setTeamsBusy(true);
+    setTeamsStatus({ text: "", isError: false });
+    try {
+      await onTeamsMessage(item.data.id, teamsDraft);
+      setTeamsDraft("");
+      setTeamsReplying(false);
+      setTeamsStatus({ text: "Message sent to Teams.", isError: false });
+    } catch (cause) {
+      setTeamsStatus({ text: (cause as Error).message, isError: true });
+    } finally {
+      setTeamsBusy(false);
+    }
+  }
+
   function toggleReply() {
     const open = !replying;
     setReplying(open);
@@ -282,7 +303,7 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
       <tr className={`task-row is-${item.source}${sample ? " is-sample" : ""}${isWaiting(item) ? " is-waiting" : ""}`} aria-label={textOf(item)} hidden={hidden}>
         <td className="col-done">
           {!sample && (
-            <button className="done-button" type="button" aria-label="Done" title="Mark done" disabled={githubPosting} onClick={onDone}>
+              <button className="done-button" type="button" aria-label="Done" title="Mark done" disabled={githubPosting || teamsBusy} onClick={onDone}>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5" /></svg>
             </button>
           )}
@@ -324,6 +345,12 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
               <button className={slackReplying ? "button small is-on" : "button small"} type="button" aria-expanded={slackReplying} aria-controls={`${editorId}-reply`} onClick={() => { const open = !slackReplying; setSlackReplying(open); setSlackStatus({ text: "", isError: false }); if (open) void loadSlackContext(); }}>Reply</button>
               {link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>}
               {slackStatus.text && <span className={slackStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={slackStatus.isError ? "alert" : "status"}>{slackStatus.text}</span>}
+            </div>
+          ) : item.source === "teams" ? (
+            <div className="outlook-row-actions">
+              <button className={teamsReplying ? "button small is-on" : "button small"} type="button" aria-expanded={teamsReplying} aria-controls={`${editorId}-reply`} disabled={teamsBusy} onClick={() => { setTeamsReplying(!teamsReplying); setTeamsStatus({ text: "", isError: false }); }}>Reply</button>
+              {link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>}
+              {teamsStatus.text && <span className={teamsStatus.isError ? "outlook-action-error" : "outlook-action-status"} role={teamsStatus.isError ? "alert" : "status"}>{teamsStatus.text}</span>}
             </div>
           ) : (
             link && <a className="button small quiet" href={link} target="_blank" rel="noreferrer" aria-label="Open in app" title="Open in app"><Icon name="launch" size={15} /></a>
@@ -391,6 +418,21 @@ function Row({ item, rank, sample, hidden, onDone, onSaved, onOutlookAction, onO
               <div className="jira-actions">
                 <button className="button small primary" type="button" disabled={slackBusy || !slackDraft.trim()} onClick={() => void sendSlackMessage()}>{slackBusy ? "Sending…" : "Send reply"}</button>
                 <button className="button small quiet" type="button" disabled={slackBusy} onClick={() => setSlackReplying(false)}>Cancel</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+      {item.source === "teams" && teamsReplying && (
+        <tr className="editor-row" hidden={hidden}>
+          <td colSpan={8}>
+            <div className="jira-details outlook-reply-editor" id={`${editorId}-reply`}>
+              <label className="outlook-reply-label">Message in {item.data.where}
+                <textarea autoFocus rows={3} value={teamsDraft} onChange={(event) => setTeamsDraft(event.target.value)} placeholder="Write a message…" disabled={teamsBusy} />
+              </label>
+              <div className="jira-actions">
+                <button className="button small primary" type="button" disabled={teamsBusy || !teamsDraft.trim()} onClick={() => void sendTeamsMessage()}>{teamsBusy ? "Sending…" : "Send message"}</button>
+                <button className="button small quiet" type="button" disabled={teamsBusy} onClick={() => setTeamsReplying(false)}>Cancel</button>
               </div>
             </div>
           </td>

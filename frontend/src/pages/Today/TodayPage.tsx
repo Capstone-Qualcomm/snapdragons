@@ -143,6 +143,11 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
     return result.markedRead;
   }, [slack.reload]);
 
+  const sendTeamsMessage = useCallback(async (messageId: string, text: string) => {
+    await api(`/api/teams/messages/${encodeURIComponent(messageId)}/message`, { text });
+    await teams.reload();
+  }, [teams.reload]);
+
   useEffect(() => {
     const currentIds = new Set(outlook.items.map((item) => item.id));
     setHandledOutlookIds((current) => {
@@ -256,7 +261,7 @@ export function TodayPage({ sources, cluster, failed, offset, active }: { source
       </ul>
 
       <div className="page-body">
-        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} rankingMode={rankingMode} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} onSlackMessage={sendSlackMessage} />
+        <TasksPanel items={open} cleared={cleared} loading={loading} sample={sample} checked={checked} rankingMode={rankingMode} onDone={markDone} onUndo={undo} onSaved={jira.reload} onOutlookAction={deleteOutlook} onOutlookReply={replyToOutlook} onSlackMessage={sendSlackMessage} onTeamsMessage={sendTeamsMessage} />
       </div>
     </div>
   );

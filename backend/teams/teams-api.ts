@@ -105,7 +105,24 @@ export function createTeamsApi({ teamsConnection, fetchImpl = globalThis.fetch, 
     return messages.sort((a, b) => b.sentAt.localeCompare(a.sentAt));
   }
 
-  return { getMessages };
+  async function sendMessage(chatId: string, text: string) {
+    if (!teamsConnection.connected) throw new Error("Teams is not connected. Connect Teams.");
+    if (!teamsConnection.enabled) throw new Error("Teams is turned off. Turn it on in Connections.");
+    if (!chatId || chatId.length > 512) throw new Error("Teams chat could not be identified.");
+    if (!text.trim()) throw new Error("Message must be text.");
+    const accessToken = await getAccessToken();
+    const response = await fetchImpl(`${graphOrigin}/v1.0/chats/${encodeURIComponent(chatId)}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ body: { contentType: "text", content: text.trim() } }),
+    });
+    if (response.status === 401) throw new Error("Teams authorization expired. Reconnect Teams.");
+    if (response.status === 403) throw new Error("Teams denied permission to send chat messages. Check the delegated ChatMessage.Send permission and reconnect.");
+    if (!response.ok) throw new Error(`Teams could not send this message (HTTP ${response.status}). Please try again.`);
+    return { ok: true };
+  }
+
+  return { getMessages, sendMessage };
 }
 
 function cleanMessage(value: string): string {

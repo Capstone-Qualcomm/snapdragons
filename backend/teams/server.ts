@@ -1,7 +1,7 @@
 import { pathToFileURL } from "node:url";
 import { createSourceActivity } from "../source-activity.mts";
 import { createSessions } from "../sessions.mts";
-import { createSourceServer } from "../source-server.mts";
+import { createSourceServer, readJson, send } from "../source-server.mts";
 import { createTeamsApi } from "./teams-api.ts";
 import { createTeamsAuth } from "./teams-auth.ts";
 import type { TeamsConnection } from "./teams-auth.ts";
@@ -40,9 +40,25 @@ export function createTeamsServer(options: ServerOptions = {}) {
     }),
     items: "messages",
     loadItems: ({ teamsApi }) => teamsApi.getMessages(),
-    async routes(req, res, url, { auth }) {
+    async routes(req, res, url, { auth, connection, teamsApi }) {
       if (req.method === "GET" && url.pathname === "/auth/teams/start") { auth.startAuthorization(res); return true; }
       if (req.method === "GET" && url.pathname === "/auth/teams/callback") { await auth.handleCallback(url, res); return true; }
+      const messagePath = req.method === "POST" && url.pathname.match(/^\/api\/teams\/messages\/([^/]+)\/message$/);
+      if (messagePath) {
+        if (!connection.connected) { send(res, 401, { error: "Teams is not connected. Connect Teams." }); return true; }
+        if (!connection.enabled) { send(res, 403, { error: "Teams is turned off. Turn it on in Connections." }); return true; }
+        try {
+          const id = decodeURIComponent(messagePath[1]);
+          const separator = id.lastIndexOf(":");
+          if (separator < 1) throw new Error("Teams chat could not be identified.");
+          const body = await readJson(req) as { text?: unknown };
+          if (typeof body.text !== "string" || !body.text.trim()) throw new Error("Message must be text.");
+          send(res, 200, await teamsApi.sendMessage(id.slice(0, separator), body.text.trim()));
+        } catch (error) {
+          send(res, 400, { error: error instanceof Error ? error.message : "Could not send the Teams message." });
+        }
+        return true;
+      }
       return false;
     },
   });
