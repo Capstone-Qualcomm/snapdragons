@@ -1,6 +1,9 @@
 #!/bin/bash
 # The live site's processes: the source backends, the simulated cluster and Caddy in front.
 cd /app/backend
+APP_URL="${APP_URL:-https://qualcomm.sanyamgarg.com/snapdragons}"
+TEAMS_REDIRECT_URI="${TEAMS_REDIRECT_URI:-${APP_URL%/}/auth/teams/callback}"
+export APP_URL TEAMS_REDIRECT_URI
 PORT=3001 node jira/server.ts &
 SLACK_PORT=3002 node slack/server.ts &
 GITHUB_PORT=3004 node github/server.ts &
