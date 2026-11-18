@@ -32,6 +32,8 @@ function App() {
   const { cluster, failed, reload, serverNow } = useCluster();
   // The Assistant job being followed, kept here so leaving the Assistant page does not lose it.
   const [shownJob, setShownJob] = useState<string | null>(null);
+  // Keep the Assistant draft when its page unmounts during navigation.
+  const [assistantPrompt, setAssistantPrompt] = useState("");
   const slack = useSource("slack");
   const jira = useSource("jira");
   const github = useSource("github");
@@ -111,7 +113,7 @@ function App() {
 
       <main className="content">
         {/* Each page has its own boundary, so a crash in one leaves the sidebar and the others working. */}
-        {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} sources={sources} /></PageBoundary>}
+        {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} prompt={assistantPrompt} setPrompt={setAssistantPrompt} sources={sources} /></PageBoundary>}
         <PageBoundary active={page === "today"}><TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} /></PageBoundary>
         {page === "cluster" && <PageBoundary><ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} /></PageBoundary>}
         {page === "connections" && <PageBoundary><ConnectionsPage sources={sources} counts={counts} /></PageBoundary>}

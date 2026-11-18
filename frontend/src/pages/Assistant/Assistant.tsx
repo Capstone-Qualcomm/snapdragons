@@ -19,18 +19,19 @@ export type ScenarioInfo = { id: string; audience: string; icon: string; title: 
 // The Assistant, one focus at a time: ask (an empty page with the prompt),
 // watch (the boards splitting the job), read (the report).
 // shown is the job this page follows. App keeps it, so it is still there after a visit to another page.
-export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown, sources }: {
+export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown, prompt, setPrompt, sources }: {
   cluster: ClusterState | null;
   failed: boolean;
   reload: () => Promise<void>;
   serverNow: () => number;
   shown: string | null;
   setShown: (id: string | null) => void;
+  prompt: string;
+  setPrompt: (prompt: string) => void;
   sources: Source<any>[];
 }) {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [selected, setSelected] = useState("");
-  const [prompt, setPrompt] = useState("");
   const [pace, setPace] = useState("normal");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
