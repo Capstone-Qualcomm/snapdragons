@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { postGitHubComment } from "../Today/github";
 import { getJiraTransitions, updateJiraIssue } from "../Today/jira";
@@ -26,7 +26,7 @@ export function itemsForModel(sources: Source<any>[]) {
   }));
 }
 
-export function TodayAction({ initialRequest = "", sources, onComplete }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void }) {
+export function TodayAction({ initialRequest = "", sources, onComplete, onBusyChange, compact = false }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void; onBusyChange?: (busy: boolean) => void; compact?: boolean }) {
   const [request, setRequest] = useState(initialRequest);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
@@ -34,9 +34,15 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const autoPrepared = useRef(false);
 
-  async function prepare() {
-    setBusy(true); setError(""); setMessage(""); setProposal(null);
+  const markBusy = useCallback((value: boolean) => {
+    setBusy(value);
+    onBusyChange?.(value);
+  }, [onBusyChange]);
+
+  const prepare = useCallback(async () => {
+    markBusy(true); setError(""); setMessage(""); setProposal(null);
     setTransitions([]); setTransitionsLoaded(false);
     try {
       const target = await api<Target>("/api/assistant/action/prepare", { prompt: request, items: itemsForModel(sources) });
@@ -58,17 +64,29 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
       if (result.ready && result.source === "jira" && result.action === "status") {
         setTransitions([]);
         setTransitionsLoaded(false);
-        const loaded = await getJiraTransitions(result.itemId);
-        setTransitions(loaded);
-        setTransitionsLoaded(true);
+        try {
+          const loaded = await getJiraTransitions(result.itemId);
+          setTransitions(loaded);
+          setTransitionsLoaded(true);
+        } catch (cause) {
+          setTransitionsLoaded(true);
+          throw cause;
+        }
       }
     } catch (cause) { setError((cause as Error).message); }
-    finally { setBusy(false); }
-  }
+    finally { markBusy(false); }
+  }, [request, sources, markBusy]);
+
+  useEffect(() => {
+    if (compact && !autoPrepared.current) {
+      autoPrepared.current = true;
+      void prepare();
+    }
+  }, [compact, prepare]);
 
   async function confirm() {
     if (!proposal?.ready) return;
-    setBusy(true); setError("");
+    markBusy(true); setError("");
     try {
       if (proposal.action === "markDone" || proposal.action === "undoDone") {
         let done: string[] = [];
@@ -103,22 +121,32 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
       setProposal(null);
       onComplete?.();
     } catch (cause) { setError((cause as Error).message); }
-    finally { setBusy(false); }
+    finally { markBusy(false); }
   }
 
-  const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && (!transitionsLoaded || !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase()));
+  const checkingTarget = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && !transitionsLoaded;
+  const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && transitionsLoaded && !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase());
+  const needsFollowup = proposal !== null && !proposal.ready;
   const actionName = proposal?.ready ? ({ status: "Change status", description: "Replace description", storyPoints: "Set story points", comment: "Post GitHub comment", reply: proposal.source === "slack" ? "Send Slack reply" : "Send Outlook reply", delete: "Delete email", markDone: "Mark done", undoDone: "Restore to Today" } as Record<string, string>)[proposal.action] ?? proposal.action : "";
   return (
-    <section className="today-action" aria-label="Today action">
-      <label htmlFor="today-action-request">What should I do in your connected apps?</label>
-      <textarea id="today-action-request" value={request} rows={3} disabled={busy} onChange={(event) => { setRequest(event.target.value); setProposal(null); setMessage(""); }} placeholder="For example: reply to the email from Sam, update my ticket, or comment on the pull request." />
-      <div className="today-action-buttons">
-        <button className="button primary" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{busy ? "Working…" : "Prepare action"}</button>
-      </div>
+    <section className={`today-action${compact ? " action-feed" : ""}`} aria-label="Today action">
+      {!compact && <>
+        <label htmlFor="today-action-request">What should I do in your connected apps?</label>
+        <textarea id="today-action-request" value={request} rows={3} disabled={busy} onChange={(event) => { setRequest(event.target.value); setProposal(null); setMessage(""); }} placeholder="For example: reply to the email from Sam, update my ticket, or comment on the pull request." />
+        <div className="today-action-buttons">
+          <button className="button primary" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{busy ? "Working…" : "Prepare action"}</button>
+        </div>
+      </>}
+      {busy && !compact && !proposal?.ready && <p className="today-action-message" role="status">Preparing the proposed action…</p>}
       {error && <p className="today-action-message is-error" role="alert">{error}</p>}
       {message && <p className="today-action-message" role="status">{message}</p>}
       {proposal && !proposal.ready && <p className="today-action-message" role="status">{proposal.question}</p>}
-      {proposal?.ready && (
+      {compact && (needsFollowup || Boolean(error)) && <div className="today-action-followup">
+        <label htmlFor="today-action-followup">{needsFollowup ? "Add details" : "Update your request"}</label>
+        <textarea id="today-action-followup" value={request} rows={2} disabled={busy} onChange={(event) => setRequest(event.target.value)} />
+        <button className="button" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{error ? "Retry" : "Continue"}</button>
+      </div>}
+      {proposal?.ready && !checkingTarget && !busy && (
         <div className="today-action-review">
           <p>{actionName}: <strong>{proposal.title}</strong></p>
           {!(["delete", "markDone", "undoDone"].includes(proposal.action)) && <dl><dt>Content</dt><dd>{proposal.value === null ? "Clear estimate" : String(proposal.value)}</dd></dl>}

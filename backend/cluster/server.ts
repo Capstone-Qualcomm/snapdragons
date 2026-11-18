@@ -58,7 +58,7 @@ const MAX_ASKERS = 1000;
 const AUTO_PAUSE_MS = 1500;
 const RANK_REQUESTS_PER_MINUTE = 6;
 const MAX_CONCURRENT_RANKINGS = 2;
-const ASSISTANT_REQUESTS_PER_MINUTE = 10;
+const ASSISTANT_REQUESTS_PER_MINUTE = 100;
 
 // How fast an Assistant plan runs: each step's time is multiplied by this.
 const PACES: Record<string, number> = { slow: 1.6, normal: 1, fast: 0.5 };
@@ -620,7 +620,7 @@ export function createClusterServer(options: ServerOptions = {}) {
         if (!sid || !hasConnectedSession(sid)) return send(res, 401, { error: "Connect a source before using Assistant actions." });
         const now = Date.now();
         const recent = (assistantRequests.get(sid) ?? []).filter((at) => now - at < 60_000);
-        if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 10 requests per minute. Try again shortly." });
+        if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 100 requests per minute. Try again shortly." });
         if (activeRankings >= MAX_CONCURRENT_RANKINGS) return send(res, 429, { error: "The model service is busy. Try again shortly." });
         recent.push(now); assistantRequests.set(sid, recent); activeRankings++;
         try {
@@ -643,7 +643,7 @@ export function createClusterServer(options: ServerOptions = {}) {
         if (!sid || !hasConnectedSession(sid)) return send(res, 401, { error: "Connect a source before using Assistant actions." });
         const now = Date.now();
         const recent = (assistantRequests.get(sid) ?? []).filter((at) => now - at < 60_000);
-        if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 10 requests per minute. Try again shortly." });
+        if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 100 requests per minute. Try again shortly." });
         if (activeRankings >= MAX_CONCURRENT_RANKINGS) return send(res, 429, { error: "The model service is busy. Try again shortly." });
         recent.push(now); assistantRequests.set(sid, recent); activeRankings++;
         try {
@@ -711,7 +711,7 @@ export function createClusterServer(options: ServerOptions = {}) {
           if (!sid || !hasConnectedSession(sid)) return send(res, 401, { error: "Connect a source before asking about your work." });
           const now = Date.now();
           const recent = (assistantRequests.get(sid) ?? []).filter((at) => now - at < 60_000);
-          if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 10 requests per minute. Try again shortly." });
+          if (recent.length >= ASSISTANT_REQUESTS_PER_MINUTE) return send(res, 429, { error: "Assistant is limited to 100 requests per minute. Try again shortly." });
           recent.push(now); assistantRequests.set(sid, recent);
           asker = sid;
           context = (Array.isArray(body.items) ? body.items.slice(0, 150) as Array<Record<string, unknown>> : [])

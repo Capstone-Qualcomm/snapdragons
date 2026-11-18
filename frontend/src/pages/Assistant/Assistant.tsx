@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { ErrorBanner, ago } from "../../components/ui";
 import { Icon, IconTile } from "../../components/Icon";
 import { api } from "../../lib/api";
@@ -18,22 +19,26 @@ export type ScenarioInfo = { id: string; audience: string; icon: string; title: 
 // The Assistant, one focus at a time: ask (an empty page with the prompt),
 // watch (the boards splitting the job), read (the report).
 // shown is the job this page follows. App keeps it, so it is still there after a visit to another page.
-export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown, sources }: {
+export function AssistantPage({ cluster, failed, reload, serverNow, shown, setShown, prompt, setPrompt, sources }: {
   cluster: ClusterState | null;
   failed: boolean;
   reload: () => Promise<void>;
   serverNow: () => number;
   shown: string | null;
   setShown: (id: string | null) => void;
+  prompt: string;
+  setPrompt: (prompt: string) => void;
   sources: Source<any>[];
 }) {
   const [scenarios, setScenarios] = useState<ScenarioInfo[]>([]);
   const [selected, setSelected] = useState("");
-  const [prompt, setPrompt] = useState("");
   const [pace, setPace] = useState("normal");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
   const [todayActionRequest, setTodayActionRequest] = useState<string | null>(null);
+  const [todayActionBusy, setTodayActionBusy] = useState(false);
+  const runToken = useRef(0);
   const now = useClock(serverNow);
 
   const loadScenarios = useCallback(() => {
@@ -60,15 +65,23 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const stuck = cluster && stalled(cluster);
   const waiting = stuck ? `Only ${stuck.up} of ${stuck.members} boards are up. Restart a board to run a job.` : cluster && !cluster.orchestrator ? "Waiting for the boards to elect an orchestrator." : null;
 
+  function stopStarting() {
+    runToken.current += 1;
+    startingRef.current = false;
+    setStarting(false);
+    setTodayActionRequest(null);
+    setTodayActionBusy(false);
+  }
+
   if (todayActionRequest !== null) {
     return (
-      <div className="ask">
-        <div className="ask-hero">
-          <h1>Take action in Today</h1>
-          <p className="lede">Review the proposed action before it is sent to a connected app.</p>
-          <button className="text-button" type="button" onClick={() => setTodayActionRequest(null)}>Back to Assistant</button>
-        </div>
-        <TodayAction initialRequest={todayActionRequest} sources={sources} onComplete={() => { setTodayActionRequest(null); setPrompt(""); }} />
+      <div className="assistant is-running is-preparing">
+        <TodayAction initialRequest={todayActionRequest} sources={sources} compact onBusyChange={setTodayActionBusy} onComplete={() => { setTodayActionRequest(null); setPrompt(""); }} />
+        <Ask
+          scenarios={scenarios} selected={selected} prompt={todayActionRequest} pace={pace} error={null}
+          canRun={false} waiting={null} onPick={pick} onPrompt={setPrompt} onPace={setPace}
+          onRun={() => void run()} onStop={stopStarting} compact showWorking loading={todayActionBusy}
+        />
       </div>
     );
   }
@@ -85,12 +98,20 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
 
   // One job per click: Run stays off until the server answers.
   async function run() {
-    if (starting) return;
-    setStarting(true);
+    if (startingRef.current) return;
+    startingRef.current = true;
+    const token = ++runToken.current;
+    const viewDocument = document as Document & { startViewTransition?: (callback: () => void) => unknown };
+    if (viewDocument.startViewTransition) {
+      viewDocument.startViewTransition(() => flushSync(() => setStarting(true)));
+    } else {
+      setStarting(true);
+    }
     setError(null);
     try {
       const selectedScenario = scenarios.find((entry) => entry.id === selected);
       const destination = selectedScenario ? "boards" : (await api<{ destination: "today" | "answer" | "boards" }>("/api/assistant/route", { prompt })).destination;
+      if (token !== runToken.current) return;
       // The model chooses the connected app from the request's meaning, so
       // callers do not need to mention Jira or use a particular command verb.
       if (destination === "today") {
@@ -102,12 +123,19 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
         ? await api<{ job: Job }>("/api/assistant/run", { scenario: "mywork", prompt, pace, items: itemsForModel(sources) })
         // With no example card selected, run the live open-ended job scenario.
         : await api<{ job: Job }>("/api/assistant/run", { scenario: selected || "ask", prompt, pace });
+      if (token !== runToken.current) {
+        await api("/api/assistant/stop", { job: job.id }).catch(() => undefined);
+        return;
+      }
       setShown(job.id);
       await reload();
     } catch (cause) {
-      setError((cause as Error).message);
+      if (token === runToken.current) setError((cause as Error).message);
     } finally {
-      setStarting(false);
+      if (token === runToken.current) {
+        startingRef.current = false;
+        setStarting(false);
+      }
     }
   }
 
@@ -117,6 +145,18 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   }
 
   if (!job) {
+    if (starting) {
+      return (
+        <div className="assistant is-running is-initializing">
+          {banner && <ErrorBanner message={banner} />}
+          <Ask
+            scenarios={scenarios} selected={selected} prompt={prompt} pace={pace} error={null}
+            canRun={false} waiting={null} onPick={pick} onPrompt={setPrompt} onPace={setPace}
+            onRun={() => void run()} onStop={stopStarting} compact showWorking loading={starting}
+          />
+        </div>
+      );
+    }
     return (
       <Ask
         scenarios={scenarios}
@@ -138,13 +178,33 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
 
   const tasks = cluster ? cluster.tasks.filter((task) => task.job === job.id) : [];
   const events = cluster ? eventsOf(job, tasks, cluster) : [];
+  const isRunning = job.doneAt === null;
 
   return (
-    <div className="assistant">
+    <div className={`assistant${isRunning ? " is-running" : ""}`}>
       {banner && <ErrorBanner message={banner} />}
       <RunHeader job={job} scenario={scenario} onStop={() => void act("/api/assistant/stop", { job: job.id })} onAgain={() => { setError(null); setShown(null); }} />
       {job.doneAt === null || !job.plan!.result ? (
-        <Watching job={job} tasks={tasks} cluster={cluster} events={events} now={now} offset={serverNow() - Date.now()} act={(path) => void act(path)} />
+        <>
+          <div className="assistant-activity">
+            <Watching job={job} tasks={tasks} cluster={cluster} events={events} now={now} offset={serverNow() - Date.now()} act={(path) => void act(path)} />
+          </div>
+          <Ask
+            scenarios={scenarios}
+            selected={selected}
+            prompt={job.plan!.prompt}
+            pace={pace}
+            error={null}
+            canRun={false}
+            waiting={null}
+            onPick={pick}
+            onPrompt={setPrompt}
+            onPace={setPace}
+            onRun={() => void run()}
+            onStop={() => void act("/api/assistant/stop", { job: job.id })}
+            compact showWorking loading={isRunning}
+          />
+        </>
       ) : (
         <Report job={job} tasks={tasks} events={events} offset={serverNow() - Date.now()} />
       )}
@@ -152,7 +212,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   );
 }
 
-function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun }: {
+function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun, onStop, compact = false, showWorking = false, loading = false }: {
   scenarios: ScenarioInfo[];
   selected: string;
   prompt: string;
@@ -165,21 +225,24 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
   onPrompt: (prompt: string) => void;
   onPace: (pace: string) => void;
   onRun: () => void;
+  onStop?: () => void;
+  compact?: boolean;
+  showWorking?: boolean;
+  loading?: boolean;
 }) {
   const [browsing, setBrowsing] = useState(false);
   const scenario = scenarios.find((entry) => entry.id === selected);
   return (
-    <div className="ask">
-      <div className="ask-hero">
+    <div className={`ask${compact ? " is-compact" : ""}`}>
+      {!compact && <div className="ask-hero">
         <h1>What should I take care of?</h1>
-        <p className="lede">Tell me what you need done in your connected apps. The examples below are demos you can try.</p>
-      </div>
+      </div>}
       {error && <ErrorBanner message={error} onRetry={onRetry} />}
       <div className="prompt-card">
         <label className="sr-only" htmlFor="prompt">Job</label>
-        <textarea id="prompt" value={prompt} rows={3} onChange={(event) => onPrompt(event.target.value)} />
+        <textarea id="prompt" value={prompt} rows={3} readOnly={compact} onChange={(event) => onPrompt(event.target.value)} />
         <div className="prompt-foot">
-          {scenario && (
+          {!compact && scenario && (
             <span className="prompt-data" title={scenario.data.items.join("\n")}>
               <Icon name="info" size={14} />
               {scenario.data.label}
@@ -190,23 +253,25 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
               )}
             </span>
           )}
-          {browsing && scenario && <SampleData scenario={scenario.id} title={`${scenario.audience}: demo data`} onClose={() => setBrowsing(false)} />}
-          <label className="pace">
+          {!compact && browsing && scenario && <SampleData scenario={scenario.id} title={`${scenario.audience}: demo data`} onClose={() => setBrowsing(false)} />}
+          {!compact && <label className="pace">
             <span>Speed</span>
             <select value={pace} onChange={(event) => onPace(event.target.value)}>
               <option value="normal">Normal</option>
               <option value="slow">Slow</option>
               <option value="fast">Fast</option>
             </select>
-          </label>
+          </label>}
           {waiting && <span className="run-waiting">{waiting}</span>}
-          <button className="button primary run-button" type="button" disabled={!canRun} onClick={onRun}>
-            <Icon name="play" size={14} />
-            Run
-          </button>
+          {onStop && <button className="button" type="button" onClick={onStop}><Icon name="stop" size={14} />Stop</button>}
+          {(!compact || showWorking) && <button className="button primary run-button" type="button" disabled={!canRun} onClick={onRun}>
+            {loading && <span className="loading-spinner" aria-hidden="true" />}
+            {!compact && <Icon name="play" size={14} />}
+            {compact ? "Working" : "Run"}
+          </button>}
         </div>
       </div>
-      <div className="scenario-grid" role="group" aria-label="Example jobs">
+      {!compact && <div className="scenario-grid" role="group" aria-label="Example jobs">
         {scenarios.map((entry) => (
           <button key={entry.id} type="button" className="scenario-card" aria-pressed={entry.id === selected} onClick={() => onPick(entry.id)}>
             <IconTile name={entry.icon} size={16} />
@@ -217,7 +282,7 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
             <DataBadge scenario={entry} />
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -268,7 +333,7 @@ function Stepper({ stages, current }: { stages: StageInfo[]; current: number }) 
 }
 
 function Watching({ job, tasks, cluster, events, now, offset, act }: { job: Job; tasks: Task[]; cluster: ClusterState | null; events: StoryEvent[]; now: number; offset: number; act: (path: string) => void }) {
-  const [log, setLog] = useState(false);
+  const [log, setLog] = useState(true);
   if (!cluster) return null;
   const plan = job.plan!;
   const failure = () => {

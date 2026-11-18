@@ -136,7 +136,7 @@ describe("Assistant: ask", () => {
     expect(JSON.parse(posts[1].body)).toMatchObject({ scenario: "mywork", prompt: "What do I need to do today?", items: [] });
   });
 
-  it("sends one job however often Run is clicked while the server answers", async () => {
+  it("locks the composer after Run while the server answers", async () => {
     const posts: unknown[] = [];
     let answer = () => {};
     vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -156,10 +156,52 @@ describe("Assistant: ask", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Engineer/ }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Run" }).hasAttribute("disabled")).toBe(false));
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    expect(screen.getByRole("button", { name: "Run" }).hasAttribute("disabled")).toBe(true);
+    const working = await screen.findByRole("button", { name: "Working" });
+    expect(working.hasAttribute("disabled")).toBe(true);
+    fireEvent.click(working);
+    expect(posts).toHaveLength(1);
     await act(async () => answer());
     expect(posts).toEqual(["/api/assistant/run"]);
+  });
+
+  it("guards Run before a deferred view transition callback executes", async () => {
+    const calls: string[] = [];
+    const transitions: Array<() => void> = [];
+    let finishRequest = () => {};
+    const previous = Object.getOwnPropertyDescriptor(document, "startViewTransition");
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (update: () => void) => { transitions.push(update); return {}; },
+    });
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (init?.method === "POST") {
+        calls.push(path);
+        await new Promise<void>((resolve) => { finishRequest = resolve; });
+        return Response.json({ job: { id: "J-9" } }, { status: 201 });
+      }
+      if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
+      const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
+      if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+      return Response.json(cluster({ jobs: [], tasks: [] }));
+    }));
+    try {
+      window.history.replaceState({}, "", "/assistant");
+      render(<App />);
+      fireEvent.click(await screen.findByRole("button", { name: /Engineer/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Run" }));
+      await waitFor(() => expect(calls).toHaveLength(1));
+      fireEvent.click(screen.getByRole("button", { name: "Run" }));
+      expect(calls).toHaveLength(1);
+      await act(async () => {
+        transitions[0]();
+        finishRequest();
+      });
+      expect(calls).toHaveLength(1);
+    } finally {
+      if (previous) Object.defineProperty(document, "startViewTransition", previous);
+      else Reflect.deleteProperty(document, "startViewTransition");
+    }
   });
 
   it("offers to retry when the example jobs could not be loaded", async () => {
@@ -220,15 +262,15 @@ describe("Assistant: watch", () => {
     const posts = mock(cluster());
     const stage = await screen.findByRole("region", { name: "Cluster" });
     fireEvent.click(within(within(stage).getByRole("group", { name: "Board 4" })).getByRole("button", { name: "Restart" }));
-    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+    const stops = screen.getAllByRole("button", { name: "Stop" });
+    fireEvent.click(stops[stops.length - 1]);
     await act(async () => {});
     expect(posts).toEqual([["/api/cluster/nodes/Q-04/start", {}], ["/api/assistant/stop", { job: "J-4" }]]);
   });
 
-  it("keeps the log folded until asked for", async () => {
+  it("shows the activity log while the job is running", async () => {
     mock(cluster());
-    fireEvent.click(await screen.findByRole("button", { name: /Show log/ }));
-    const log = screen.getByRole("list", { name: "Log" });
+    const log = await screen.findByRole("list", { name: "Log" });
     expect(within(log).getByText("Board 2 sent back “2 replies”")).toBeTruthy();
     expect(within(log).getByText("Orchestrator gave Board 4's “Mon–Wed slots” to Board 2")).toBeTruthy();
   });
@@ -318,7 +360,8 @@ describe("Assistant: report", () => {
     }));
     window.history.replaceState({}, "", "/assistant");
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "Stop" }));
+    const stops = await screen.findAllByRole("button", { name: "Stop" });
+    fireEvent.click(stops[stops.length - 1]);
     expect((await screen.findByRole("alert")).textContent).toBe("The job already finished.");
     fireEvent.click(await screen.findByRole("button", { name: "Run another job" }));
     expect(screen.queryByRole("alert")).toBeNull();
