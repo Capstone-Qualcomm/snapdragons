@@ -119,7 +119,8 @@ export function TodayAction({ initialRequest = "", sources, onComplete, onBusyCh
     finally { markBusy(false); }
   }
 
-  const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && (!transitionsLoaded || !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase()));
+  const checkingTarget = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && !transitionsLoaded;
+  const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && transitionsLoaded && !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase());
   const actionName = proposal?.ready ? ({ status: "Change status", description: "Replace description", storyPoints: "Set story points", comment: "Post GitHub comment", reply: proposal.source === "slack" ? "Send Slack reply" : "Send Outlook reply", delete: "Delete email", markDone: "Mark done", undoDone: "Restore to Today" } as Record<string, string>)[proposal.action] ?? proposal.action : "";
   return (
     <section className={`today-action${compact ? " action-feed" : ""}`} aria-label="Today action">
@@ -134,7 +135,7 @@ export function TodayAction({ initialRequest = "", sources, onComplete, onBusyCh
       {error && <p className="today-action-message is-error" role="alert">{error}</p>}
       {message && <p className="today-action-message" role="status">{message}</p>}
       {proposal && !proposal.ready && <p className="today-action-message" role="status">{proposal.question}</p>}
-      {proposal?.ready && (
+      {proposal?.ready && !checkingTarget && (
         <div className="today-action-review">
           <p>{actionName}: <strong>{proposal.title}</strong></p>
           {!(["delete", "markDone", "undoDone"].includes(proposal.action)) && <dl><dt>Content</dt><dd>{proposal.value === null ? "Clear estimate" : String(proposal.value)}</dd></dl>}
