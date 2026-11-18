@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { postGitHubComment } from "../Today/github";
 import { getJiraTransitions, updateJiraIssue } from "../Today/jira";
@@ -26,16 +26,17 @@ export function itemsForModel(sources: Source<any>[]) {
   }));
 }
 
-export function TodayAction({ initialRequest = "", sources, onComplete }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void }) {
-  const [request, setRequest] = useState(initialRequest);
+export function TodayAction({ initialRequest = "", sources, onComplete, compact = false }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void; compact?: boolean }) {
+  const request = initialRequest;
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
   const [transitionsLoaded, setTransitionsLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const autoPrepared = useRef(false);
 
-  async function prepare() {
+  const prepare = useCallback(async () => {
     setBusy(true); setError(""); setMessage(""); setProposal(null);
     setTransitions([]); setTransitionsLoaded(false);
     try {
@@ -64,7 +65,14 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
       }
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
-  }
+  }, [request, sources]);
+
+  useEffect(() => {
+    if (compact && !autoPrepared.current) {
+      autoPrepared.current = true;
+      void prepare();
+    }
+  }, [compact, prepare]);
 
   async function confirm() {
     if (!proposal?.ready) return;
@@ -109,12 +117,15 @@ export function TodayAction({ initialRequest = "", sources, onComplete }: { init
   const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && (!transitionsLoaded || !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase()));
   const actionName = proposal?.ready ? ({ status: "Change status", description: "Replace description", storyPoints: "Set story points", comment: "Post GitHub comment", reply: proposal.source === "slack" ? "Send Slack reply" : "Send Outlook reply", delete: "Delete email", markDone: "Mark done", undoDone: "Restore to Today" } as Record<string, string>)[proposal.action] ?? proposal.action : "";
   return (
-    <section className="today-action" aria-label="Today action">
-      <label htmlFor="today-action-request">What should I do in your connected apps?</label>
-      <textarea id="today-action-request" value={request} rows={3} disabled={busy} onChange={(event) => { setRequest(event.target.value); setProposal(null); setMessage(""); }} placeholder="For example: reply to the email from Sam, update my ticket, or comment on the pull request." />
-      <div className="today-action-buttons">
-        <button className="button primary" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{busy ? "Working…" : "Prepare action"}</button>
-      </div>
+    <section className={`today-action${compact ? " action-feed" : ""}`} aria-label="Today action">
+      {!compact && <>
+        <label htmlFor="today-action-request">What should I do in your connected apps?</label>
+        <textarea id="today-action-request" value={request} rows={3} disabled={busy} onChange={(event) => { setRequest(event.target.value); setProposal(null); setMessage(""); }} placeholder="For example: reply to the email from Sam, update my ticket, or comment on the pull request." />
+        <div className="today-action-buttons">
+          <button className="button primary" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{busy ? "Working…" : "Prepare action"}</button>
+        </div>
+      </>}
+      {busy && !compact && <p className="today-action-message" role="status">Preparing the proposed action…</p>}
       {error && <p className="today-action-message is-error" role="alert">{error}</p>}
       {message && <p className="today-action-message" role="status">{message}</p>}
       {proposal && !proposal.ready && <p className="today-action-message" role="status">{proposal.question}</p>}
