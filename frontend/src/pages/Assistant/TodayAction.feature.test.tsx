@@ -10,6 +10,36 @@ function setup(fetcher: typeof fetch) {
 }
 
 describe("Assistant Today action", () => {
+  it("lets the user answer a clarification in compact mode", async () => {
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      calls += 1;
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (calls === 1) return Response.json({ ready: false, question: "Which issue should I update?" });
+      expect(body.prompt).toBe("Update QT1S-31 and set it to Done");
+      return Response.json({ ready: true, source: "jira", itemId: "QT1S-31", todayId: "jira:QT1S-31@0", title: "Fix queue", action: "markDone" });
+    }));
+    render(<TodayAction initialRequest="Set QT1S-31 to Done" sources={[]} compact />);
+    expect(await screen.findByText("Which issue should I update?")).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Add details" }), { target: { value: "Update QT1S-31 and set it to Done" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByRole("button", { name: "Confirm action" })).toBeTruthy();
+  });
+
+  it("offers a retry after compact preparation fails", async () => {
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      calls += 1;
+      return calls === 1
+        ? Response.json({ error: "Model unavailable." }, { status: 502 })
+        : Response.json({ ready: true, source: "jira", itemId: "QT1S-31", todayId: "jira:QT1S-31@0", title: "Fix queue", action: "markDone" });
+    }));
+    render(<TodayAction initialRequest="Set QT1S-31 to Done" sources={[]} compact />);
+    expect((await screen.findByRole("alert")).textContent).toContain("Model unavailable.");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("button", { name: "Confirm action" })).toBeTruthy();
+  });
+
   it("prepares a Jira status proposal, loads transitions, and confirms only after review", async () => {
     const calls: string[] = [];
     setup(async (input) => {

@@ -85,6 +85,9 @@
 .today-action.action-feed { align-self: end; width: 100%; max-width: 820px; margin: 0 auto; border: 0; padding: 0; background: transparent; animation: assistant-arrive 0.32s ease-out both; }
 .action-feed .today-action-review { padding: var(--s4) var(--s5); border: 1px solid var(--rule); border-radius: var(--card-radius); background: var(--paper); box-shadow: var(--shadow); }
 .action-feed > .today-action-message { margin: 0; padding: var(--s4) var(--s5); border: 1px solid var(--rule); border-radius: var(--card-radius); background: var(--paper); }
+.today-action-followup { display: grid; justify-items: end; gap: var(--s2); padding: var(--s4) var(--s5); border: 1px solid var(--rule); border-radius: var(--card-radius); background: var(--paper); }
+.today-action-followup label { justify-self: start; font-weight: 600; }
+.today-action-followup textarea { width: 100%; min-height: 64px; padding: var(--s3); border: 1px solid var(--rule-strong); border-radius: 8px; resize: vertical; }
 .today-action > label { font-weight: 600; }
 .today-action textarea { width: 100%; min-height: 80px; padding: var(--s3); border: 1px solid var(--rule-strong); border-radius: 8px; resize: vertical; }
 .today-action-buttons { display: flex; justify-content: flex-end; }

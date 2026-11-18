@@ -27,7 +27,7 @@ export function itemsForModel(sources: Source<any>[]) {
 }
 
 export function TodayAction({ initialRequest = "", sources, onComplete, onBusyChange, compact = false }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void; onBusyChange?: (busy: boolean) => void; compact?: boolean }) {
-  const request = initialRequest;
+  const [request, setRequest] = useState(initialRequest);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
   const [transitionsLoaded, setTransitionsLoaded] = useState(false);
@@ -64,9 +64,14 @@ export function TodayAction({ initialRequest = "", sources, onComplete, onBusyCh
       if (result.ready && result.source === "jira" && result.action === "status") {
         setTransitions([]);
         setTransitionsLoaded(false);
-        const loaded = await getJiraTransitions(result.itemId);
-        setTransitions(loaded);
-        setTransitionsLoaded(true);
+        try {
+          const loaded = await getJiraTransitions(result.itemId);
+          setTransitions(loaded);
+          setTransitionsLoaded(true);
+        } catch (cause) {
+          setTransitionsLoaded(true);
+          throw cause;
+        }
       }
     } catch (cause) { setError((cause as Error).message); }
     finally { markBusy(false); }
@@ -121,6 +126,7 @@ export function TodayAction({ initialRequest = "", sources, onComplete, onBusyCh
 
   const checkingTarget = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && !transitionsLoaded;
   const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && transitionsLoaded && !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase());
+  const needsFollowup = proposal !== null && !proposal.ready;
   const actionName = proposal?.ready ? ({ status: "Change status", description: "Replace description", storyPoints: "Set story points", comment: "Post GitHub comment", reply: proposal.source === "slack" ? "Send Slack reply" : "Send Outlook reply", delete: "Delete email", markDone: "Mark done", undoDone: "Restore to Today" } as Record<string, string>)[proposal.action] ?? proposal.action : "";
   return (
     <section className={`today-action${compact ? " action-feed" : ""}`} aria-label="Today action">
@@ -131,11 +137,16 @@ export function TodayAction({ initialRequest = "", sources, onComplete, onBusyCh
           <button className="button primary" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{busy ? "Working…" : "Prepare action"}</button>
         </div>
       </>}
-      {busy && !compact && <p className="today-action-message" role="status">Preparing the proposed action…</p>}
+      {busy && !compact && !proposal?.ready && <p className="today-action-message" role="status">Preparing the proposed action…</p>}
       {error && <p className="today-action-message is-error" role="alert">{error}</p>}
       {message && <p className="today-action-message" role="status">{message}</p>}
       {proposal && !proposal.ready && <p className="today-action-message" role="status">{proposal.question}</p>}
-      {proposal?.ready && !checkingTarget && (
+      {compact && (needsFollowup || Boolean(error)) && <div className="today-action-followup">
+        <label htmlFor="today-action-followup">{needsFollowup ? "Add details" : "Update your request"}</label>
+        <textarea id="today-action-followup" value={request} rows={2} disabled={busy} onChange={(event) => setRequest(event.target.value)} />
+        <button className="button" type="button" disabled={busy || !request.trim()} onClick={() => void prepare()}>{error ? "Retry" : "Continue"}</button>
+      </div>}
+      {proposal?.ready && !checkingTarget && !busy && (
         <div className="today-action-review">
           <p>{actionName}: <strong>{proposal.title}</strong></p>
           {!(["delete", "markDone", "undoDone"].includes(proposal.action)) && <dl><dt>Content</dt><dd>{proposal.value === null ? "Clear estimate" : String(proposal.value)}</dd></dl>}

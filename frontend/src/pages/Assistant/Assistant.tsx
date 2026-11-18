@@ -35,6 +35,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const [pace, setPace] = useState("normal");
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
   const [todayActionRequest, setTodayActionRequest] = useState<string | null>(null);
   const [todayActionBusy, setTodayActionBusy] = useState(false);
   const runToken = useRef(0);
@@ -66,6 +67,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
 
   function stopStarting() {
     runToken.current += 1;
+    startingRef.current = false;
     setStarting(false);
     setTodayActionRequest(null);
     setTodayActionBusy(false);
@@ -96,7 +98,8 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
 
   // One job per click: Run stays off until the server answers.
   async function run() {
-    if (starting) return;
+    if (startingRef.current) return;
+    startingRef.current = true;
     const token = ++runToken.current;
     const viewDocument = document as Document & { startViewTransition?: (callback: () => void) => unknown };
     if (viewDocument.startViewTransition) {
@@ -129,7 +132,10 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
     } catch (cause) {
       if (token === runToken.current) setError((cause as Error).message);
     } finally {
-      if (token === runToken.current) setStarting(false);
+      if (token === runToken.current) {
+        startingRef.current = false;
+        setStarting(false);
+      }
     }
   }
 
