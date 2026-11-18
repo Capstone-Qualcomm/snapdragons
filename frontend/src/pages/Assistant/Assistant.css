@@ -70,6 +70,8 @@
 
 .pace select { width: auto; padding: 5px 8px; font-size: 13px; }
 .run-button { min-width: 96px; }
+.loading-spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: assistant-spin 0.75s linear infinite; }
+@keyframes assistant-spin { to { transform: rotate(360deg); } }
 .run-waiting { color: var(--ink-soft); font-size: 13px; }
 
 .today-action {

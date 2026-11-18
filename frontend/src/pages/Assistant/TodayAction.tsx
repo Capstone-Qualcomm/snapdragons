@@ -26,7 +26,7 @@ export function itemsForModel(sources: Source<any>[]) {
   }));
 }
 
-export function TodayAction({ initialRequest = "", sources, onComplete, compact = false }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void; compact?: boolean }) {
+export function TodayAction({ initialRequest = "", sources, onComplete, onBusyChange, compact = false }: { initialRequest?: string; sources: Source<any>[]; onComplete?: () => void; onBusyChange?: (busy: boolean) => void; compact?: boolean }) {
   const request = initialRequest;
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [transitions, setTransitions] = useState<JiraTransition[]>([]);
@@ -36,8 +36,13 @@ export function TodayAction({ initialRequest = "", sources, onComplete, compact 
   const [error, setError] = useState("");
   const autoPrepared = useRef(false);
 
+  const markBusy = useCallback((value: boolean) => {
+    setBusy(value);
+    onBusyChange?.(value);
+  }, [onBusyChange]);
+
   const prepare = useCallback(async () => {
-    setBusy(true); setError(""); setMessage(""); setProposal(null);
+    markBusy(true); setError(""); setMessage(""); setProposal(null);
     setTransitions([]); setTransitionsLoaded(false);
     try {
       const target = await api<Target>("/api/assistant/action/prepare", { prompt: request, items: itemsForModel(sources) });
@@ -64,8 +69,8 @@ export function TodayAction({ initialRequest = "", sources, onComplete, compact 
         setTransitionsLoaded(true);
       }
     } catch (cause) { setError((cause as Error).message); }
-    finally { setBusy(false); }
-  }, [request, sources]);
+    finally { markBusy(false); }
+  }, [request, sources, markBusy]);
 
   useEffect(() => {
     if (compact && !autoPrepared.current) {
@@ -76,7 +81,7 @@ export function TodayAction({ initialRequest = "", sources, onComplete, compact 
 
   async function confirm() {
     if (!proposal?.ready) return;
-    setBusy(true); setError("");
+    markBusy(true); setError("");
     try {
       if (proposal.action === "markDone" || proposal.action === "undoDone") {
         let done: string[] = [];
@@ -111,7 +116,7 @@ export function TodayAction({ initialRequest = "", sources, onComplete, compact 
       setProposal(null);
       onComplete?.();
     } catch (cause) { setError((cause as Error).message); }
-    finally { setBusy(false); }
+    finally { markBusy(false); }
   }
 
   const targetUnavailable = proposal?.ready && proposal.source === "jira" && proposal.action === "status" && (!transitionsLoaded || !transitions.some(({ status }) => status.trim().toLocaleLowerCase() === String(proposal.value).trim().toLocaleLowerCase()));

@@ -36,6 +36,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [todayActionRequest, setTodayActionRequest] = useState<string | null>(null);
+  const [todayActionBusy, setTodayActionBusy] = useState(false);
   const runToken = useRef(0);
   const now = useClock(serverNow);
 
@@ -67,16 +68,17 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
     runToken.current += 1;
     setStarting(false);
     setTodayActionRequest(null);
+    setTodayActionBusy(false);
   }
 
   if (todayActionRequest !== null) {
     return (
       <div className="assistant is-running is-preparing">
-        <TodayAction initialRequest={todayActionRequest} sources={sources} compact onComplete={() => { setTodayActionRequest(null); setPrompt(""); }} />
+        <TodayAction initialRequest={todayActionRequest} sources={sources} compact onBusyChange={setTodayActionBusy} onComplete={() => { setTodayActionRequest(null); setPrompt(""); }} />
         <Ask
           scenarios={scenarios} selected={selected} prompt={todayActionRequest} pace={pace} error={null}
           canRun={false} waiting={null} onPick={pick} onPrompt={setPrompt} onPace={setPace}
-          onRun={() => void run()} onStop={stopStarting} compact showWorking
+          onRun={() => void run()} onStop={stopStarting} compact showWorking loading={todayActionBusy}
         />
       </div>
     );
@@ -144,7 +146,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
           <Ask
             scenarios={scenarios} selected={selected} prompt={prompt} pace={pace} error={null}
             canRun={false} waiting={null} onPick={pick} onPrompt={setPrompt} onPace={setPace}
-            onRun={() => void run()} onStop={stopStarting} compact showWorking
+            onRun={() => void run()} onStop={stopStarting} compact showWorking loading={starting}
           />
         </div>
       );
@@ -194,7 +196,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
             onPace={setPace}
             onRun={() => void run()}
             onStop={() => void act("/api/assistant/stop", { job: job.id })}
-            compact showWorking
+            compact showWorking loading={isRunning}
           />
         </>
       ) : (
@@ -204,7 +206,7 @@ export function AssistantPage({ cluster, failed, reload, serverNow, shown, setSh
   );
 }
 
-function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun, onStop, compact = false, showWorking = false }: {
+function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waiting, onPick, onPrompt, onPace, onRun, onStop, compact = false, showWorking = false, loading = false }: {
   scenarios: ScenarioInfo[];
   selected: string;
   prompt: string;
@@ -220,6 +222,7 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
   onStop?: () => void;
   compact?: boolean;
   showWorking?: boolean;
+  loading?: boolean;
 }) {
   const [browsing, setBrowsing] = useState(false);
   const scenario = scenarios.find((entry) => entry.id === selected);
@@ -256,6 +259,7 @@ function Ask({ scenarios, selected, prompt, pace, error, onRetry, canRun, waitin
           {waiting && <span className="run-waiting">{waiting}</span>}
           {onStop && <button className="button" type="button" onClick={onStop}><Icon name="stop" size={14} />Stop</button>}
           {(!compact || showWorking) && <button className="button primary run-button" type="button" disabled={!canRun} onClick={onRun}>
+            {loading && <span className="loading-spinner" aria-hidden="true" />}
             {!compact && <Icon name="play" size={14} />}
             {compact ? "Working" : "Run"}
           </button>}
