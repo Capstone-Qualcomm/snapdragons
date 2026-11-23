@@ -17,12 +17,30 @@ export function signInError(title: string, outcome: string): string | undefined 
 // Integrations as cards: what each brings, whether it is
 // connected, and the button that changes that. Nothing sits behind a menu.
 export function ConnectionsPanel({ sources, counts }: { sources: Source<unknown>[]; counts: Record<string, number> }) {
+  const integrations: ConnectionSource[] = [
+    ...sources,
+    {
+      name: "notion",
+      title: "Notion",
+      status: "unconfigured",
+      syncing: false,
+      items: [],
+      error: "",
+      loadedAt: null,
+      account: null,
+      reload: async () => {},
+      setEnabled: async () => {},
+      disconnect: async () => {},
+    },
+  ];
   return (
     <ul className="integrations" aria-label="Connections" id="connections">
-      {sources.map((source) => <Connection key={source.name} source={source} count={counts[source.name] ?? 0} />)}
+      {integrations.map((source) => <Connection key={source.name} source={source} count={counts[source.name] ?? 0} />)}
     </ul>
   );
 }
+
+type ConnectionSource = Omit<Source<unknown>, "name"> & { name: Source["name"] | "notion" };
 
 const states: Record<string, { badge: string; tone: string }> = {
   loading: { badge: "Checking", tone: "" },
@@ -39,10 +57,11 @@ const ABOUT: Record<string, string> = {
   github: "Pull requests waiting on your review and issues assigned to you.",
   outlook: "Unread messages from your Outlook inbox.",
   teams: "Recent direct chats and group chat mentions that need your attention.",
+  notion: "Pages and updates from your Notion workspace.",
 };
 
 // Disconnect asks once more, since connecting again means signing in again.
-function Connection({ source, count }: { source: Source<unknown>; count: number }) {
+function Connection({ source, count }: { source: ConnectionSource; count: number }) {
   const { name, title, status } = source;
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
