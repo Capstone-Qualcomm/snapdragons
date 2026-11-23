@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 import type { NotionConnection } from "./notion-auth.ts";
 import { createNotionAuth } from "./notion-auth.ts";
+import { createNotionApi } from "./notion-api.ts";
 import { createSourceActivity } from "../source-activity.mts";
 import { createSessions } from "../sessions.mts";
 import { createSourceServer } from "../source-server.mts";
@@ -35,7 +36,8 @@ export function createNotionServer(options: ServerOptions = {}) {
       owner: null,
     };
     const auth = createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, fetchImpl, notionConnection: connection });
-    return { connection, auth, activity: createSourceActivity() };
+    const notionApi = createNotionApi({ notionConnection: connection, fetchImpl, getAccessToken: auth.getAccessToken });
+    return { connection, auth, notionApi, activity: createSourceActivity() };
   }, (session) => session.connection);
 
   return createSourceServer({
@@ -54,9 +56,9 @@ export function createNotionServer(options: ServerOptions = {}) {
         ? (connection.owner.user as Record<string, unknown>).name ?? null
         : null,
     }),
-    // Page loading is added in the next integration step; keep the shared source routes available.
+    // Search returns only page metadata; page contents stay out of this source list.
     items: "pages",
-    loadItems: async () => [],
+    loadItems: ({ notionApi }) => notionApi.getPages(),
     async routes(_req, res, url, { auth }) {
       if (_req.method === "GET" && url.pathname === "/auth/notion/start") {
         auth.start(res);

@@ -54,7 +54,9 @@ function Connection({ source, count }: { source: Source<unknown>; count: number 
     disconnected: ABOUT[name],
     disabled: "Its items are hidden from Today.",
     error: source.error,
-    ready: `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "item" : "items"} on Today`,
+    ready: name === "notion"
+      ? `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "shared page" : "shared pages"}`
+      : `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "item" : "items"} on Today`,
   }[status];
 
   // One request at a time: the buttons stay off until it is answered.

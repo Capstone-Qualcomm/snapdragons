@@ -32,6 +32,7 @@ export function createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, 
   const pendingStates = createPendingStates();
   const configured = Boolean(clientId && clientSecret);
   const returnUrl = (outcome: string) => `${appUrl}/today?notion=${encodeURIComponent(outcome)}`;
+  let refreshInFlight: Promise<string> | null = null;
 
   function start(res: ServerResponse): void {
     if (!configured) {
@@ -83,6 +84,7 @@ export function createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, 
         owner?: Record<string, unknown>;
       };
       if (typeof token.access_token !== "string" || !token.access_token) throw new Error("Notion did not return an access token");
+      if (typeof token.refresh_token !== "string" || !token.refresh_token) throw new Error("Notion did not return a refresh token");
 
       Object.assign(notionConnection, {
         connected: true,
@@ -114,7 +116,46 @@ export function createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, 
       botId: null,
       owner: null,
     });
+    refreshInFlight = null;
   }
 
-  return { configured, start, handleCallback, reset };
+  async function refreshAccessToken(): Promise<string> {
+    const refreshToken = notionConnection.token?.refresh_token;
+    if (!configured || !refreshToken) throw new Error("Notion authorization expired. Reconnect Notion.");
+    if (!refreshInFlight) {
+      refreshInFlight = (async () => {
+        const response = await fetchImpl("https://api.notion.com/v1/oauth/token", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+          },
+          body: JSON.stringify({ grant_type: "refresh_token", refresh_token: refreshToken }),
+        });
+        if (!response.ok) throw new Error("Notion authorization expired. Reconnect Notion.");
+        const refreshed = await response.json() as NotionToken;
+        if (typeof refreshed.access_token !== "string" || !refreshed.access_token) {
+          throw new Error("Notion authorization expired. Reconnect Notion.");
+        }
+        notionConnection.token = { ...notionConnection.token, ...refreshed };
+        return refreshed.access_token;
+      })();
+    }
+    try {
+      return await refreshInFlight;
+    } catch {
+      throw new Error("Notion authorization expired. Reconnect Notion.");
+    } finally {
+      refreshInFlight = null;
+    }
+  }
+
+  async function getAccessToken(forceRefresh = false): Promise<string> {
+    const token = notionConnection.token;
+    if (!token?.access_token) throw new Error("Notion is not connected. Connect Notion.");
+    return forceRefresh ? refreshAccessToken() : token.access_token;
+  }
+
+  return { configured, start, handleCallback, reset, getAccessToken };
 }
