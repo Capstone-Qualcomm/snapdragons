@@ -4,7 +4,7 @@ import { createNotionAuth } from "./notion-auth.ts";
 import { createNotionApi } from "./notion-api.ts";
 import { createSourceActivity } from "../source-activity.mts";
 import { createSessions } from "../sessions.mts";
-import { createSourceServer } from "../source-server.mts";
+import { createSourceServer, send } from "../source-server.mts";
 
 type ServerOptions = {
   port?: number;
@@ -59,13 +59,26 @@ export function createNotionServer(options: ServerOptions = {}) {
     // Search returns only page metadata; page contents stay out of this source list.
     items: "pages",
     loadItems: ({ notionApi }) => notionApi.getPages(),
-    async routes(_req, res, url, { auth }) {
+    async routes(_req, res, url, { auth, notionApi }) {
       if (_req.method === "GET" && url.pathname === "/auth/notion/start") {
         auth.start(res);
         return true;
       }
       if (_req.method === "GET" && url.pathname === "/auth/notion/callback") {
         await auth.handleCallback(url, res);
+        return true;
+      }
+      if (_req.method === "GET" && url.pathname === "/api/notion/search") {
+        const query = url.searchParams.get("q")?.trim() ?? "";
+        if (query.length > 200) {
+          send(res, 400, { error: "Search text must be 200 characters or fewer." });
+          return true;
+        }
+        try {
+          send(res, 200, { pages: await notionApi.getPages(query) });
+        } catch (error) {
+          send(res, 502, { error: error instanceof Error ? error.message : "Notion could not search shared pages." });
+        }
         return true;
       }
       return false;

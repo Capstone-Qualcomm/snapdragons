@@ -32,7 +32,7 @@ type NotionApiOptions = {
 };
 
 export function createNotionApi({ notionConnection, fetchImpl, getAccessToken }: NotionApiOptions) {
-  async function search(cursor?: string): Promise<SearchResponse> {
+  async function search(query?: string, cursor?: string): Promise<SearchResponse> {
     const request = async (forceRefresh = false) => {
       const accessToken = await getAccessToken(forceRefresh);
       return fetchImpl("https://api.notion.com/v1/search?filter_properties=title", {
@@ -47,6 +47,7 @@ export function createNotionApi({ notionConnection, fetchImpl, getAccessToken }:
           filter: { property: "object", value: "page" },
           page_size: pageSize,
           sort: { direction: "descending", timestamp: "last_edited_time" },
+          ...(query ? { query } : {}),
           ...(cursor ? { start_cursor: cursor } : {}),
         }),
       });
@@ -74,7 +75,7 @@ export function createNotionApi({ notionConnection, fetchImpl, getAccessToken }:
     return "Untitled";
   }
 
-  async function getPages(): Promise<NotionPage[]> {
+  async function getPages(query = ""): Promise<NotionPage[]> {
     if (!notionConnection.connected || !notionConnection.token) {
       throw new Error("Notion is not connected. Connect Notion.");
     }
@@ -83,7 +84,7 @@ export function createNotionApi({ notionConnection, fetchImpl, getAccessToken }:
     const seen = new Set<string>();
     let cursor: string | undefined;
     do {
-      const result = await search(cursor);
+      const result = await search(query.trim() || undefined, cursor);
       for (const page of result.results ?? []) {
         if (page.object !== "page" || !page.id || !page.url || page.in_trash) continue;
         pages.push({

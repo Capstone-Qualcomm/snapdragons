@@ -19,5 +19,8 @@ Notion asks the user to choose which pages to share with the integration. The OA
 
 The first sync searches shared page titles and returns each page's title, last edit time, and URL. It does not load page contents. Search results may not be a complete inventory and can take time to reflect newly shared pages; refresh the report after sharing pages.
 
+- `GET /api/notion/pages` returns the shared page metadata used for the first 20 Documents cards.
+- `GET /api/notion/search?q=<title>` searches beyond those 20 cards by page title.
+
 See [Notion's authorization guide](https://developers.notion.com/guides/authorization/overview) for OAuth setup and token handling details.
 The sync uses [Notion's Search API](https://developers.notion.com/reference/post-search), with pagination and the `2026-03-11` API version.
