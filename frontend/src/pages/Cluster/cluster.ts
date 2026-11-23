@@ -41,7 +41,8 @@ export type Section =
   | { title: string; kind: "table"; columns: string[]; rows: string[][] }
   | { title: string; kind: "list"; items: string[] }
   | { title: string; kind: "text"; body: string }
-  | { title: string; kind: "cards"; cards: Array<{ title: string; subtitle: string; lines: string[] }> };
+  | { title: string; kind: "cards"; cards: Array<{ title: string; subtitle: string; lines: string[] }> }
+  | { title: string; kind: "links"; items: Array<{ title: string; url: string }> };
 export type Result = { headline: string; stats: Array<{ value: string; label: string }>; sections: Section[] };
 export type Plan = { scenario: string; prompt: string; pace: number; stage: number; stages: Array<{ label: string; short: string; icon: string }>; result: Result | null; error?: string };
 export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null; plan?: Plan };

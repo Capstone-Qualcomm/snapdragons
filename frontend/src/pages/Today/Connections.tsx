@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { SourceLogo, StatusDot } from "../../components/ui";
 import { appPath } from "../../lib/urls";
-import type { Source } from "./sources";
+import type { Source, SourceName } from "./sources";
+import type { NotionConnection } from "../Connections/notion";
 
 // Messages for the ?<source>=<outcome> the backend adds after sign-in. A
 // successful one needs none: the source just shows as connected.
@@ -16,10 +17,11 @@ export function signInError(title: string, outcome: string): string | undefined 
 
 // Integrations as cards: what each brings, whether it is
 // connected, and the button that changes that. Nothing sits behind a menu.
-export function ConnectionsPanel({ sources, counts }: { sources: Source<unknown>[]; counts: Record<string, number> }) {
+export function ConnectionsPanel({ sources, counts, notion }: { sources: Source<unknown>[]; counts: Record<string, number>; notion: NotionConnection }) {
   return (
     <ul className="integrations" aria-label="Connections" id="connections">
       {sources.map((source) => <Connection key={source.name} source={source} count={counts[source.name] ?? 0} />)}
+      <Connection key="notion" source={notion} />
     </ul>
   );
 }
@@ -39,10 +41,12 @@ const ABOUT: Record<string, string> = {
   github: "Pull requests waiting on your review and issues assigned to you.",
   outlook: "Unread messages from your Outlook inbox.",
   teams: "Recent direct chats and group chat mentions that need your attention.",
+  notion: "Search and read pages you share with the integration from the Assistant.",
 };
 
 // Disconnect asks once more, since connecting again means signing in again.
-function Connection({ source, count }: { source: Source<unknown>; count: number }) {
+type ConnectionLike = Omit<Pick<Source<unknown>, "name" | "title" | "status" | "account" | "error" | "reload" | "setEnabled" | "disconnect">, "name"> & { name: SourceName | "notion" };
+function Connection({ source, count = 0 }: { source: ConnectionLike; count?: number }) {
   const { name, title, status } = source;
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -51,9 +55,11 @@ function Connection({ source, count }: { source: Source<unknown>; count: number 
     loading: "Checking the connection…",
     unconfigured: "Sign-in is not set up on this server.",
     disconnected: ABOUT[name],
-    disabled: "Its items are hidden from Today.",
+    disabled: name === "notion" ? "Notion search is turned off." : "Its items are hidden from Today.",
     error: source.error,
-    ready: `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "item" : "items"} on Today`,
+    ready: name === "notion"
+      ? `Assistant can search shared pages${source.account ? ` in ${source.account}` : ""}.`
+      : `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "item" : "items"} on Today`,
   }[status];
 
   // One request at a time: the buttons stay off until it is answered.
@@ -67,7 +73,7 @@ function Connection({ source, count }: { source: Source<unknown>; count: number 
   return (
     <li className={`integration is-${status}`}>
       <div className="integration-head">
-        <span className="integration-logo"><SourceLogo name={name} /></span>
+        <span className="integration-logo">{name === "notion" ? <span className="notion-mark" aria-hidden="true">N</span> : <SourceLogo name={name} />}</span>
         <strong>{title}</strong>
         <span className={`badge ${states[status].tone}`}>
           {status === "loading" ? <StatusDot tone="busy" /> : status === "ready" ? <i className="badge-dot" /> : null}

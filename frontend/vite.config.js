@@ -18,6 +18,8 @@ export default defineConfig({
       "/snapdragons/auth/outlook": { target: "http://127.0.0.1:3005", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/api/teams": { target: "http://127.0.0.1:3006", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/auth/teams": { target: "http://127.0.0.1:3006", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/api/notion": { target: "http://127.0.0.1:3007", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
+      "/snapdragons/auth/notion": { target: "http://127.0.0.1:3007", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/api": { target: "http://127.0.0.1:3001", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
       "/snapdragons/auth": { target: "http://127.0.0.1:3001", rewrite: (path) => path.replace(/^\/snapdragons/, "") },
     },

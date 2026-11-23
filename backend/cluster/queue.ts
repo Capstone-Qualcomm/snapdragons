@@ -51,7 +51,7 @@ export type Task = {
   asker?: string | null;
 };
 
-export type Plan = { scenario: string; prompt: string; pace: number; stage: number; stages: Array<{ label: string; short: string; icon: Icon }>; result: Json | null; error?: string };
+export type Plan = { scenario: string; prompt: string; pace: number; input: Json; stage: number; stages: Array<{ label: string; short: string; icon: Icon }>; result: Json | null; error?: string };
 export type Job = { id: string; name: string; queuedAt: number; doneAt: number | null; nodes: number | null; plan?: Plan };
 export type Worker = { id: string; alive: boolean; leaving: boolean; done: number };
 export type ClusterEvent = { at: number; text: string };
@@ -163,10 +163,10 @@ export function createQueue() {
 
   // An Assistant plan: the scenario's first stage is queued now, and each next
   // stage is planned from the outputs of the one before when its last step is done.
-  function addPlan(id: string, prompt: string, pace: number, at: number, context?: Json): Job {
+  function addPlan(id: string, prompt: string, pace: number, at: number, context?: Json, input: Json = null): Job {
     const scenario = scenarioById(id);
     if (!scenario) throw new Error(`No scenario ${id}.`);
-    const job: Job = { id: `J-${data.nextJob++}`, name: scenario.title, queuedAt: at, doneAt: null, nodes: null, plan: { scenario: id, prompt, pace, stage: -1, stages: scenario.stages.map(({ label, short, icon }) => ({ label, short, icon })), result: null } };
+    const job: Job = { id: `J-${data.nextJob++}`, name: scenario.title, queuedAt: at, doneAt: null, nodes: null, plan: { scenario: id, prompt, pace, input, stage: -1, stages: scenario.stages.map(({ label, short, icon }) => ({ label, short, icon })), result: null } };
     data.jobs.push(job);
     log(at, `${orchestrator() ?? "The orchestrator"} got ${scenario.private ? "a private job" : `a job: "${prompt}"`}`);
     startStage(job, 0, at, context);
@@ -187,7 +187,7 @@ export function createQueue() {
     if (stage >= scenario.stages.length) return finishPlan(job, at);
     let specs;
     try {
-      specs = scenario.stages[stage].plan(doneSteps(job), plan.prompt, context);
+      specs = scenario.stages[stage].plan(doneSteps(job), plan.prompt, context ?? plan.input);
     } catch (cause) {
       plan.error = `Stage ${stage + 1} could not be planned: ${(cause as Error).message}`;
       return finishPlan(job, at);
@@ -238,6 +238,7 @@ export function createQueue() {
   // and drop their working data: the inputs and outputs the next stage read, and checkpoints.
   // That data is most of the queue, and boards on a slow link get the whole queue when they catch up.
   function lighten(job: Job): void {
+    if (job.plan) job.plan.input = null;
     for (const task of data.tasks) {
       if (task.job !== job.id) continue;
       delete task.partial;
@@ -250,6 +251,7 @@ export function createQueue() {
     const steps = data.tasks.filter((task) => task.job === job.id);
     const last = steps.filter((task) => task.stage === job.plan!.stage && task.output).at(-1);
     job.plan!.result = last?.output?.data ?? null;
+    job.plan!.input = null;
     lighten(job);
     job.doneAt = at;
     job.nodes = new Set(steps.flatMap((step) => step.runs.filter((run) => run.outcome === "done").map((run) => run.worker))).size;
@@ -395,7 +397,7 @@ export function createQueue() {
         const job =
           command.type === "job"
             ? addJob(command.name as string, command.steps as string[], command.then as string | undefined, at, command.fetch as { sources: string[]; asker: string | null } | undefined)
-            : addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at, command.context as Json | undefined);
+            : addPlan(command.scenario as string, command.prompt as string, (command.pace as number) || 1, at, command.context as Json | undefined, (command.input as Json) ?? null);
         if (typeof command.requestId === "string") data.requests.push({ id: command.requestId, job: job.id });
         if (data.requests.length > KEEP_REQUESTS) data.requests.shift();
         return job;

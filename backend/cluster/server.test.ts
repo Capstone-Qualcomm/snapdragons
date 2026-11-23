@@ -46,7 +46,8 @@ test("with no nodes running the state is empty and there is no orchestrator", as
 test("the refresh fetches from every source backend", () => {
   // Every backend folder with its own server, besides this one, is a source Today loads.
   const backend = fileURLToPath(new URL("..", import.meta.url));
-  const sources = readdirSync(backend).filter((name) => name !== "cluster" && existsSync(join(backend, name, "server.ts")));
+  // Notion is an Assistant knowledge source, not an item source in Today.
+  const sources = readdirSync(backend).filter((name) => name !== "cluster" && name !== "notion" && existsSync(join(backend, name, "server.ts")));
   const fetched = REFRESH.steps.map((step) => step.split(" ")[1].toLowerCase());
   assert.deepEqual([...fetched].sort(), [...sources].sort());
   // Each step's source sits at the same place, since the boards fetch by it.
@@ -71,11 +72,56 @@ test("auto mode turns on and off", async () => {
 test("the Assistant lists its scenarios, and refuses one it does not have", async () => {
   const base = await startGateway();
   const { scenarios } = await (await fetch(base + "/api/assistant/scenarios")).json();
-  assert.deepEqual(scenarios.map((scenario: { id: string }) => scenario.id), ["interviews", "ask", "student", "engineer", "business", "research"]);
-  assert.ok(scenarios.every((scenario: { audience: string; prompt: string; stages: string[] }) => scenario.audience && scenario.prompt && scenario.stages.length >= 3));
+  assert.deepEqual(scenarios.map((scenario: { id: string }) => scenario.id), ["interviews", "ask", "notion", "student", "engineer", "business", "research"]);
+  assert.ok(scenarios.every((scenario: { id: string; audience: string; prompt: string; stages: string[] }) => scenario.audience && scenario.prompt && scenario.stages.length >= (scenario.id === "notion" ? 2 : 3)));
   // Every scenario says plainly what it runs on: demo data, or the model live.
-  assert.ok(scenarios.every((scenario: { id: string; data: { label: string } }) => (scenario.id === "ask" ? /^Live/ : /demo/i).test(scenario.data.label)));
+  assert.ok(scenarios.every((scenario: { id: string; data: { label: string } }) => (["ask", "notion"].includes(scenario.id) ? /^Live/ : /demo/i).test(scenario.data.label)));
   assert.equal((await post(base, "/api/assistant/run", { scenario: "nope" })).status, 400);
+});
+
+test("Ask Notion requires the app origin and session, then forwards pages but not credentials to the cluster", async () => {
+  let notionRequest: { cookie: string | undefined; origin: string | undefined } | undefined;
+  const notionService = createServer(async (req, res) => {
+    notionRequest = { cookie: req.headers.cookie, origin: req.headers.origin };
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ pages: [{ id: "p1", title: "Release plan", url: "https://www.notion.so/release", text: "Launch is Friday", editedAt: null }] }));
+  });
+  servers.add(notionService);
+  await new Promise<void>((resolve) => notionService.listen(0, "127.0.0.1", resolve));
+  const node = createServer(async (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    if (req.url === "/status") return res.end(JSON.stringify({ id: "127.0.0.1", role: "orchestrator", term: 1, orchestrator: "127.0.0.1", members: ["127.0.0.1"], commitIndex: 1, lastIndex: 1 }));
+    if (req.url === "/client") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.from(chunk));
+      const command = JSON.parse(Buffer.concat(chunks).toString()) as Record<string, unknown>;
+      res.end(JSON.stringify({ result: { id: "J-9", accepted: command.type === "plan" } }));
+      return;
+    }
+    res.statusCode = 404;
+    res.end(JSON.stringify({ error: "not found" }));
+  });
+  servers.add(node);
+  await new Promise<void>((resolve) => node.listen(0, "127.0.0.1", resolve));
+  const notionPort = (notionService.address() as AddressInfo).port;
+  const nodePort = (node.address() as AddressInfo).port;
+  const gateway = createClusterServer({ port: 0, boards: ["127.0.0.1"], nodePort, notionBackendUrl: `http://127.0.0.1:${notionPort}` });
+  servers.add(gateway.server);
+  await new Promise<void>((resolve) => gateway.server.listen(0, resolve));
+  const base = `http://127.0.0.1:${(gateway.server.address() as AddressInfo).port}`;
+
+  const noCookie = await fetch(`${base}/api/assistant/run`, { method: "POST", headers: { Origin: "http://localhost:5173", "Content-Type": "application/json" }, body: JSON.stringify({ scenario: "notion", prompt: "When is launch?" }) });
+  assert.equal(noCookie.status, 401);
+  assert.equal(notionRequest, undefined);
+  const wrongOrigin = await fetch(`${base}/api/assistant/run`, { method: "POST", headers: { Origin: "https://attacker.example", Cookie: `sid=${"a".repeat(64)}`, "Content-Type": "application/json" }, body: JSON.stringify({ scenario: "notion", prompt: "When is launch?" }) });
+  assert.equal(wrongOrigin.status, 403);
+  assert.equal(notionRequest, undefined);
+
+  const cookie = `sid=${"a".repeat(64)}`;
+  const response = await fetch(`${base}/api/assistant/run`, { method: "POST", headers: { Origin: "http://localhost:5173", Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ scenario: "notion", prompt: "When is launch?" }) });
+  assert.equal(response.status, 201);
+  assert.deepEqual(notionRequest, { cookie, origin: "http://localhost:5173" });
+  assert.deepEqual(await response.json(), { job: { id: "J-9", accepted: true } });
 });
 
 test("bad JSON gets a 400", async () => {

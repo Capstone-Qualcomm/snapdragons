@@ -95,6 +95,7 @@ beforeEach(() => {
     if (path === "/api/cluster/state") return Response.json(clusterState);
     const source = path.match(/^\/api\/(\w+)\/connection$/)?.[1] as SourceName | undefined;
     if (source && sourceNames.includes(source)) return Response.json({ [source]: connections[source] });
+    if (path === "/api/notion/connection") return Response.json({ notion: { configured: true, connected: false, enabled: false } });
     if (path === "/api/jira/issues") return jiraIssues();
     if (path === "/api/jira/issues/QT1S-31/transitions") return Response.json({ transitions: [{ id: "41", name: "Done", status: "Done" }] });
     if (path === "/api/slack/messages") return Response.json(lists.slack);
@@ -236,6 +237,14 @@ describe("Today connections", () => {
     openConnections();
     fireEvent.click(screen.getByRole("button", { name: "Turn on GitHub" }));
     await waitFor(() => expect(posts).toContainEqual({ path: "/api/github/connection/enabled", body: { enabled: true } }));
+  });
+
+  it("offers Notion in Connections without adding it to Today", async () => {
+    await openToday();
+    expect(rows()).toHaveLength(4);
+    openConnections();
+    expect(screen.getByRole("link", { name: "Connect Notion" }).getAttribute("href")).toBe("/auth/notion/start");
+    expect(screen.getByText("Search and read pages you share with the integration from the Assistant.")).toBeTruthy();
   });
 
   it("disconnects only after a second, confirming click, and keeps the buttons off until it is answered", async () => {

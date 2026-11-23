@@ -63,7 +63,8 @@ export type Section =
   | { title: string; kind: "table"; columns: string[]; rows: string[][] }
   | { title: string; kind: "list"; items: string[] }
   | { title: string; kind: "text"; body: string }
-  | { title: string; kind: "cards"; cards: Array<{ title: string; subtitle: string; lines: string[] }> };
+  | { title: string; kind: "cards"; cards: Array<{ title: string; subtitle: string; lines: string[] }> }
+  | { title: string; kind: "links"; items: Array<{ title: string; url: string }> };
 export type Result = { headline: string; stats: Array<{ value: string; label: string }>; sections: Section[] };
 
 export type Scenario = {

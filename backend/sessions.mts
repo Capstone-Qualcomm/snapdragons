@@ -22,7 +22,7 @@ const MAX_SESSIONS = 20_000;
 export function hasConnectedSession(sid: string): boolean {
   if (!/^[0-9a-f]{64}$/.test(sid)) return false;
   const dataDir = process.env.DATA_DIR ?? fileURLToPath(new URL("../.data", import.meta.url));
-  for (const source of ["jira", "slack", "github", "outlook", "teams"]) {
+  for (const source of ["jira", "slack", "github", "outlook", "teams", "notion"]) {
     try {
       const saved = JSON.parse(readFileSync(join(dataDir, `${source}-sessions.json`), "utf8")) as Record<string, { connected?: unknown }>;
       if (saved[sid]?.connected === true) return true;

@@ -53,8 +53,9 @@ export function fileStorage(file: string) {
         throw new Error(`Cannot read the saved log ${file}: ${(cause as Error).message}`);
       }
     },
-    // Written to a temporary file and renamed, so a node killed mid-write keeps the old copy. Both are
-    // forced to disk: after a power cut, a rename that got there ahead of the data left a file of zeros.
+    // Written to a temporary file and renamed, so a node killed mid-write keeps the old copy. The file
+    // is forced to disk before the rename: after a power cut, a rename that got there ahead of the data
+    // left a file of zeros. Windows does not allow fsync on directory handles.
     save: (data: Persisted) => {
       const flush = (path: string, flags: string, write?: (fd: number) => void) => {
         const fd = openSync(path, flags);

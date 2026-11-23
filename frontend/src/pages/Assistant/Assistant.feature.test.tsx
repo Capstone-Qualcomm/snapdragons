@@ -15,6 +15,7 @@ const stages = [
 const scenarios = [
   { id: "student", audience: "Student", icon: "mail", title: "Find job replies, book interviews, prep", prompt: "Go through all my emails and see which jobs got back to me.", data: { label: "Running on a demo inbox and calendar", items: ["Demo inbox: 120 emails"] }, stages },
   { id: "engineer", audience: "Engineer", icon: "github", title: "Catch up on Slack, Jira and GitHub", prompt: "Catch me up on everything since yesterday.", data: { label: "Running on demo Slack, Jira and GitHub data", items: [] }, stages: [{ label: "Read Slack, Jira and GitHub", short: "Read all", icon: "slack" }] },
+  { id: "notion", audience: "Anyone", icon: "doc", title: "Ask Notion", prompt: "What does our project plan say about the next release?", data: { label: "Live: pages shared from your Notion workspace", items: ["Find pages by title, read their content, and answer with links to the source pages."] }, stages: [{ label: "Read matching Notion pages", short: "Read pages", icon: "doc" }, { label: "Answer with source links", short: "Answer", icon: "merge" }] },
 ];
 
 const plan = (fields: Record<string, unknown> = {}) => ({ id: "J-4", name: "Job hunt", queuedAt: now - 20_000, doneAt: null, nodes: null, plan: { scenario: "student", prompt: scenarios[0].prompt, pace: 1, stage: 1, stages, result: null, ...fields } });
@@ -55,6 +56,7 @@ function mock(state: unknown) {
     if (path.endsWith("/api/assistant/scenarios")) return Response.json({ scenarios });
     const source = path.match(/\/api\/(jira|slack|github)\/connection$/)?.[1];
     if (source) return Response.json({ [source]: { configured: false, connected: false, enabled: false } });
+    if (path.endsWith("/api/notion/connection")) return Response.json({ notion: { configured: true, connected: false, enabled: false } });
     return Response.json(state);
   }));
   window.history.replaceState({}, "", "/assistant");
@@ -76,6 +78,7 @@ describe("Assistant: ask", () => {
     expect(within(screen.getByRole("navigation", { name: "Pages" })).getByRole("link", { name: "Assistant" }).getAttribute("aria-current")).toBe("page");
     expect((screen.getByRole("textbox", { name: "Job" }) as HTMLTextAreaElement).value).toBe("");
     expect(screen.getAllByText("Demo data")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: /Ask Notion/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Student/ }));
     expect(screen.getByText("Running on a demo inbox and calendar")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Engineer/ }));
@@ -136,7 +139,16 @@ describe("Assistant: ask", () => {
     expect(JSON.parse(posts[1].body)).toMatchObject({ scenario: "mywork", prompt: "What do I need to do today?", items: [] });
   });
 
-  it("locks the composer after Run while the server answers", async () => {
+  it("runs the dedicated Ask Notion job with its question and selected pace", async () => {
+    const posts = mock(cluster({ jobs: [], tasks: [] }));
+    fireEvent.click(await screen.findByRole("button", { name: /Ask Notion/ }));
+    fireEvent.change(screen.getByLabelText("Speed"), { target: { value: "fast" } });
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
+    await act(async () => {});
+    expect(posts).toEqual([["/api/assistant/run", { scenario: "notion", prompt: scenarios[2].prompt, pace: "fast" }]]);
+  });
+
+  it("locks the composer after Run and sends one job while the server answers", async () => {
     const posts: unknown[] = [];
     let answer = () => {};
     vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
@@ -316,6 +328,7 @@ describe("Assistant: report", () => {
     sections: [
       { title: "Companies that replied", kind: "table", columns: ["Company", "Reply", "Suggested interview time"], rows: [["Northwind Robotics", "Interview request", "Mon Oct 26, 1:30 PM–2:15 PM"]] },
       { title: "Prep briefs", kind: "cards", cards: [{ title: "Northwind Robotics", subtitle: "Autonomous forklifts", lines: ["Know the product: Pathfinder.", "Ask about the news."] }] },
+      { title: "Sources", kind: "links", items: [{ title: "Release plan", url: "https://www.notion.so/release" }] },
     ],
   };
 
@@ -343,6 +356,8 @@ describe("Assistant: report", () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 600)); });
     fireEvent.click(nav.getByRole("link", { name: "Assistant" }));
     expect(await screen.findByText("6 companies replied and 4 want an interview.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Sources" }));
+    expect(screen.getByRole("link", { name: "Release plan" }).getAttribute("href")).toBe("https://www.notion.so/release");
   });
 
   it("drops a failed Stop's error when going back to ask for another job", async () => {

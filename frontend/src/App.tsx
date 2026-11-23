@@ -8,6 +8,7 @@ import { AssistantPage } from "./pages/Assistant/Assistant";
 import { useCluster } from "./pages/Cluster/cluster";
 import { ClusterPage } from "./pages/Cluster/ClusterPage";
 import { ConnectionsPage } from "./pages/Connections/ConnectionsPage";
+import { useNotionConnection } from "./pages/Connections/notion";
 import { useSource } from "./pages/Today/sources";
 import { TodayPage } from "./pages/Today/TodayPage";
 
@@ -39,6 +40,7 @@ function App() {
   const github = useSource("github");
   const outlook = useSource("outlook");
   const teams = useSource("teams");
+  const notion = useNotionConnection();
   const sources = [slack, jira, github, outlook, teams];
   // What each source loaded, items marked done on Today included.
   const counts = Object.fromEntries(sources.map((source) => [source.name, source.items.length]));
@@ -116,7 +118,7 @@ function App() {
         {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} prompt={assistantPrompt} setPrompt={setAssistantPrompt} sources={sources} /></PageBoundary>}
         <PageBoundary active={page === "today"}><TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} /></PageBoundary>
         {page === "cluster" && <PageBoundary><ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} /></PageBoundary>}
-        {page === "connections" && <PageBoundary><ConnectionsPage sources={sources} counts={counts} /></PageBoundary>}
+        {page === "connections" && <PageBoundary><ConnectionsPage sources={sources} counts={counts} notion={notion} /></PageBoundary>}
       </main>
     </div>
   );

@@ -13,7 +13,7 @@ function testQueue() {
     queue,
     tick: (ms: number) => (at += ms),
     job: (steps: string[], then?: string) => run("job", { name: "Morning refresh", steps, then }) as Job,
-    plan: (scenario: string) => run("plan", { scenario, prompt: "Go" }) as Job,
+    plan: (scenario: string, input: unknown = null) => run("plan", { scenario, prompt: "Go", input }) as Job,
     claim: (worker: string) => (run("claim", { worker }) as ClaimResult).task?.id ?? null,
     claimed: (worker: string) => (run("claim", { worker }) as ClaimResult),
     progress: (worker: string, task: string, progress: number) => run("progress", { worker, task, progress }) as boolean,
@@ -31,6 +31,16 @@ test("each step is claimed by one worker only", () => {
   assert.equal(q.claim("Q-01"), "T-1");
   assert.equal(q.claim("Q-02"), "T-2");
   assert.equal(q.claim("Q-03"), null);
+});
+
+test("a Notion plan carries fetched pages into worker tasks but never includes credentials", () => {
+  const q = testQueue();
+  const page = { id: "p1", title: "Release plan", url: "https://www.notion.so/release", text: "Launch is Friday", editedAt: null };
+  q.plan("notion", { pages: [page] });
+  const task = q.queue.state().tasks[0] as Task;
+  assert.equal(task.scenario, "notion");
+  assert.deepEqual((task.params as { page: typeof page }).page, page);
+  assert.equal(JSON.stringify(q.queue.state()).includes("notion-access-token"), false);
 });
 
 test("only the claiming worker can complete a step", () => {

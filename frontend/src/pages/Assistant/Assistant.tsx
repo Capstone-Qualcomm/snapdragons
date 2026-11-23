@@ -448,6 +448,12 @@ function SectionView({ section }: { section: Section }) {
       return <ul className="result-list">{section.items.map((item) => <li key={item}>{item}</li>)}</ul>;
     case "text":
       return <p className="result-text">{section.body}</p>;
+    case "links":
+      return (
+        <ul className="result-list source-links">
+          {section.items.map((item) => <li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></li>)}
+        </ul>
+      );
     case "cards":
       return (
         <div className="brief-grid">

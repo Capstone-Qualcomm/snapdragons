@@ -73,6 +73,7 @@ type ServerOptions = {
   nodePort?: number;
   dataDir?: string;
   auto?: boolean;
+  notionBackendUrl?: string;
   // Passed to every node: WORK_MS, LEASE_MS and the RAFT_* timings.
   nodeEnv?: Record<string, string>;
   // Where each source backend is, by name: http://127.0.0.1:<its port> unless given.
@@ -113,6 +114,7 @@ export function createClusterServer(options: ServerOptions = {}) {
   const nodeFile = fileURLToPath(new URL("./node.ts", import.meta.url));
   const boards = options.boards ?? process.env.CLUSTER_BOARDS?.split(",").filter(Boolean);
   const appUrl = (options.appUrl ?? process.env.APP_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  const notionBackendUrl = (options.notionBackendUrl ?? process.env.NOTION_BACKEND_URL ?? `http://127.0.0.1:${process.env.NOTION_PORT ?? "3007"}`).replace(/\/$/, "");
   // Every board name seen so far: the ones given, then each member any board reports.
   const known = new Set(boards ?? NODE_IDS);
   const ids = () => [...known];
@@ -704,6 +706,7 @@ export function createClusterServer(options: ServerOptions = {}) {
         const pace = PACES[String(body.pace)] ?? 1;
         // A question about the person's own apps brings their open items for the boards to read: only from a browser that connected one.
         let context: unknown[] | undefined;
+        let input = null;
         let asker: string | undefined;
         if (scenario.id === "mywork") {
           const sid = req.headers.cookie?.match(/(?:^|;\s*)sid=([0-9a-f]{64})/)?.[1];
@@ -719,7 +722,26 @@ export function createClusterServer(options: ServerOptions = {}) {
             .map((item) => ({ source: String(item.source), id: String(item.id), title: String(item.title ?? "").slice(0, 150), context: String(item.context ?? "").slice(0, 120), details: String(item.details ?? "").slice(0, 200) }));
           if (!context.length) return send(res, 400, { error: "Nothing open in your connected apps, so there is nothing to answer from. Connect a source in Today, or check that it has items." });
         }
-        const job = (await clusterRequest({ type: "plan", scenario: scenario.id, prompt, pace, context })) as { id: string };
+        if (scenario.id === "notion") {
+          if (req.headers.origin !== new URL(appUrl).origin) return send(res, 403, { error: "This request must come from the application." });
+          const cookie = req.headers.cookie;
+          if (!/(?:^|;\s*)sid=[0-9a-f]{64}(?:;|$)/.test(cookie ?? "")) return send(res, 401, { error: "Connect Notion before asking it a question." });
+          let response: Response;
+          try {
+            response = await fetch(`${notionBackendUrl}/api/notion/search`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Origin: new URL(appUrl).origin, Cookie: cookie! },
+              body: JSON.stringify({ query: prompt }),
+              signal: AbortSignal.timeout(30_000),
+            });
+          } catch {
+            return send(res, 502, { error: "The Notion connection service is unavailable. Try again shortly." });
+          }
+          const result = await response.json().catch(() => ({})) as { pages?: unknown; error?: string };
+          if (!response.ok) return send(res, response.status, { error: result.error ?? "Notion could not search pages." });
+          input = { pages: Array.isArray(result.pages) ? result.pages : [] };
+        }
+        const job = (await clusterRequest({ type: "plan", scenario: scenario.id, prompt, pace, context, input })) as { id: string };
         if (asker) {
           owners.set(job.id, asker);
           while (owners.size > 200) owners.delete(owners.keys().next().value!);
