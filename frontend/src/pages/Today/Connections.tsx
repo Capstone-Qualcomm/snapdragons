@@ -17,30 +17,12 @@ export function signInError(title: string, outcome: string): string | undefined 
 // Integrations as cards: what each brings, whether it is
 // connected, and the button that changes that. Nothing sits behind a menu.
 export function ConnectionsPanel({ sources, counts }: { sources: Source<unknown>[]; counts: Record<string, number> }) {
-  const integrations: ConnectionSource[] = [
-    ...sources,
-    {
-      name: "notion",
-      title: "Notion",
-      status: "unconfigured",
-      syncing: false,
-      items: [],
-      error: "",
-      loadedAt: null,
-      account: null,
-      reload: async () => {},
-      setEnabled: async () => {},
-      disconnect: async () => {},
-    },
-  ];
   return (
     <ul className="integrations" aria-label="Connections" id="connections">
-      {integrations.map((source) => <Connection key={source.name} source={source} count={counts[source.name] ?? 0} />)}
+      {sources.map((source) => <Connection key={source.name} source={source} count={counts[source.name] ?? 0} />)}
     </ul>
   );
 }
-
-type ConnectionSource = Omit<Source<unknown>, "name"> & { name: Source["name"] | "notion" };
 
 const states: Record<string, { badge: string; tone: string }> = {
   loading: { badge: "Checking", tone: "" },
@@ -61,7 +43,7 @@ const ABOUT: Record<string, string> = {
 };
 
 // Disconnect asks once more, since connecting again means signing in again.
-function Connection({ source, count }: { source: ConnectionSource; count: number }) {
+function Connection({ source, count }: { source: Source<unknown>; count: number }) {
   const { name, title, status } = source;
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);

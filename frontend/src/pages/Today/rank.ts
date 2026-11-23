@@ -12,7 +12,7 @@ export type Item =
 
 const time = (value: string | null) => (value ? new Date(value).getTime() || 0 : 0);
 
-export function toItems(lists: { [N in Exclude<keyof ItemsOf, "outlook" | "teams">]: ItemsOf[N][] } & { outlook?: ItemsOf["outlook"][]; teams?: ItemsOf["teams"][] }): Item[] {
+export function toItems(lists: { [N in Exclude<keyof ItemsOf, "outlook" | "teams" | "notion">]: ItemsOf[N][] } & { outlook?: ItemsOf["outlook"][]; teams?: ItemsOf["teams"][] }): Item[] {
   return [
     ...lists.slack.map((data): Item => ({ key: `slack:${data.id}`, source: "slack", at: time(data.sentAt), data })),
     ...lists.jira.map((data): Item => ({ key: `jira:${data.key}`, source: "jira", at: time(data.updated), data })),
