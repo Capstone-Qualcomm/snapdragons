@@ -99,8 +99,6 @@
 }
 
 .documents-search > input:disabled { cursor: not-allowed; }
-.documents-search-note { flex: none; color: var(--ink-faint); font-size: 12px; }
-
 .documents-summary {
   min-height: 18px;
   color: var(--ink-faint);

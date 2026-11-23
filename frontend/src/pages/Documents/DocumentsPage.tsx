@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "../../lib/api";
 import { appPath } from "../../lib/urls";
 import { ErrorBanner, SourceLogo, StatusDot } from "../../components/ui";
 import { Icon } from "../../components/Icon";
@@ -8,13 +7,6 @@ import "./Documents.css";
 
 const pageLimit = 20;
 const documentApps = [{ id: "notion", label: "Notion" }] as const;
-
-type SearchState = {
-  query: string;
-  status: "idle" | "loading" | "ready" | "error";
-  pages: NotionPage[];
-  error: string;
-};
 
 function editedAt(value: string) {
   const time = Date.parse(value);
@@ -26,33 +18,8 @@ function editedAt(value: string) {
 export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
   const [query, setQuery] = useState("");
   const [selectedApps, setSelectedApps] = useState<string[] | null>(null);
-  const [search, setSearch] = useState<SearchState>({ query: "", status: "idle", pages: [], error: "" });
   const filterRef = useRef<HTMLDetailsElement>(null);
   const normalizedQuery = query.trim();
-
-  useEffect(() => {
-    if (!normalizedQuery || notion.status !== "ready") {
-      setSearch({ query: normalizedQuery, status: "idle", pages: [], error: "" });
-      return;
-    }
-
-    let active = true;
-    setSearch({ query: normalizedQuery, status: "loading", pages: [], error: "" });
-    const timer = window.setTimeout(() => {
-      void api<{ pages: NotionPage[] }>(`/api/notion/search?q=${encodeURIComponent(normalizedQuery)}`)
-        .then(({ pages }) => {
-          if (active) setSearch({ query: normalizedQuery, status: "ready", pages, error: "" });
-        })
-        .catch((cause) => {
-          if (active) setSearch({ query: normalizedQuery, status: "error", pages: [], error: (cause as Error).message });
-        });
-    }, 250);
-
-    return () => {
-      active = false;
-      window.clearTimeout(timer);
-    };
-  }, [normalizedQuery, notion.status]);
 
   useEffect(() => {
     function closeFilter(event: PointerEvent) {
@@ -72,13 +39,10 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
   }, []);
 
   const searching = Boolean(normalizedQuery);
-  const searchIsCurrent = search.query === normalizedQuery;
-  const loadingSearch = searching && (!searchIsCurrent || search.status === "loading");
-  const searchError = searching && searchIsCurrent && search.status === "error" ? search.error : "";
-  const allDocuments = (searching
-    ? searchIsCurrent && search.status === "ready" ? search.pages : []
-    : notion.items).map((document) => ({ ...document, app: "notion" }));
-  const matchingDocuments = allDocuments.filter((document) => selectedApps === null || selectedApps.includes(document.app));
+  const pattern = searching ? new RegExp(normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") : null;
+  const allDocuments = notion.items.map((document) => ({ ...document, app: "notion" }));
+  const matchingDocuments = allDocuments.filter((document) =>
+    (selectedApps === null || selectedApps.includes(document.app)) && (!pattern || pattern.test(document.title)));
   const documents = matchingDocuments.slice(0, pageLimit);
 
   function toggleApp(app: string) {
@@ -109,13 +73,12 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
         <label className="sr-only" htmlFor="document-search">Search documents</label>
         <input
           id="document-search"
-          type="search"
+          type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search documents"
           disabled={notion.status !== "ready"}
         />
-        {searching && <span className="documents-search-note">Title search</span>}
         <details className="documents-filter" ref={filterRef}>
           <summary className="documents-filter-button" aria-label="Filter documents by app">
             <Icon name="filter" size={16} />
@@ -165,13 +128,9 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
         <div className="documents-state" role="status"><StatusDot tone="busy" /> Loading shared documents…</div>
       )}
       {notion.status === "error" && <ErrorBanner message="Documents couldn’t be loaded." onRetry={() => void notion.reload()} />}
-      {searchError && <ErrorBanner message="Document search failed. Try again." />}
-
       {notion.status === "ready" && (
         <>
-          {loadingSearch ? (
-            <div className="documents-state" role="status"><StatusDot tone="busy" /> Searching document titles…</div>
-          ) : documents.length ? (
+          {documents.length ? (
             <ul className="documents-grid" aria-label="Documents">
               {documents.map((document) => (
                 <li key={document.id}>
@@ -186,7 +145,7 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
                 </li>
               ))}
             </ul>
-          ) : !searchError && (
+          ) : (
             <div className="documents-state">
               {searching ? `No documents found for “${normalizedQuery}”.` : "No documents were returned. Share documents with a connected source, then refresh."}
             </div>
