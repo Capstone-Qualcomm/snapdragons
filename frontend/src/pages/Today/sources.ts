@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import type { JiraIssue } from "./jira";
 
-export type SourceName = "jira" | "slack" | "github" | "outlook" | "teams";
+export type SourceName = "jira" | "slack" | "github" | "outlook" | "teams" | "notion";
 export type SourceStatus = "loading" | "unconfigured" | "disconnected" | "disabled" | "error" | "ready";
 
 export type SlackMessage = {
@@ -44,7 +44,14 @@ export type TeamsMessage = {
   url: string;
 };
 
-export type ItemsOf = { slack: SlackMessage; jira: JiraIssue; github: GitHubIssue; outlook: OutlookMessage; teams: TeamsMessage };
+export type NotionPage = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  url: string;
+};
+
+export type ItemsOf = { slack: SlackMessage; jira: JiraIssue; github: GitHubIssue; outlook: OutlookMessage; teams: TeamsMessage; notion: NotionPage };
 
 type Connection = {
   configured: boolean;
@@ -55,6 +62,7 @@ type Connection = {
   cloudId?: string | null;
   sites?: Array<{ id: string; name: string }>;
   email?: string | null;
+  workspace?: string | null;
 };
 
 export type Source<T> = {
@@ -80,11 +88,11 @@ export type Refresh = { job: string; since: number };
 
 type State<T> = Pick<Source<T>, "status" | "syncing" | "items" | "error" | "loadedAt" | "account">;
 
-export const titles: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub", outlook: "Outlook", teams: "Teams" };
-const lists: Record<SourceName, string> = { jira: "issues", slack: "messages", github: "issues", outlook: "messages", teams: "messages" };
+export const titles: Record<SourceName, string> = { jira: "Jira", slack: "Slack", github: "GitHub", outlook: "Outlook", teams: "Teams", notion: "Notion" };
+const lists: Record<SourceName, string> = { jira: "issues", slack: "messages", github: "issues", outlook: "messages", teams: "messages", notion: "pages" };
 
 const accountOf = (connection: Connection) =>
-  connection.team ?? connection.user ?? connection.email ?? connection.sites?.find((site) => site.id === connection.cloudId)?.name ?? null;
+  connection.team ?? connection.user ?? connection.email ?? connection.workspace ?? connection.sites?.find((site) => site.id === connection.cloudId)?.name ?? null;
 
 // Checks the source's connection, then loads its list from /api/<name>/<list>.
 export function useSource<N extends SourceName>(name: N): Source<ItemsOf[N]> {

@@ -28,6 +28,11 @@
 		uri strip_prefix /snapdragons
 		reverse_proxy localhost:3006
 	}
+	@notion path /snapdragons/api/notion/* /snapdragons/auth/notion/*
+	handle @notion {
+		uri strip_prefix /snapdragons
+		reverse_proxy localhost:3007
+	}
 	@jira path /snapdragons/api/jira/* /snapdragons/auth/jira/*
 	handle @jira {
 		uri strip_prefix /snapdragons

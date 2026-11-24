@@ -8,12 +8,14 @@ import { AssistantPage } from "./pages/Assistant/Assistant";
 import { useCluster } from "./pages/Cluster/cluster";
 import { ClusterPage } from "./pages/Cluster/ClusterPage";
 import { ConnectionsPage } from "./pages/Connections/ConnectionsPage";
+import { DocumentsPage } from "./pages/Documents/DocumentsPage";
 import { useSource } from "./pages/Today/sources";
 import { TodayPage } from "./pages/Today/TodayPage";
 
 const pages = [
   { path: "assistant", label: "Assistant", icon: "sparkle" },
   { path: "today", label: "Today", icon: "today" },
+  { path: "documents", label: "Documents", icon: "doc" },
   { path: "cluster", label: "Cluster", icon: "cluster" },
   { path: "connections", label: "Connections", icon: "plug" },
 ] as const;
@@ -39,9 +41,11 @@ function App() {
   const github = useSource("github");
   const outlook = useSource("outlook");
   const teams = useSource("teams");
+  const notion = useSource("notion");
   const sources = [slack, jira, github, outlook, teams];
+  const connectionSources = [...sources, notion];
   // What each source loaded, items marked done on Today included.
-  const counts = Object.fromEntries(sources.map((source) => [source.name, source.items.length]));
+  const counts = Object.fromEntries(connectionSources.map((source) => [source.name, source.items.length]));
 
   useEffect(() => {
     const sync = () => setPage(pageFromPath(window.location.pathname));
@@ -115,8 +119,9 @@ function App() {
         {/* Each page has its own boundary, so a crash in one leaves the sidebar and the others working. */}
         {page === "assistant" && <PageBoundary><AssistantPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} shown={shownJob} setShown={setShownJob} prompt={assistantPrompt} setPrompt={setAssistantPrompt} sources={sources} /></PageBoundary>}
         <PageBoundary active={page === "today"}><TodayPage sources={sources} cluster={cluster} failed={failed} offset={serverNow() - Date.now()} active={page === "today"} /></PageBoundary>
+        {page === "documents" && <PageBoundary><DocumentsPage notion={notion} /></PageBoundary>}
         {page === "cluster" && <PageBoundary><ClusterPage cluster={cluster} failed={failed} reload={reload} serverNow={serverNow} /></PageBoundary>}
-        {page === "connections" && <PageBoundary><ConnectionsPage sources={sources} counts={counts} /></PageBoundary>}
+        {page === "connections" && <PageBoundary><ConnectionsPage sources={connectionSources} counts={counts} /></PageBoundary>}
       </main>
     </div>
   );

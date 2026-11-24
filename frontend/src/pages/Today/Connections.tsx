@@ -39,6 +39,7 @@ const ABOUT: Record<string, string> = {
   github: "Pull requests waiting on your review and issues assigned to you.",
   outlook: "Unread messages from your Outlook inbox.",
   teams: "Recent direct chats and group chat mentions that need your attention.",
+  notion: "Pages and updates from your Notion workspace.",
 };
 
 // Disconnect asks once more, since connecting again means signing in again.
@@ -53,7 +54,9 @@ function Connection({ source, count }: { source: Source<unknown>; count: number 
     disconnected: ABOUT[name],
     disabled: "Its items are hidden from Today.",
     error: source.error,
-    ready: `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "item" : "items"} on Today`,
+    ready: name === "notion"
+      ? `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "shared page" : "shared pages"}`
+      : `${source.account ? `${source.account} · ` : ""}${count} ${count === 1 ? "item" : "items"} on Today`,
   }[status];
 
   // One request at a time: the buttons stay off until it is answered.

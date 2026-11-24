@@ -12,7 +12,7 @@ export function StatusDot({ tone }: { tone: Tone }) {
   return <span className={`dot tone-${tone}`} aria-hidden="true" />;
 }
 
-export function SourceLogo({ name }: { name: "jira" | "slack" | "github" | "outlook" | "teams" }) {
+export function SourceLogo({ name }: { name: "jira" | "slack" | "github" | "outlook" | "teams" | "notion" }) {
   if (name === "teams") return <Icon name="chat" className="logo logo-teams" />;
   return <img className={`logo logo-${name}`} src={appPath(`${name}-logo.png`)} alt="" />;
 }

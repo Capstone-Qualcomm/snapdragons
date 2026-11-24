@@ -101,6 +101,7 @@ beforeEach(() => {
     if (path === "/api/github/issues") return Response.json(lists.github);
     if (path === "/api/outlook/messages") return Response.json(lists.outlook);
     if (path === "/api/teams/messages") return Response.json(lists.teams);
+    if (path === "/api/notion/pages") return Response.json({ pages: [] });
     return Response.json({ error: "Not found" }, { status: 404 });
   }));
 });
@@ -262,6 +263,7 @@ describe("Today connections", () => {
       github: off,
       outlook: off,
       teams: off,
+      notion: off,
     };
     renderToday();
     const sample = await screen.findByRole("table", { name: "Sample tasks" });
