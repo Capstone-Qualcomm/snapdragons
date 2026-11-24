@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, mkdtempSync, readdirSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -43,10 +43,10 @@ test("with no nodes running the state is empty and there is no orchestrator", as
   assert.equal(state.auto, false);
 });
 
-test("the refresh fetches from every source backend", () => {
-  // Every backend folder with its own server, besides this one, is a source Today loads.
-  const backend = fileURLToPath(new URL("..", import.meta.url));
-  const sources = readdirSync(backend).filter((name) => name !== "cluster" && existsSync(join(backend, name, "server.ts")));
+test("the refresh fetches from every Today list source, not document sources", () => {
+  // Today refreshes sources that expose ranked tasks or messages. Documents such as Notion
+  // are available in Documents and should not be forced into the Today list.
+  const sources = Object.keys(ITEMS);
   const fetched = REFRESH.steps.map((step) => step.split(" ")[1].toLowerCase());
   assert.deepEqual([...fetched].sort(), [...sources].sort());
   // Each step's source sits at the same place, since the boards fetch by it.
