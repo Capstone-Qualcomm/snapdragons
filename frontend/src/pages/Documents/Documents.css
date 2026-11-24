@@ -105,6 +105,16 @@
   font-size: 13px;
 }
 
+.documents-error {
+  display: grid;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.documents-error .error-banner { margin: 0; }
+
 .documents-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

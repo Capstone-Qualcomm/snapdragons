@@ -20,6 +20,7 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
   const [selectedApps, setSelectedApps] = useState<string[] | null>(null);
   const filterRef = useRef<HTMLDetailsElement>(null);
   const normalizedQuery = query.trim();
+  const hasLoadedList = notion.loadedAt !== null;
 
   useEffect(() => {
     function closeFilter(event: PointerEvent) {
@@ -60,7 +61,7 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
           <h1>Documents</h1>
           <p className="lede">Browse documents from connected sources. Search by title to find documents beyond the first 20.</p>
         </div>
-        {notion.status === "ready" && (
+        {(notion.status === "ready" || hasLoadedList) && (
           <button className="button quiet documents-refresh" type="button" disabled={notion.syncing} onClick={() => void notion.reload()}>
             <Icon name="restart" size={15} />
             {notion.syncing ? "Refreshing" : "Refresh documents"}
@@ -77,7 +78,7 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search documents"
-          disabled={notion.status !== "ready"}
+          disabled={notion.status !== "ready" && !hasLoadedList}
         />
         <details className="documents-filter" ref={filterRef}>
           <summary className="documents-filter-button" aria-label="Filter documents by app">
@@ -127,8 +128,24 @@ export function DocumentsPage({ notion }: { notion: Source<NotionPage> }) {
       {notion.status === "loading" && (
         <div className="documents-state" role="status"><StatusDot tone="busy" /> Loading shared documents…</div>
       )}
-      {notion.status === "error" && <ErrorBanner message="Documents couldn’t be loaded." onRetry={() => void notion.reload()} />}
-      {notion.status === "ready" && (
+      {notion.status === "error" && (
+        hasLoadedList ? (
+          <div className="documents-error">
+            <ErrorBanner message={notion.error || "Documents couldn’t be refreshed."} onRetry={() => void notion.reload()} />
+            <span><a href={appPath("auth/notion/start")}>Reconnect Notion</a> or <a href={appPath("connections")} data-page="connections">manage connections</a>.</span>
+          </div>
+        ) : (
+          <div className="documents-state" role="alert">
+            <SourceLogo name="notion" />
+            <strong>Documents couldn’t be loaded.</strong>
+            <span>{notion.error || "Check the Notion connection and try again."}</span>
+            <a className="button" href={appPath("auth/notion/start")}>Reconnect Notion</a>
+            <a href={appPath("connections")} data-page="connections">Manage connections</a>
+            <button className="text-button" type="button" onClick={() => void notion.reload()}>Retry</button>
+          </div>
+        )
+      )}
+      {(notion.status === "ready" || (notion.status === "error" && hasLoadedList)) && (
         <>
           {documents.length ? (
             <ul className="documents-grid" aria-label="Documents">

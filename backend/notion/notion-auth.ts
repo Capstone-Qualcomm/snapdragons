@@ -32,7 +32,7 @@ export function createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, 
   const pendingStates = createPendingStates();
   const configured = Boolean(clientId && clientSecret);
   const returnUrl = (outcome: string) => `${appUrl}/today?notion=${encodeURIComponent(outcome)}`;
-  let refreshInFlight: Promise<string> | null = null;
+  let refreshInFlight: { token: NotionToken; promise: Promise<string> } | null = null;
 
   function start(res: ServerResponse): void {
     if (!configured) {
@@ -120,10 +120,11 @@ export function createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, 
   }
 
   async function refreshAccessToken(): Promise<string> {
-    const refreshToken = notionConnection.token?.refresh_token;
+    const tokenAtStart = notionConnection.token;
+    const refreshToken = tokenAtStart?.refresh_token;
     if (!configured || !refreshToken) throw new Error("Notion authorization expired. Reconnect Notion.");
-    if (!refreshInFlight) {
-      refreshInFlight = (async () => {
+    if (refreshInFlight?.token !== tokenAtStart) {
+      const promise = (async () => {
         const response = await fetchImpl("https://api.notion.com/v1/oauth/token", {
           method: "POST",
           headers: {
@@ -138,16 +139,22 @@ export function createNotionAuth({ clientId, clientSecret, redirectUri, appUrl, 
         if (typeof refreshed.access_token !== "string" || !refreshed.access_token) {
           throw new Error("Notion authorization expired. Reconnect Notion.");
         }
-        notionConnection.token = { ...notionConnection.token, ...refreshed };
+        if (notionConnection.token !== tokenAtStart || !notionConnection.connected) {
+          throw new Error("The Notion connection changed during token refresh. Retry the request.");
+        }
+        notionConnection.token = { ...tokenAtStart, ...refreshed };
         return refreshed.access_token;
       })();
+      refreshInFlight = { token: tokenAtStart, promise };
     }
+    const current = refreshInFlight!;
     try {
-      return await refreshInFlight;
-    } catch {
+      return await current.promise;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("The Notion connection changed")) throw error;
       throw new Error("Notion authorization expired. Reconnect Notion.");
     } finally {
-      refreshInFlight = null;
+      if (refreshInFlight === current) refreshInFlight = null;
     }
   }
 
